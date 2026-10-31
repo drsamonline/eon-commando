@@ -643,3 +643,136 @@ function drawHeart(g, b) {
   circ(g, cx, cy, 9 * pulse, '#ffd0e4');
   circ(g, cx, cy, 4.4 * pulse, '#ffffff');
 }
+
+/* ---- new archetypes ----------------------------------------------------- */
+function drawSniper(g, e) {
+  var P = palFor(e);
+  var flash = e.flash > 0 && (Math.floor(e.flash / 2) % 2 === 0);
+  function C(c) { return flash ? '#ffffff' : c; }
+  var x = Math.round(e.x), y = Math.round(e.y);
+  var f = e.facing >= 0 ? 1 : -1;
+  var s = e.scale || 1;
+  g.save();
+  g.translate(x + 6, y + e.h);
+  g.scale(f * s, s);
+  g.translate(-6, -18);
+  limb(g, 5, 13, 4.4, 17, 2.4, C(P.bodyDark));
+  limb(g, 7, 13, 7.6, 17, 2.4, C(P.bodyDark));
+  rr(g, 2, 5, 8, 9, 2.6, C(P.body));
+  rr(g, 2, 5, 8, 2.2, 1.2, C(P.bodyLit));
+  /* long rifle */
+  limb(g, 7, 9, 17, 8.4, 1.6, C(P.metal));
+  rr(g, 12, 6.6, 4, 1.6, 0.6, C(P.metalLit));
+  rr(g, 9, 7.4, 3, 2.6, 1, C(P.bodyDark));
+  /* scope glint */
+  circ(g, 6, 3.4, 3.2, C(P.metal));
+  rr(g, 2.8, 0.8, 6.4, 3.4, 1.7, C(P.metal));
+  rr(g, 4.6, 2.2, 4, 1.4, 0.7, C(P.eye));
+  g.restore();
+  /* laser sight */
+  if (e.wind > 0) {
+    var sx = x + (f > 0 ? e.w : 0), sy = y + 8;
+    g.globalAlpha = 0.35 + Math.sin(e.wind * 0.6) * 0.25;
+    g.strokeStyle = scheme().hostile;
+    g.lineWidth = 1;
+    g.beginPath();
+    g.moveTo(sx, sy);
+    g.lineTo(Game.player.x + Game.player.w / 2, Game.player.y + Game.player.h / 2);
+    g.stroke();
+    g.globalAlpha = 1;
+  }
+}
+
+function drawSwarm(g, e) {
+  var P = palFor(e);
+  var flash = e.flash > 0 && (Math.floor(e.flash / 2) % 2 === 0);
+  function C(c) { return flash ? '#ffffff' : c; }
+  var x = Math.round(e.x), y = Math.round(e.y);
+  var wob = Math.sin(e.age * 0.3) * 1.2;
+  circ(g, x + 4, y + 4 + wob, 3.6, C(P.body));
+  circ(g, x + 3, y + 3 + wob, 2, C(P.bodyLit));
+  circ(g, x + 5, y + 4 + wob, 1.1, C(P.eye));
+  var w = Math.floor(e.age / 2) % 2 === 0 ? 3 : 1.6;
+  el(g, x + 4, y + 0.4 + wob, w, 0.9, 'rgba(255,255,255,0.5)');
+}
+
+function drawBrute(g, e) {
+  var P = palFor(e);
+  var flash = e.flash > 0 && (Math.floor(e.flash / 2) % 2 === 0);
+  function C(c) { return flash ? '#ffffff' : c; }
+  var x = Math.round(e.x), y = Math.round(e.y);
+  var f = e.facing >= 0 ? 1 : -1;
+  var s = e.scale || 1;
+  var swing = Math.sin(e.walkPhase * Math.PI * 2) * 2;
+  g.save();
+  g.translate(x + 9, y + e.h);
+  g.scale(f * s, s);
+  g.translate(-9, -22);
+  limb(g, 6, 15, 5 - swing * 0.5, 21, 4.4, C(P.bodyDark));
+  limb(g, 11, 15, 12 + swing * 0.5, 21, 4.4, C(P.bodyDark));
+  rr(g, 1.5, 6, 15, 11, 5, C(P.body));
+  rr(g, 1.5, 6, 15, 3, 2, C(P.bodyLit));
+  rr(g, 4, 10, 10, 2, 1, C(P.bodyDark));
+  /* heavy pauldrons */
+  circ(g, 2.5, 8, 3.4, C(P.metal));
+  circ(g, 15.5, 8, 3.4, C(P.metal));
+  /* small head */
+  circ(g, 9, 4, 3.6, C(P.metal));
+  rr(g, 6.4, 2.4, 5.4, 2.2, 1.1, C(P.eye));
+  g.restore();
+}
+
+function drawShielder(g, e) {
+  var P = palFor(e);
+  var flash = e.flash > 0 && (Math.floor(e.flash / 2) % 2 === 0);
+  function C(c) { return flash ? '#ffffff' : c; }
+  var x = Math.round(e.x), y = Math.round(e.y);
+  var f = e.facing >= 0 ? 1 : -1;
+  var s = e.scale || 1;
+  var swing = Math.sin(e.walkPhase * Math.PI * 2) * 1.4;
+  g.save();
+  g.translate(x + 7, y + e.h);
+  g.scale(f * s, s);
+  g.translate(-7, -18);
+  limb(g, 5, 13, 4.4 - swing * 0.3, 17, 2.4, C(P.bodyDark));
+  limb(g, 9, 13, 9.6 + swing * 0.3, 17, 2.4, C(P.bodyDark));
+  rr(g, 3, 5, 8, 9, 2.6, C(P.body));
+  rr(g, 3, 5, 8, 2.2, 1.2, C(P.bodyLit));
+  circ(g, 7, 3.2, 3, C(P.metal));
+  rr(g, 5, 2.4, 4, 1.4, 0.7, C(P.eye));
+  /* the shield */
+  rr(g, 11, 3, 4.5, 14, 2.2, C('#8a93a8'));
+  rr(g, 11.6, 3.6, 1.6, 12.8, 0.8, 'rgba(255,255,255,0.55)');
+  g.restore();
+}
+
+/* ---- effects ------------------------------------------------------------ */
+function drawGrenade(g, n) {
+  var x = Math.round(n.x), y = Math.round(n.y);
+  var blink = n.fuse < 20 && Math.floor(n.fuse / 3) % 2 === 0;
+  circ(g, x, y, 3.4, '#0a0e16');
+  circ(g, x, y, 2.6, blink ? '#ff5c3c' : '#4a5568');
+  px(g, x - 1, y - 4, 2, 2, '#9aa7b4');
+}
+
+function drawMeleeArc(g, p, camX) {
+  var cx = p.x - camX + p.w / 2, cy = p.y + p.h / 2;
+  var t = 1 - (p.meleeT / 9);
+  var r = 10 + t * 12;
+  g.globalAlpha = 0.75 * (1 - t);
+  g.strokeStyle = '#eaf4fc';
+  g.lineWidth = 2.4;
+  g.lineCap = 'round';
+  g.beginPath();
+  var a0 = p.facing > 0 ? -0.9 : Math.PI - 0.9;
+  g.arc(cx, cy, r, a0, a0 + 1.8);
+  g.stroke();
+  g.globalAlpha = 1;
+}
+
+function drawDashGhost(g, gh, camX) {
+  var a = gh.life / gh.max;
+  g.globalAlpha = a * 0.4;
+  rr(g, gh.x - camX, gh.y, gh.w, gh.h, 3, '#4d8fb0');
+  g.globalAlpha = 1;
+}

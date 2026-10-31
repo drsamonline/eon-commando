@@ -427,6 +427,10 @@ function drawWorld(g) {
     else if (e.t === 'drone') drawDrone(g, e);
     else if (e.t === 'turret') drawTurret(g, e);
     else if (e.t === 'jumper') drawJumper(g, e);
+    else if (e.t === 'sniper') drawSniper(g, e);
+    else if (e.t === 'swarm') drawSwarm(g, e);
+    else if (e.t === 'brute') drawBrute(g, e);
+    else if (e.t === 'shielder') drawShielder(g, e);
     g.restore();
   }
 
@@ -446,6 +450,16 @@ function drawWorld(g) {
     g.globalAlpha = 1;
     g.restore();
   }
+
+  /* dash afterimages */
+  for (i = 0; i < Game.ghosts.length; i++) drawDashGhost(g, Game.ghosts[i], camX);
+
+  g.save();
+  g.translate(-camX, 0);
+  for (i = 0; i < Game.grenades.length; i++) drawGrenade(g, Game.grenades[i]);
+  g.restore();
+
+  if (p && p.meleeT > 0) drawMeleeArc(g, p, camX);
 
   drawBullets(g, camX);
   drawParticles(g, camX);
@@ -476,33 +490,48 @@ function drawHeartIcon(g, x, y, full) {
 function drawHUD(g) {
   var p = Game.player;
   var stage = Game.stage;
+  var k = clamp(SET.hudScale || 1, 0.85, 1.3);
 
   /* top bar */
-  var grad = g.createLinearGradient(0, 0, 0, 26);
+  var grad = g.createLinearGradient(0, 0, 0, 26 * k);
   grad.addColorStop(0, 'rgba(3,5,10,0.82)');
   grad.addColorStop(1, 'rgba(3,5,10,0)');
   g.fillStyle = grad;
-  g.fillRect(0, 0, W, 26);
+  g.fillRect(0, 0, W, 26 * k);
 
   var i;
+  /* left cluster */
+  g.save();
+  g.scale(k, k);
   for (i = 0; i < p.maxHp; i++) drawHeartIcon(g, 7 + i * 10, 6, i < p.hp);
-
   drawText(g, 'X' + Math.max(0, Game.lives), 7, 16, 1, '#9fb2c6');
   px(g, 21, 15, 7, 2, '#0b0f18');
   px(g, 22, 15, 5, 4, '#3f6b8c');
   px(g, 23, 17, 3, 1, '#ffb545');
   px(g, 21, 19, 7, 2, '#2c4a63');
+  /* grenade pips */
+  for (i = 0; i < p.maxGrenades; i++) {
+    px(g, 34 + i * 6, 16, 4, 4, i < p.grenades ? '#9ef0ff' : '#20303f');
+  }
+  g.restore();
 
-  /* score */
-  drawText(g, 'SCORE ' + String(Game.score).padStart(7, '0'), W - 7, 6, 1, '#ffffff', 'right', 'rgba(0,0,0,0.7)');
-  drawText(g, 'HI ' + String(Math.max(Game.hiScore, Game.score)).padStart(7, '0'), W - 7, 16, 1, rgba(stage.accent, 0.9), 'right', 'rgba(0,0,0,0.7)');
+  /* right cluster, anchored to the far edge */
+  g.save();
+  g.translate(W, 0);
+  g.scale(k, k);
+  drawText(g, 'SCORE ' + String(Game.score).padStart(7, '0'), -7, 6, 1, '#ffffff', 'right', 'rgba(0,0,0,0.7)');
+  drawText(g, 'HI ' + String(Math.max(Game.hiScore, Game.score)).padStart(7, '0'), -7, 16, 1, rgba(stage.accent, 0.9), 'right', 'rgba(0,0,0,0.7)');
+  g.restore();
 
   /* weapon chip */
   var w = WEAPONS[p.weapon];
+  g.save();
+  g.scale(k, k);
   var chipW = textWidth(w.name, 1) + 14;
-  px(g, 6, H - 18, chipW, 12, 'rgba(3,5,10,0.7)');
-  px(g, 6, H - 18, 2, 12, w.color);
-  drawText(g, w.name, 12, H - 15, 1, w.color);
+  px(g, 6, H / k - 18, chipW, 12, 'rgba(3,5,10,0.7)');
+  px(g, 6, H / k - 18, 2, 12, w.color);
+  drawText(g, w.name, 12, H / k - 15, 1, w.color);
+  g.restore();
 
   /* boss bar */
   var b = Game.boss;
@@ -560,10 +589,16 @@ function drawTitle(g) {
     drawText(g, 'PRESS ENTER  ·  TAP TO START', W / 2, 152, 2, '#54e0ff', 'center', 'rgba(0,0,0,0.8)');
   }
 
-  drawText(g, 'ARROWS / WASD MOVE   SPACE JUMP   Z FIRE   P PAUSE', W / 2, 196, 1, '#7f8fa6', 'center');
-  drawText(g, 'HOLD UP TO AIM UP  ·  DOWN IN AIR TO AIM DOWN', W / 2, 208, 1, '#7f8fa6', 'center');
+  drawText(g, 'ARROWS / WASD MOVE   SPACE JUMP   Z FIRE', W / 2, 190, 1, '#7f8fa6', 'center');
+  drawText(g, 'SHIFT DASH   V MELEE   G GRENADE   O SETTINGS', W / 2, 202, 1, '#7f8fa6', 'center');
+  drawText(g, 'DIFFICULTY ' + DIFFICULTY[clamp(SET.difficulty, 0, 2)].name, W / 2, 216, 1, '#54e0ff', 'center');
   drawText(g, 'HI SCORE ' + String(Game.hiScore).padStart(7, '0'), W / 2, 232, 1, '#ffd257', 'center');
-  drawText(g, 'V1.2  ·  ONE HTML FILE  ·  ZERO DEPENDENCIES', W / 2, 250, 1, '#3f4d61', 'center');
+  var runs = Scores.all().slice(0, 3);
+  for (var li = 0; li < runs.length; li++) {
+    drawText(g, (li + 1) + '. ' + String(runs[li].score).padStart(7, '0') + '  ' + (runs[li].result || ''),
+             W / 2, 242 + li * 9, 1, '#54637a', 'center');
+  }
+  drawText(g, 'V2.0  ·  ONE HTML FILE  ·  ZERO DEPENDENCIES', W / 2, 250, 1, '#3f4d61', 'center');
 }
 
 function drawPause(g) {
@@ -571,6 +606,34 @@ function drawPause(g) {
   drawText(g, 'PAUSED', W / 2, 100, 4, '#54e0ff', 'center', 'rgba(0,0,0,0.8)');
   drawText(g, 'P OR ESC TO RESUME', W / 2, 140, 1, '#cfd8e3', 'center');
   drawText(g, 'M MUTES AUDIO', W / 2, 154, 1, '#7f8fa6', 'center');
+}
+
+function drawSettings(g) {
+  dim(g, 0.82);
+  drawText(g, 'SETTINGS', W / 2, 26, 3, '#54e0ff', 'center', 'rgba(0,0,0,0.85)');
+  var rows = [
+    ['DIFFICULTY', DIFFICULTY[clamp(SET.difficulty, 0, 2)].name],
+    ['COLOUR SCHEME', SCHEMES[clamp(SET.palette, 0, 2)].name],
+    ['REDUCE MOTION', SET.reduceMotion ? 'ON' : 'OFF'],
+    ['FLASH', Math.round(SET.flash * 100) + '%'],
+    ['HUD SIZE', Math.round(SET.hudScale * 100) + '%'],
+    ['MUSIC', Math.round(SET.music * 100) + '%'],
+    ['SOUND FX', Math.round(SET.sfx * 100) + '%'],
+    ['AUTO FIRE', SET.autoFire ? 'ON' : 'OFF']
+  ];
+  var y = 64;
+  for (var i = 0; i < rows.length; i++) {
+    var sel = i === Game.settingsIndex;
+    if (sel) {
+      px(g, 60, y - 4, W - 120, 14, 'rgba(84,224,255,0.14)');
+      drawText(g, '>', 64, y, 1, '#54e0ff');
+    }
+    drawText(g, rows[i][0], 76, y, 1, sel ? '#ffffff' : '#9fb2c6');
+    drawText(g, rows[i][1], W - 76, y, 1, sel ? '#ffd257' : '#7f8fa6', 'right');
+    y += 17;
+  }
+  drawText(g, 'UP / DOWN TO CHOOSE   LEFT / RIGHT TO CHANGE', W / 2, H - 34, 1, '#54637a', 'center');
+  drawText(g, 'P OR ESC TO RESUME', W / 2, H - 22, 1, '#54637a', 'center');
 }
 
 function drawStageClear(g) {
@@ -595,6 +658,11 @@ function drawGameOver(g) {
   drawText(g, 'THE EON ENDURES WITHOUT YOU', W / 2, 126, 1, '#9fb2c6', 'center');
   drawText(g, 'SCORE ' + String(Game.score).padStart(7, '0'), W / 2, 150, 2, '#ffffff', 'center', 'rgba(0,0,0,0.8)');
   drawText(g, 'HI SCORE ' + String(Game.hiScore).padStart(7, '0'), W / 2, 176, 1, '#ffd257', 'center');
+  var board = Scores.all().slice(0, 3);
+  for (var bi = 0; bi < board.length; bi++) {
+    drawText(g, (bi + 1) + '. ' + String(board[bi].score).padStart(7, '0'),
+             W / 2, 190 + bi * 9, 1, '#54637a', 'center');
+  }
   if (Math.floor(Game.stateTimer / 30) % 2 === 0) {
     drawText(g, 'ENTER / TAP TO REDEPLOY', W / 2, 208, 1, '#54e0ff', 'center');
   }
@@ -628,12 +696,12 @@ function buildScanlines() {
 /* ---- master draw ------------------------------------------------------- */
 function Render(g) {
   var shakeX = 0, shakeY = 0;
-  if (Game.shake > 0.2) {
-    shakeX = rnd(-Game.shake, Game.shake);
-    shakeY = rnd(-Game.shake, Game.shake) * 0.7;
+  if (Game.shake > 0.2 && !SET.reduceMotion) {
+    shakeX = RNG.fr(-Game.shake, Game.shake);
+    shakeY = RNG.fr(-Game.shake, Game.shake) * 0.7;
   }
 
-  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
   g.clearRect(0, 0, W, H);
 
   if (Game.state === 'title') {
@@ -646,19 +714,20 @@ function Render(g) {
     drawHUD(g);
 
     if (Game.state === 'paused') drawPause(g);
+    else if (Game.state === 'settings') drawSettings(g);
     else if (Game.state === 'stageclear') drawStageClear(g);
     else if (Game.state === 'gameover') drawGameOver(g);
     else if (Game.state === 'victory') drawVictory(g);
   }
 
-  /* hit flash */
-  if (Game.flash > 0.01) {
-    g.fillStyle = 'rgba(255,255,255,' + (Game.flash * 0.5) + ')';
+  /* hit flash, scaled by the photosensitivity setting */
+  if (Game.flash > 0.01 && !SET.reduceMotion && SET.flash > 0) {
+    g.fillStyle = 'rgba(255,255,255,' + (Game.flash * 0.5 * SET.flash) + ')';
     g.fillRect(0, 0, W, H);
   }
 
   /* scanlines */
-  if (Scan.canvas) {
+  if (Scan.canvas && !SET.reduceMotion) {
     g.globalAlpha = 0.5;
     g.drawImage(Scan.canvas, 0, 0);
     g.globalAlpha = 1;

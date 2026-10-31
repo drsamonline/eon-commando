@@ -18,13 +18,19 @@ var Input = {
     ArrowDown: 'down', KeyS: 'down',
     Space: 'jump', KeyX: 'jump', KeyK: 'jump',
     KeyZ: 'fire', KeyJ: 'fire', ControlLeft: 'fire', ControlRight: 'fire',
+    ShiftLeft: 'dash', ShiftRight: 'dash', KeyL: 'dash',
+    KeyV: 'melee', KeyC: 'melee',
+    KeyG: 'grenade', KeyB: 'grenade',
+    KeyF: 'fullscreen',
     Enter: 'start', NumpadEnter: 'start',
     KeyP: 'pause', Escape: 'pause',
     KeyM: 'mute',
-    KeyR: 'restart'
+    KeyR: 'restart',
+    KeyO: 'settings'
   },
 
-  ACTIONS: ['left', 'right', 'up', 'down', 'jump', 'fire', 'start', 'pause', 'mute', 'restart'],
+  ACTIONS: ['left', 'right', 'up', 'down', 'jump', 'fire', 'dash', 'melee', 'grenade',
+            'start', 'pause', 'mute', 'restart', 'fullscreen', 'settings'],
 
   init: function () {
     var self = this;
@@ -142,15 +148,18 @@ function fitCanvas() {
 
   /* logical width follows the aspect ratio; portrait keeps the 16:9 floor */
   var w = viewWidthFor(vw, vh);
-  if (w !== W || cv.width !== W) {
+  DPR = clamp(window.devicePixelRatio || 1, 1, 2);
+  var wantW = Math.round(w * DPR), wantH = Math.round(H * DPR);
+  if (w !== W || cv.width !== wantW || cv.height !== wantH) {
     W = w;
-    cv.width = W;
-    cv.height = H;
+    cv.width = wantW;
+    cv.height = wantH;
     var g2 = cv.getContext('2d');
     g2.imageSmoothingEnabled = false;
     if (typeof Game !== 'undefined' && Game.stage) {
       Game.camX = clamp(Game.camX, 0, Math.max(0, Game.stage.length - W));
     }
+    if (typeof buildScanlines === 'function') buildScanlines();
   }
 
   if (PARAMS.shot) {

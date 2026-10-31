@@ -4,6 +4,7 @@
    =========================================================================== */
 'use strict';
 
+var DPR = 1;                       // device pixel ratio, capped at 2
 var W = 480, H = 270;              // logical viewport — W widens with the window
 var W_MIN = 480, W_MAX = 640;      // 16:9 floor, 21:9 ceiling (desktop range)
 var ARENA_W = 480;                 // boss arenas keep a fixed 16:9 footprint
@@ -75,3 +76,99 @@ var PARAMS = (function () {
   }
   return out;
 })();
+
+/* ---- seeded randomness ---------------------------------------------------
+   Two streams: `sim` drives gameplay and must be reproducible (replays,
+   daily seeds, future LAN), `fx` drives cosmetics and may vary freely.       */
+var RNG = {
+  sim: null, fx: null,
+  seed: function (s) {
+    s = (s >>> 0) || 1;
+    this.sim = mulberry32(s);
+    this.fx = mulberry32((Math.imul(s, 2654435761) >>> 0) || 7);
+  },
+  s: function () { return this.sim(); },
+  sr: function (a, b) { return a + this.sim() * (b - a); },
+  si: function (a, b) { return Math.floor(a + this.sim() * (b - a + 1)); },
+  sPick: function (arr) { return arr[Math.floor(this.sim() * arr.length)]; },
+  sChance: function (p) { return this.sim() < p; },
+  f: function () { return this.fx(); },
+  fr: function (a, b) { return a + this.fx() * (b - a); },
+  fi: function (a, b) { return Math.floor(a + this.fx() * (b - a + 1)); }
+};
+RNG.seed(Date.now() & 0x7fffffff);
+
+/* ---- settings ----------------------------------------------------------- */
+var SETTINGS_DEFAULTS = {
+  difficulty: 1,     /* 0 recruit, 1 commando, 2 eon */
+  palette: 0,        /* 0 default, 1 deuteranopia, 2 high contrast */
+  reduceMotion: 0,
+  flash: 1,          /* 0..1 flash intensity */
+  hudScale: 1,       /* 0.85..1.3 */
+  music: 1,
+  sfx: 1,
+  muted: 0,
+  autoFire: 0
+};
+
+var SET = (function () {
+  var d = {}, k, saved = Store.get('settings', null);
+  for (k in SETTINGS_DEFAULTS) d[k] = SETTINGS_DEFAULTS[k];
+  if (saved && typeof saved === 'object') {
+    for (k in SETTINGS_DEFAULTS) if (saved[k] !== undefined) d[k] = saved[k];
+  }
+  return d;
+})();
+
+function saveSettings() { Store.set('settings', SET); }
+
+/* ---- difficulty --------------------------------------------------------- */
+var DIFFICULTY = [
+  { name: 'RECRUIT',  hp: 6, lives: 5, dmgTaken: 0.5, enemyHp: 0.8, fireRate: 1.25, drop: 1.3 },
+  { name: 'COMMANDO', hp: 4, lives: 3, dmgTaken: 1.0, enemyHp: 1.0, fireRate: 1.0,  drop: 1.0 },
+  { name: 'EON',      hp: 2, lives: 1, dmgTaken: 1.5, enemyHp: 1.2, fireRate: 0.8,  drop: 0.7 }
+];
+function diff() { return DIFFICULTY[clamp(SET.difficulty, 0, 2)]; }
+
+/* ---- colour schemes (accessibility) ------------------------------------- */
+var SCHEMES = [
+  { name: 'DEFAULT',      hostile: '#ff4d6d', hostileGlow: '#ffd0d8', elite: '#ffe08a', heal: '#54ffa8', gold: '#ffd257' },
+  { name: 'DEUTERANOPIA', hostile: '#ff9d00', hostileGlow: '#ffe0a0', elite: '#ffffff', heal: '#5ad4ff', gold: '#ffffff' },
+  { name: 'HIGH CONTRAST',hostile: '#ff0000', hostileGlow: '#ff9090', elite: '#ffff00', heal: '#00ff00', gold: '#ffffff' }
+];
+function scheme() { return SCHEMES[clamp(SET.palette, 0, 2)]; }
+
+/* ---- local leaderboard -------------------------------------------------- */
+var Scores = {
+  key: 'scores',
+  all: function () {
+    var a = Store.get(this.key, []);
+    return Array.isArray(a) ? a : [];
+  },
+  add: function (entry) {
+    var a = this.all();
+    a.push(entry);
+    a.sort(function (x, y) { return y.score - x.score; });
+    a = a.slice(0, 5);
+    Store.set(this.key, a);
+    return a;
+  },
+  best: function () {
+    var a = this.all();
+    return a.length ? a[0].score : 0;
+  }
+};
+
+/* ---- lifetime stats ----------------------------------------------------- */
+var Stats = {
+  get: function () {
+    var s = Store.get('stats', null);
+    return s && typeof s === 'object' ? s : { runs: 0, kills: 0, deaths: 0, best: 0, time: 0 };
+  },
+  bump: function (field, by) {
+    var s = this.get();
+    s[field] = (s[field] || 0) + (by === undefined ? 1 : by);
+    Store.set('stats', s);
+    return s;
+  }
+};

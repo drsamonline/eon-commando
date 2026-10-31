@@ -9,6 +9,8 @@
 <meta property="og:title" content="EON COMMANDO">
 <meta property="og:description" content="A retro run-and-gun platformer in one self-contained HTML file.">
 <meta property="og:type" content="website">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%2305070d'/%3E%3Cpath d='M8 2l5 4v4l-5 4-5-4V6z' fill='%23ffb545'/%3E%3Crect x='6' y='7' width='4' height='2' fill='%2305070d'/%3E%3C/svg%3E">
 <style>
   :root{
@@ -50,7 +52,14 @@
   #padL [data-k="left"]{grid-area:2/1}
   #padL [data-k="down"]{grid-area:2/2}
   #padL [data-k="right"]{grid-area:2/3}
-  #padR{right:max(14px,env(safe-area-inset-right)); grid-template-columns:repeat(2,62px); grid-template-rows:62px}
+  #padR{right:max(14px,env(safe-area-inset-right)); grid-template-columns:repeat(3,54px); grid-template-rows:54px 62px;
+        justify-items:end; align-items:end}
+  #padR [data-k="fire"]{grid-area:2/2}
+  #padR [data-k="jump"]{grid-area:2/3}
+  #padR [data-k="melee"]{grid-area:1/1}
+  #padR [data-k="dash"]{grid-area:1/2}
+  #padR [data-k="grenade"]{grid-area:1/3}
+  #padR button.sm{font-size:12px; opacity:.82}
   .pad button{
     width:100%; height:100%; padding:0; color:#cfd8e3; font:16px ui-monospace,monospace;
     background:rgba(19,28,40,.82); border:1px solid #26394f; border-radius:14px;
@@ -93,12 +102,15 @@
     <button data-k="right" aria-label="Move right">▶</button>
   </div>
   <div class="pad" id="padR">
+    <button data-k="grenade" class="sm" aria-label="Grenade">G</button>
+    <button data-k="dash" class="sm" aria-label="Dash">&#187;</button>
+    <button data-k="melee" class="sm" aria-label="Melee">M</button>
     <button data-k="fire" aria-label="Fire">B</button>
     <button data-k="jump" aria-label="Jump">A</button>
   </div>
 </div>
 <button id="btnPause" aria-label="Pause">❙❙</button>
-<div id="hint">ARROWS / WASD move &middot; SPACE jump &middot; Z fire &middot; P pause &middot; M mute</div>
+<div id="hint">ARROWS / WASD move &middot; SPACE jump &middot; Z fire &middot; SHIFT dash &middot; V melee &middot; G grenade &middot; P pause</div>
 <div id="rotate">&#8635; ROTATE FOR A BIGGER VIEW</div>
 
 <script>

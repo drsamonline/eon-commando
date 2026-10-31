@@ -35,9 +35,17 @@ var Snd = {
     }
   },
 
+  applyVolumes: function () {
+    if (!this.ctx) return;
+    var m = this.muted ? 0 : 0.55;
+    this.master.gain.value = m;
+    if (this.musicBus) this.musicBus.gain.value = 0.42 * clamp(SET.music, 0, 1);
+    if (this.sfxBus) this.sfxBus.gain.value = 0.85 * clamp(SET.sfx, 0, 1);
+  },
+
   setMuted: function (m) {
     this.muted = !!m;
-    if (this.master) this.master.gain.value = m ? 0 : 0.55;
+    this.applyVolumes();
   },
 
   /* ---- primitives -------------------------------------------------------- */
@@ -172,6 +180,21 @@ var Snd = {
       case 'bossWarn':
         B({ freq: 180, dur: 0.25, type: 'sawtooth', vol: 0.2 });
         B({ freq: 180, dur: 0.25, type: 'sawtooth', vol: 0.2, delay: 0.35 });
+        break;
+      case 'dash':
+        N({ freq: 900, sweep: 0.25, dur: 0.18, vol: 0.12, filter: 'bandpass', q: 1.2 });
+        B({ freq: 420, slide: 1.6, dur: 0.12, type: 'triangle', vol: 0.08 });
+        break;
+      case 'melee':
+        N({ freq: 1400, sweep: 0.35, dur: 0.1, vol: 0.16, filter: 'bandpass', q: 2 });
+        B({ freq: 260, slide: 0.5, dur: 0.08, type: 'sawtooth', vol: 0.09 });
+        break;
+      case 'throw':
+        B({ freq: 300, slide: 1.9, dur: 0.12, type: 'triangle', vol: 0.1 });
+        break;
+      case 'block':
+        N({ freq: 2600, dur: 0.06, vol: 0.14, filter: 'highpass' });
+        B({ freq: 1200, slide: 0.6, dur: 0.05, type: 'square', vol: 0.06 });
         break;
       case 'bossHit':
         N({ freq: 500, sweep: 0.5, dur: 0.12, vol: 0.18, filter: 'bandpass', q: 1.5 });

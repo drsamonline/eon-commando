@@ -18,7 +18,11 @@ var ENEMIES = {
   runner: { w: 14, h: 15, hp: 2, score: 150, gravity: true,  speed: 1.75, shootEvery: 0,   bulletSpeed: 0,   drop: 0.10 },
   drone:  { w: 16, h: 10, hp: 2, score: 200, gravity: false, speed: 0.95, shootEvery: 96,  bulletSpeed: 2.2, drop: 0.18 },
   turret: { w: 16, h: 14, hp: 5, score: 250, gravity: true,  speed: 0,    shootEvery: 92,  bulletSpeed: 2.7, drop: 0.25 },
-  jumper: { w: 14, h: 12, hp: 3, score: 200, gravity: true,  speed: 0.85, shootEvery: 130, bulletSpeed: 2.0, drop: 0.15 }
+  jumper: { w: 14, h: 12, hp: 3, score: 200, gravity: true,  speed: 0.85, shootEvery: 130, bulletSpeed: 2.0, drop: 0.15 },
+  sniper: { w: 12, h: 18, hp: 2, score: 300, gravity: true,  speed: 0,    shootEvery: 165, bulletSpeed: 4.8, drop: 0.22 },
+  swarm:  { w: 8,  h: 8,  hp: 1, score: 80,  gravity: false, speed: 1.7,  shootEvery: 0,   bulletSpeed: 0,   drop: 0.05 },
+  brute:  { w: 18, h: 22, hp: 9, score: 400, gravity: true,  speed: 0.95, shootEvery: 0,   bulletSpeed: 0,   drop: 0.4 },
+  shielder:{ w: 14, h: 18, hp: 4, score: 300, gravity: true, speed: 0.5,  shootEvery: 150, bulletSpeed: 2.4, drop: 0.28 }
 };
 
 var BOSSES = {
@@ -77,7 +81,8 @@ var STAGES = [
       onGround('grunt', 1220), at('jumper', 1290, 178 - 12), onGround('runner', 1420),
       at('drone', 1520, 76), onGround('grunt', 1700), onGround('turret', 1980),
       at('grunt', 1780, 148 - 18), onGround('runner', 2050), at('drone', 2140, 100),
-      onGround('grunt', 2260), at('turret', 2320, 138 - 14)
+      onGround('grunt', 2260), at('turret', 2320, 138 - 14),
+      onGround('sniper', 1640), onGround('shielder', 1860), at('swarm', 1080, 120)
     ],
     pickups: [
       { kind: 'weapon', w: 'spread', x: 300, y: 150 },
@@ -129,7 +134,8 @@ var STAGES = [
       onGround('grunt', 1700), at('jumper', 1720, 132 - 12),
       onGround('turret', 1980), onGround('runner', 2080),
       at('drone', 2200, 96), onGround('grunt', 2320), at('grunt', 2320, 138 - 18),
-      onGround('runner', 2450), at('turret', 2470, 172 - 14)
+      onGround('runner', 2450), at('turret', 2470, 172 - 14),
+      onGround('sniper', 1760), onGround('brute', 2040), at('swarm', 1180, 110)
     ],
     pickups: [
       { kind: 'weapon', w: 'laser', x: 210, y: 148 },
@@ -183,7 +189,8 @@ var STAGES = [
       onGround('grunt', 1560), at('grunt', 1610, 102 - 18),
       onGround('turret', 1800), onGround('runner', 1880),
       at('drone', 1960, 88), onGround('grunt', 2050), onGround('jumper', 2150),
-      at('drone', 2260, 100), onGround('runner', 2340), at('turret', 2320, 186 - 14)
+      at('drone', 2260, 100), onGround('runner', 2340), at('turret', 2320, 186 - 14),
+      onGround('shielder', 1500), onGround('brute', 1750), onGround('sniper', 2100), at('swarm', 960, 100)
     ],
     pickups: [
       { kind: 'weapon', w: 'spread', x: 220, y: 146 },

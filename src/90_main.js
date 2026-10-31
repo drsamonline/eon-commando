@@ -43,6 +43,11 @@ function boot() {
 
   window.__eon = Game;              // test hook
 
+  /* PWA: only over http(s), never from file:// */
+  if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  }
+
   if (PARAMS.demo) runDemo(parseInt(PARAMS.demo, 10) || 240);
 
   _last = performance.now();
@@ -60,6 +65,7 @@ function loop(now) {
   var steps = 0;
   while (_acc >= STEP && steps < 5) {
     Input.frame();
+    if (Input.pressed('fullscreen')) toggleFullscreen();
     Game.update();
     _acc -= STEP;
     steps++;
@@ -67,6 +73,35 @@ function loop(now) {
 
   Render(ctx);
   requestAnimationFrame(loop);
+}
+
+/* ---- fullscreen + wake lock -------------------------------------------- */
+function toggleFullscreen() {
+  try {
+    if (!document.fullscreenElement) {
+      var el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    } else if (document.exitFullscreen) {
+      document.exitFullscreen();
+    }
+  } catch (e) {}
+}
+
+var _wakeLock = null;
+function keepAwake(on) {
+  if (!('wakeLock' in navigator)) return;
+  try {
+    if (on && !_wakeLock) {
+      navigator.wakeLock.request('screen').then(function (lock) {
+        _wakeLock = lock;
+        lock.addEventListener('release', function () { _wakeLock = null; });
+      }).catch(function () {});
+    } else if (!on && _wakeLock) {
+      _wakeLock.release().catch(function () {});
+      _wakeLock = null;
+    }
+  } catch (e) {}
 }
 
 /* ---- deterministic demo: used for screenshots and smoke tests ----------- */
@@ -104,6 +139,8 @@ function runDemo(n) {
   }
   Input.touch = {};
   Game.stateTimer = Math.max(Game.stateTimer, 0);
+  if (PARAMS.pose === 'settings') { Game.state = 'settings'; Game.settingsIndex = 0; }
+  if (PARAMS.pose === 'leaderboard') { Game.score = 24500; Game.recordRun('EON SECURED'); }
   if (Game.boss) Game.boss.flash = 0;
   if (Game.player) { Game.player.dead = false; Game.player.hurtFlash = 0; Game.player.invuln = 0; }
   window.__freeze = true;

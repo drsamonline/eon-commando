@@ -95,6 +95,9 @@ function makePlayer(x, y) {
     invuln: 90, hurtFlash: 0,
     coyote: 0, jumpBuffer: 0, jumpHeld: false,
     weapon: 'rifle', cd: 0,
+    dashT: 0, dashCd: 0, dashDir: 1,
+    meleeT: 0, meleeCd: 0,
+    grenades: 3, maxGrenades: 3,
     dead: false, deadTimer: 0,
     spawnX: x, spawnY: y
   };
@@ -160,6 +163,58 @@ function playerUpdate(p) {
   }
   if (p.onGround) p.jumpHeld = false;
 
+  /* dash — short, invulnerable, horizontal */
+  if (p.dashCd > 0) p.dashCd--;
+  if (Input.pressed('dash') && p.dashCd <= 0 && !p.ducking) {
+    p.dashT = 10;
+    p.dashCd = 42;
+    p.dashDir = p.facing;
+    p.vy = 0;
+    Snd.sfx('dash');
+    Game.shake = Math.max(Game.shake, 2);
+  }
+  if (p.dashT > 0) {
+    p.dashT--;
+    p.vx = p.dashDir * 6.4;
+    p.vy = Math.min(p.vy, 0.3);
+    if (p.dashT % 2 === 0) {
+      Game.ghosts.push({ x: p.x, y: p.y, w: p.w, h: p.h, life: 10, max: 10 });
+    }
+  }
+
+  /* melee — a short arc that solves "enemy on top of me" */
+  if (p.meleeCd > 0) p.meleeCd--;
+  if (Input.pressed('melee') && p.meleeCd <= 0) {
+    p.meleeT = 9;
+    p.meleeCd = 26;
+    Snd.sfx('melee');
+    var reach = 19;
+    var box = {
+      x: p.facing > 0 ? p.x + p.w - 2 : p.x - reach + 2,
+      y: p.y + 3, w: reach, h: p.h - 6
+    };
+    var struck = false, i;
+    for (i = 0; i < Game.enemies.length; i++) {
+      var en = Game.enemies[i];
+      if (!en.dead && aabb(box, en)) { damageEnemy(en, 3, p.facing * 2); struck = true; }
+    }
+    if (Game.boss && !Game.boss.dead && aabb(box, Game.boss)) {
+      damageBoss(Game.boss, 4); struck = true;
+    }
+    if (struck) {
+      Game.hitStop = 3;
+      Game.shake = Math.max(Game.shake, 3);
+    }
+  }
+  if (p.meleeT > 0) p.meleeT--;
+
+  /* grenades */
+  if (Input.pressed('grenade') && p.grenades > 0) {
+    p.grenades--;
+    spawnGrenade(p);
+    Snd.sfx('throw');
+  }
+
   /* gravity */
   p.vy = Math.min(p.vy + PHYS.grav, PHYS.maxFall);
 
@@ -220,7 +275,7 @@ function fireWeapon(p) {
   for (var i = 0; i < w.shots; i++) {
     var a = p.aimAngle;
     if (w.shots > 1) a += (i - (w.shots - 1) / 2) * w.spread;
-    a += rnd(-w.jitter, w.jitter);
+    a += RNG.sr(-w.jitter, w.jitter);
     spawnBullet({
       x: ox, y: oy, vx: Math.cos(a) * w.speed, vy: Math.sin(a) * w.speed,
       dmg: w.dmg, friendly: true, color: w.color, glow: w.glow,
@@ -232,7 +287,8 @@ function fireWeapon(p) {
 }
 
 function playerHurt(p, dmg) {
-  if (p.invuln > 0 || p.dead) return;
+  if (p.invuln > 0 || p.dead || p.dashT > 0) return;
+  dmg = dmg * diff().dmgTaken;
   p.hp -= dmg;
   p.hurtFlash = 24;
   p.invuln = 80;
@@ -409,18 +465,26 @@ function spawnEnemy(spec) {
     homeX: spec.x, homeY: spec.y, aimAngle: 0,
     /* one rig, many looks: era palette, scale jitter, occasional elite */
     pal: (typeof Game !== 'undefined' && Game.stageIndex) || 0,
-    scale: 0.94 + Math.random() * 0.12,
-    elite: Math.random() < 0.12
+    scale: 0.94 + RNG.s() * 0.12,
+    elite: RNG.sChance(0.12),
+    wind: 0
   });
   var last = Game.enemies[Game.enemies.length - 1];
-  if (last && last.elite) {
-    last.hp = Math.round(last.hp * 1.8);
+  if (last) {
+    last.hp = Math.max(1, Math.round(last.hp * diff().enemyHp * (last.elite ? 1.8 : 1)));
     last.maxHp = last.hp;
-    last.w += 2;
+    if (last.elite) last.w += 2;
   }
 }
 
 function damageEnemy(e, dmg, knock) {
+  /* a shielder's plate stops anything coming from the front */
+  if (e.t === 'shielder' && knock && sign(knock) === e.facing) {
+    e.flash = 5;
+    spark(e.x + e.w / 2, e.y + e.h / 2, '#c8d6e2');
+    Snd.sfx('hit');
+    return;
+  }
   e.hp -= dmg;
   e.flash = 8;
   if (knock) e.vx += sign(knock) * 0.5;
@@ -431,8 +495,8 @@ function damageEnemy(e, dmg, knock) {
     floatText(e.x, e.y - 6, '+' + def.score, '#ffd257');
     explosion(e.x + e.w / 2, e.y + e.h / 2, 1);
     Snd.sfx('explode');
-    if (chance(def.drop)) {
-      spawnPickup({ kind: chance(0.35) ? 'health' : 'coin', x: e.x, y: e.y });
+    if (RNG.sChance(def.drop * diff().drop)) {
+      spawnPickup({ kind: RNG.sChance(0.35) ? 'health' : 'coin', x: e.x, y: e.y });
     }
   } else {
     Snd.sfx('hit');
@@ -448,7 +512,7 @@ function enemyShootAt(e, speed, count, spreadArc, offsetY) {
     var a = base + (count > 1 ? (i - (count - 1) / 2) * (spreadArc || 0.2) : 0);
     spawnBullet({
       x: ox, y: oy, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed,
-      dmg: 1, friendly: false, color: '#ff4d6d', glow: '#ffd0d8',
+      dmg: 1, friendly: false, color: scheme().hostile, glow: scheme().hostileGlow,
       w: 4, h: 4, pierce: 0, life: 160, angle: a
     });
   }
@@ -474,7 +538,13 @@ function enemyUpdate(e) {
         e.facing = sign(dx) || e.facing;
         if (adx > 46) e.vx = e.facing * def.speed;
         else e.vx = 0;
-        if (e.shootT-- <= 0) { enemyShootAt(e, def.bulletSpeed, 1, 0, 8); e.shootT = def.shootEvery; }
+        if (e.wind > 0) {
+          e.wind--;
+          if (e.wind === 0) enemyShootAt(e, def.bulletSpeed, 1, 0, 8);
+        } else if (e.shootT-- <= 0) {
+          e.wind = 16;
+          e.shootT = def.shootEvery / diff().fireRate;
+        }
       } else {
         e.vx = e.facing * def.speed * 0.6;
         if (!supportedAt(e.x + (e.facing > 0 ? e.w + 2 : -2), e.y + e.h + 2)) e.facing *= -1;
@@ -499,7 +569,7 @@ function enemyUpdate(e) {
         if (adx < 220) {
           spawnBullet({
             x: e.x + e.w / 2, y: e.y + e.h, vx: rnd(-0.4, 0.4), vy: 1.9,
-            dmg: 1, friendly: false, color: '#ff4d6d', glow: '#ffd0d8',
+            dmg: 1, friendly: false, color: scheme().hostile, glow: scheme().hostileGlow,
             w: 4, h: 5, pierce: 0, life: 180, angle: Math.PI / 2
           });
           Snd.sfx('enemyShot');
@@ -510,9 +580,60 @@ function enemyUpdate(e) {
 
     case 'turret':
       e.aimAngle = Math.atan2(dy, dx);
-      if (adx < 300 && e.shootT-- <= 0) {
-        enemyShootAt(e, def.bulletSpeed, 1, 0, 5);
-        e.shootT = def.shootEvery;
+      if (e.wind > 0) {
+        e.wind--;
+        if (e.wind === 0) enemyShootAt(e, def.bulletSpeed, 1, 0, 5);
+      } else if (adx < 300 && e.shootT-- <= 0) {
+        e.wind = 18;
+        e.shootT = def.shootEvery / diff().fireRate;
+      }
+      break;
+
+    case 'sniper':
+      e.facing = sign(dx) || e.facing;
+      if (e.wind > 0) {
+        e.wind--;
+        if (e.wind === 0) enemyShootAt(e, def.bulletSpeed, 1, 0, 6);
+      } else if (adx < 340 && e.shootT-- <= 0) {
+        e.wind = 42;                      /* long, readable laser sight */
+        e.shootT = def.shootEvery / diff().fireRate;
+      }
+      break;
+
+    case 'swarm':
+      e.vx = approach(e.vx, sign(dx) * def.speed, 0.08);
+      e.vy = approach(e.vy, clamp(dy * 0.02, -1.4, 1.4), 0.08);
+      e.x += e.vx;
+      e.y += e.vy;
+      if (e.y < 20) e.y = 20;
+      if (e.y > GROUND_Y - e.h) e.y = GROUND_Y - e.h;
+      break;
+
+    case 'brute':
+      if (adx < 220) {
+        e.facing = sign(dx) || e.facing;
+        e.vx = e.facing * def.speed;
+        if (e.onGround && adx < 70) e.vy = -4.2;    /* shoulder charge */
+      } else {
+        e.vx = e.facing * def.speed * 0.4;
+        if (!supportedAt(e.x + (e.facing > 0 ? e.w + 2 : -2), e.y + e.h + 2)) e.facing *= -1;
+      }
+      break;
+
+    case 'shielder':
+      if (engaged) {
+        e.facing = sign(dx) || e.facing;
+        if (adx > 60) e.vx = e.facing * def.speed;
+        else e.vx = 0;
+        if (e.wind > 0) {
+          e.wind--;
+          if (e.wind === 0) enemyShootAt(e, def.bulletSpeed, 1, 0, 8);
+        } else if (e.shootT-- <= 0) {
+          e.wind = 20;
+          e.shootT = def.shootEvery / diff().fireRate;
+        }
+      } else {
+        e.vx = e.facing * def.speed * 0.6;
       }
       break;
 
@@ -526,7 +647,9 @@ function enemyUpdate(e) {
       break;
   }
 
-  if (def.gravity) {
+  if (e.t === 'swarm') {
+    /* handled in its own case above */
+  } else if (def.gravity) {
     e.vy = Math.min(e.vy + PHYS.grav, PHYS.maxFall);
     moveEntity(e, solids, oneways);
   } else {
@@ -545,6 +668,49 @@ function enemyUpdate(e) {
 
   /* cull enemies far behind the camera */
   if (e.x < Game.camX - 320 || e.y > H + 120) e.dead = true;
+}
+
+/* ---- grenades ----------------------------------------------------------- */
+function spawnGrenade(p) {
+  Game.grenades.push({
+    x: p.x + p.w / 2, y: p.y + 8,
+    vx: p.facing * 3.2 + p.vx * 0.4, vy: -3.4,
+    fuse: 74, dead: false
+  });
+}
+
+function grenadeUpdate(n) {
+  n.vy = Math.min(n.vy + 0.34, 9);
+  n.x += n.vx;
+  n.y += n.vy;
+  n.fuse--;
+
+  /* bounce off the ground */
+  if (n.y > GROUND_Y - 3) {
+    n.y = GROUND_Y - 3;
+    n.vy *= -0.42;
+    n.vx *= 0.72;
+    if (Math.abs(n.vy) < 0.6) n.vy = 0;
+  }
+
+  if (n.fuse <= 0) {
+    n.dead = true;
+    var R = 42, i;
+    explosion(n.x, n.y, 3);
+    Snd.sfx('explode');
+    Game.shake = Math.max(Game.shake, 7);
+    for (i = 0; i < Game.enemies.length; i++) {
+      var e = Game.enemies[i];
+      if (e.dead) continue;
+      var d2 = dist2(n.x, n.y, e.x + e.w / 2, e.y + e.h / 2);
+      if (d2 < R * R) damageEnemy(e, 5, sign(e.x - n.x));
+    }
+    if (Game.boss && !Game.boss.dead) {
+      var bd2 = dist2(n.x, n.y, Game.boss.x + Game.boss.w / 2, Game.boss.y + Game.boss.h / 2);
+      if (bd2 < (R + 24) * (R + 24)) damageBoss(Game.boss, 7);
+    }
+    for (i = 0; i < Game.particles.length; i++) { /* cosmetic only */ }
+  }
 }
 
 /* ---- bosses ------------------------------------------------------------- */

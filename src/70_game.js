@@ -13,6 +13,11 @@ var Game = {
   bullets: [],
   particles: [],
   pickups: [],
+  grenades: [],
+  ghosts: [],
+  hitStop: 0,
+  settingsIndex: 0,
+  lastEntry: null,
   floaters: [],
   pending: [],
   boss: null,
@@ -44,9 +49,12 @@ var Game = {
   },
 
   startGame: function () {
+    var d = diff();
     this.score = 0;
-    this.lives = 3;
+    this.lives = d.lives;
     this.stageIndex = 0;
+    RNG.seed((Date.now() ^ (Math.random() * 0xffffffff)) >>> 0);
+    Stats.bump('runs');
     this.stateTimer = 0;
     Snd.resume();
     Snd.sfx('start');
@@ -74,6 +82,13 @@ var Game = {
 
     this.player = makePlayer(48, GROUND_Y - 22);
     this.player.invuln = 60;
+    this.player.maxHp = diff().hp;
+    this.player.hp = diff().hp;
+    this.player.grenades = 3;
+    this.player.maxGrenades = 3;
+    this.grenades = [];
+    this.ghosts = [];
+    this.hitStop = 0;
 
     this.pending = this.stage.enemies.slice().sort(function (a, b) { return a.x - b.x; });
     for (var k = 0; k < this.stage.pickups.length; k++) {
@@ -99,8 +114,12 @@ var Game = {
   respawn: function () {
     var x = this.checkpointX();
     this.player = makePlayer(x, GROUND_Y - 22);
+    this.player.maxHp = diff().hp;
+    this.player.hp = diff().hp;
     this.player.invuln = 110;
     this.player.weapon = 'rifle';
+    this.player.grenades = 2;
+    this.grenades = [];
     if (this.arenaLocked) {
       this.bullets = this.bullets.filter(function (b) { return b.friendly; });
     }
@@ -139,6 +158,21 @@ var Game = {
     Snd.sfx('gameOver');
     Snd.stopMusic();
     this.saveHi();
+    this.recordRun('GAME OVER');
+  },
+
+  recordRun: function (result) {
+    this.lastEntry = {
+      score: this.score,
+      stage: this.stage ? this.stage.name : '—',
+      result: result,
+      date: new Date().toISOString().slice(0, 10)
+    };
+    Scores.add(this.lastEntry);
+    Stats.bump('best', 0);
+    var st = Stats.get();
+    if (this.score > (st.best || 0)) Stats.bump('best', this.score - (st.best || 0));
+    Stats.bump('time', Math.round(this.frames / 60));
   },
 
   victory: function () {
@@ -147,6 +181,7 @@ var Game = {
     Snd.sfx('stageClear');
     Snd.stopMusic();
     this.saveHi();
+    this.recordRun('EON SECURED');
   },
 
   saveHi: function () {
@@ -181,10 +216,17 @@ var Game = {
         this.updatePlaying();
         break;
       case 'paused':
-        if (Input.pressed('pause') || Input.pressed('start')) {
+        if (Input.pressed('settings') || Input.pressed('down') && Input.held('settings')) {
+          this.state = 'settings';
+          this.settingsIndex = 0;
+          Snd.sfx('select');
+        } else if (Input.pressed('pause') || Input.pressed('start')) {
           this.state = 'playing';
           Snd.sfx('select');
         }
+        break;
+      case 'settings':
+        this.updateSettings();
         break;
       case 'stageclear':
         this.updateStageClear();
@@ -208,15 +250,47 @@ var Game = {
     }
   },
 
+  updateSettings: function () {
+    var rows = 8;
+    if (Input.pressed('up')) { this.settingsIndex = (this.settingsIndex + rows - 1) % rows; Snd.sfx('select'); }
+    if (Input.pressed('down')) { this.settingsIndex = (this.settingsIndex + 1) % rows; Snd.sfx('select'); }
+    var dir = (Input.pressed('right') ? 1 : 0) - (Input.pressed('left') ? 1 : 0);
+    if (dir) {
+      var i = this.settingsIndex;
+      if (i === 0) SET.difficulty = clamp(SET.difficulty + dir, 0, 2);
+      else if (i === 1) SET.palette = clamp(SET.palette + dir, 0, 2);
+      else if (i === 2) SET.reduceMotion = SET.reduceMotion ? 0 : 1;
+      else if (i === 3) SET.flash = clamp(Math.round((SET.flash + dir * 0.25) * 100) / 100, 0, 1);
+      else if (i === 4) SET.hudScale = clamp(Math.round((SET.hudScale + dir * 0.15) * 100) / 100, 0.85, 1.3);
+      else if (i === 5) SET.music = clamp(Math.round((SET.music + dir * 0.2) * 100) / 100, 0, 1);
+      else if (i === 6) SET.sfx = clamp(Math.round((SET.sfx + dir * 0.2) * 100) / 100, 0, 1);
+      else if (i === 7) SET.autoFire = SET.autoFire ? 0 : 1;
+      saveSettings();
+      Snd.applyVolumes();
+      Snd.sfx('coin');
+    }
+    if (Input.pressed('pause') || Input.pressed('start') || Input.pressed('settings')) {
+      this.state = 'paused';
+      Snd.sfx('select');
+    }
+  },
+
   updatePlaying: function () {
     this.stageTime++;
+
+    var p = this.player;
+
+    /* Hit-stop freezes the world for a few frames so impacts land — but the
+       commando keeps running, otherwise a press during the freeze is swallowed. */
+    var frozen = this.hitStop > 0;
+    if (frozen) this.hitStop--;
+
     if (Input.pressed('pause')) {
       this.state = 'paused';
       Snd.sfx('select');
       return;
     }
 
-    var p = this.player;
     playerUpdate(p);
 
     /* spawn enemies as the camera approaches */
@@ -225,10 +299,19 @@ var Game = {
     }
 
     var i;
-    for (i = 0; i < this.enemies.length; i++) if (!this.enemies[i].dead) enemyUpdate(this.enemies[i]);
-    for (i = 0; i < this.bullets.length; i++) if (!this.bullets[i].dead) bulletUpdate(this.bullets[i]);
+    if (!frozen) {
+      for (i = 0; i < this.enemies.length; i++) if (!this.enemies[i].dead) enemyUpdate(this.enemies[i]);
+      for (i = 0; i < this.bullets.length; i++) if (!this.bullets[i].dead) bulletUpdate(this.bullets[i]);
+    }
     this.updateParticles();
     for (i = 0; i < this.pickups.length; i++) if (!this.pickups[i].dead) pickupUpdate(this.pickups[i]);
+    if (!frozen) {
+      for (i = 0; i < this.grenades.length; i++) if (!this.grenades[i].dead) grenadeUpdate(this.grenades[i]);
+    }
+    for (i = this.ghosts.length - 1; i >= 0; i--) {
+      this.ghosts[i].life--;
+      if (this.ghosts[i].life <= 0) this.ghosts.splice(i, 1);
+    }
 
     for (i = this.floaters.length - 1; i >= 0; i--) {
       var f = this.floaters[i];
@@ -237,8 +320,10 @@ var Game = {
       if (f.life <= 0) this.floaters.splice(i, 1);
     }
 
-    if (this.boss && !this.boss.dead) bossUpdate(this.boss);
-    else if (this.boss && this.boss.dead) bossUpdate(this.boss);
+    if (!frozen) {
+      if (this.boss && !this.boss.dead) bossUpdate(this.boss);
+      else if (this.boss && this.boss.dead) bossUpdate(this.boss);
+    }
 
     /* boss trigger */
     if (!this.bossTriggered && p.x + p.w / 2 > this.stage.arenaStart + 70) {
@@ -272,6 +357,7 @@ var Game = {
     this.bullets = this.bullets.filter(function (b) { return !b.dead; });
     this.particles = this.particles.filter(function (pt) { return !pt.dead; });
     this.pickups = this.pickups.filter(function (c) { return !c.dead; });
+    this.grenades = this.grenades.filter(function (n) { return !n.dead; });
   },
 
   updateParticles: function () {

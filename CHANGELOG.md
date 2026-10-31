@@ -2,6 +2,34 @@
 
 All notable changes to Eon Commando.
 
+## [2.0.0] — 2026-11-01
+
+The combat, enemies and accessibility release.
+
+### Added
+- **Dash** — 10 frames, i-frames, 42-frame cooldown, with afterimages.
+- **Melee** — a 19 px arc in front of the commando, 3 damage, 3 frames of hit-stop.
+- **Grenades** — three per life, arced throw, bounce, 5 damage in a 42 px radius.
+- **Four enemy archetypes**: Sniper (laser-sight wind-up), Swarm (fast flier), Brute
+  (armoured, shoulder-charges) and Shielder (front plate blocks fire; flank it).
+- **Attack telegraphs** — 16–42 frames of wind-up before every shot.
+- **Hit-stop** on melee and grenade hits. The world freezes; the player does not, so
+  inputs during the freeze are never dropped.
+- **Difficulty tiers** — Recruit / Commando / Eon, affecting hearts, lives, damage taken,
+  enemy health, fire rate and drop rate.
+- **Settings screen** (`O` or from pause) — difficulty, colour scheme, reduce motion,
+  flash intensity, HUD size, music, SFX, auto-fire. Persisted.
+- **Colour schemes** — default, deuteranopia and high contrast, recolouring hostile fire.
+- **Local leaderboard** (top 5) on the title and game-over screens, plus lifetime stats.
+- **Seeded RNG** split into `sim` and `fx` streams — gameplay randomness is now reproducible.
+- **DPR-aware backbuffer** (capped at 2×), fullscreen (`F`) and a screen Wake Lock.
+- **PWA** — `manifest.json` and `sw.js` ship beside the game; install once, play offline.
+
+### Changed
+- The HUD scales from 85% to 130%, anchored per corner, and shows grenade pips.
+- Screen shake, flashes, scanlines and parallax respect the reduce-motion setting.
+- Flash intensity is a slider rather than a constant.
+
 ## [1.2.0] — 2026-11-01
 
 Phone and layout release.

@@ -33,13 +33,13 @@
 <br>
 
 [![Hosted on GitHub Pages](https://img.shields.io/badge/hosted%20on-GitHub%20Pages-222222?logo=githubpages&logoColor=white&style=for-the-badge&labelColor=05070d)](https://drsamonline.github.io/eon-commando/)
-[![Version](https://img.shields.io/badge/version-1.2.0-ffd257.svg?style=for-the-badge&labelColor=05070d)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.0.0-ffd257.svg?style=for-the-badge&labelColor=05070d)](CHANGELOG.md)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-54ffa8.svg?style=for-the-badge&labelColor=05070d)](#-zero-dependencies)
 [![Network calls](https://img.shields.io/badge/network%20calls-none-54ffa8.svg?style=for-the-badge&labelColor=05070d)](#-zero-dependencies)
 
 [![Single file](https://img.shields.io/badge/build-single%20HTML%20file-ffd257.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
 [![Size](https://img.shields.io/badge/minified-109%20KB-54e0ff.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
-[![Gzipped](https://img.shields.io/badge/gzipped-30%20KB-54e0ff.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
+[![Gzipped](https://img.shields.io/badge/gzipped-36%20KB-54e0ff.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
 [![Made with](https://img.shields.io/badge/made%20with-vanilla%20JS%20%2B%20canvas-ffd257.svg?style=for-the-badge&labelColor=05070d)](#-how-it-works)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge&labelColor=05070d)](#-contributing)
 
@@ -128,6 +128,41 @@ Works identically from `file://` and from a web server. Works offline. Works on 
 <img src="docs/shots/widescreen.png" alt="Ultrawide 21:9 view: the level reveals more world either side" width="820">
 
 </div>
+
+---
+
+## 🆕 What's new in 2.0
+
+**New verbs.** **Dash** (Shift) with i-frames and a 42-frame cooldown, **melee** (V) — a short
+arc that finally solves "enemy standing on top of me" — and **grenades** (G), three per life,
+thrown with an arc, bouncing, five-damage in a 42-pixel radius. All three have touch buttons.
+
+**Four new enemy archetypes.** **Sniper** paints a laser sight on you for 42 frames before
+firing. **Swarm** darts fly straight at you. **Brute** is armoured, heavy and shoulder-charges.
+**Shielder** carries a front plate that stops your fire dead — you have to flank or jump it.
+
+**Telegraphs.** Every shooter now winds up for 16–42 frames before it fires, with a visible
+cue, so a death is something you could have read.
+
+**Hit-stop.** Three frames of frozen world on melee and grenade hits — the world stops, you
+do not, so a press during the freeze is never swallowed.
+
+**Difficulty tiers.** Recruit (6 hearts, 5 lives, half damage), Commando (as before), Eon
+(2 hearts, 1 life, 1.5× damage taken, tougher enemies).
+
+**A settings screen** (O or from pause): difficulty, colour scheme, reduce motion, flash
+intensity, HUD size, music, sound effects, auto-fire. Every option persists.
+
+**Accessibility.** Three colour schemes including deuteranopia and high contrast, which
+recolour hostile fire — the thing that actually matters in a bullet-hell moment. Reduce-motion
+kills shake, flashes and scanlines. Flash intensity is a slider, for photosensitivity.
+
+**Local leaderboard and lifetime stats** — top five runs on the title screen, runs/kills/time
+kept in `localStorage`.
+
+**Installable.** A service worker and manifest ship alongside the game: install it once and it
+launches with the network off. Sharp pixels on retina via a DPR-aware backbuffer, plus
+fullscreen (F) and a screen Wake Lock while you play.
 
 ---
 
@@ -220,6 +255,11 @@ rotation and address-bar collapse.
 | Duck | `↓` while standing | D-pad down | D-pad down |
 | Jump | `Space` `X` `K` | **A** | A / cross |
 | Fire | `Z` `J` `Ctrl` | **B** | X / square |
+| Dash | `Shift` `L` | **»** | RB / R1 |
+| Melee | `V` `C` | **M** | X / square |
+| Grenade | `G` `B` | **G** | B / circle |
+| Settings | `O` | from pause | — |
+| Fullscreen | `F` | — | — |
 | Pause | `P` `Esc` | ❙❙ | Start |
 | Mute | `M` | — | — |
 
