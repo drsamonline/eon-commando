@@ -2,6 +2,31 @@
 
 All notable changes to Eon Commando.
 
+## [1.2.0] — 2026-11-01
+
+Phone and layout release.
+
+### Fixed
+- **The game did not support phone screens.** The canvas was a fixed 480×270 box centred in
+  page padding; on a 390×844 phone it rendered as a ~215 px band with large empty margins and
+  a desktop keyboard hint underneath. The canvas is now `position:fixed; inset:0` and owns the
+  viewport.
+- **Portrait layout.** Play area at the top, thumb controls in the lower third, rotate hint in
+  the gap — instead of a small band centred in dead space.
+- **Landscape phones** now fill the screen edge to edge (verified at 667×375 and 844×390).
+- **Pause button** no longer overlaps the play area: bottom centre in landscape, thin top strip
+  in portrait.
+- **Address-bar collapse** left the game mis-scaled; sizing now follows `visualViewport` and
+  re-fits on resize and scroll.
+
+### Changed
+- Scale snaps to a whole number when it costs less than 12% of the size, for crisper pixels.
+- The desktop keyboard hint fades out after nine seconds.
+- Title screen version string updated.
+
+### Added
+- `OFFLINE-ENHANCEMENTS.md` — every improvement that needs no server, backend or internet.
+
 ## [1.1.0] — 2026-11-01
 
 The art and readability release.

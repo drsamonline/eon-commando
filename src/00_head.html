@@ -27,12 +27,20 @@
     background:
       radial-gradient(circle at 50% 0%, #0d1726 0%, #05070d 62%, #03040a 100%);
   }
-  #stage{position:relative; line-height:0; filter:drop-shadow(0 0 42px rgba(84,224,255,.13))}
+  /* the canvas owns the whole viewport — no page furniture, no letterbox gaps */
+  #stage{position:fixed; inset:0; display:flex; align-items:center; justify-content:center}
   canvas{
     display:block; image-rendering:pixelated; image-rendering:crisp-edges;
-    background:#070a12; border:1px solid var(--line); border-radius:3px;
-    box-shadow:0 0 0 1px #04060b, 0 18px 60px rgba(0,0,0,.75);
+    background:#070a12; border:0; border-radius:0; box-shadow:none;
   }
+  /* portrait phones: band at the top, thumbs below, no dead margins */
+  body.portrait #stage{align-items:flex-start; padding-top:max(6vh,env(safe-area-inset-top))}
+  #rotate{
+    display:none; position:fixed; left:0; right:0; bottom:36%;
+    text-align:center; font-size:11px; letter-spacing:.14em; color:#3f4d61;
+    pointer-events:none;
+  }
+  body.touch.portrait #rotate{display:block}
   /* on-screen controls — shown only for touch devices */
   #pads{display:none}
   body.touch #pads{display:block}
@@ -52,15 +60,19 @@
   #padR button{background:rgba(40,26,10,.82); border-color:#4a3a1c; font-weight:700; color:var(--amber)}
   #padR button:active, #padR button.on{background:rgba(255,181,69,.3); border-color:var(--amber)}
   #btnPause{
-    position:fixed; top:max(12px,env(safe-area-inset-top)); right:max(12px,env(safe-area-inset-right));
-    width:42px; height:42px; padding:0; z-index:6; color:#cfd8e3; font-size:13px;
-    background:rgba(19,28,40,.82); border:1px solid #26394f; border-radius:12px; display:none;
+    position:fixed; bottom:calc(max(14px,env(safe-area-inset-bottom)) + 8px); left:50%;
+    transform:translateX(-50%); width:46px; height:34px; padding:0; z-index:6;
+    color:#cfd8e3; font-size:12px; background:rgba(19,28,40,.7);
+    border:1px solid #26394f; border-radius:10px; display:none;
   }
+  body.touch.portrait #btnPause{bottom:auto; top:calc(max(10px,env(safe-area-inset-top)) + 4px)}
   body.touch #btnPause{display:block}
   #hint{
     position:fixed; left:0; right:0; bottom:6px; text-align:center; font-size:11px;
-    color:#3f4d61; letter-spacing:.08em; pointer-events:none;
+    color:#3f4d61; letter-spacing:.08em; pointer-events:none; z-index:4;
+    animation:hintFade 1s ease 9s forwards;
   }
+  @keyframes hintFade{to{opacity:0}}
   body.touch #hint{display:none}
   body.shot #hint, body.shot #pads, body.shot #btnPause{display:none!important}
   body.shot{background:#000}
@@ -87,5 +99,6 @@
 </div>
 <button id="btnPause" aria-label="Pause">❙❙</button>
 <div id="hint">ARROWS / WASD move &middot; SPACE jump &middot; Z fire &middot; P pause &middot; M mute</div>
+<div id="rotate">&#8635; ROTATE FOR A BIGGER VIEW</div>
 
 <script>

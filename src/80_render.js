@@ -563,7 +563,7 @@ function drawTitle(g) {
   drawText(g, 'ARROWS / WASD MOVE   SPACE JUMP   Z FIRE   P PAUSE', W / 2, 196, 1, '#7f8fa6', 'center');
   drawText(g, 'HOLD UP TO AIM UP  ·  DOWN IN AIR TO AIM DOWN', W / 2, 208, 1, '#7f8fa6', 'center');
   drawText(g, 'HI SCORE ' + String(Game.hiScore).padStart(7, '0'), W / 2, 232, 1, '#ffd257', 'center');
-  drawText(g, 'V1.0  ·  ONE HTML FILE  ·  ZERO DEPENDENCIES', W / 2, 250, 1, '#3f4d61', 'center');
+  drawText(g, 'V1.2  ·  ONE HTML FILE  ·  ZERO DEPENDENCIES', W / 2, 250, 1, '#3f4d61', 'center');
 }
 
 function drawPause(g) {

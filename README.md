@@ -33,7 +33,7 @@
 <br>
 
 [![Hosted on GitHub Pages](https://img.shields.io/badge/hosted%20on-GitHub%20Pages-222222?logo=githubpages&logoColor=white&style=for-the-badge&labelColor=05070d)](https://drsamonline.github.io/eon-commando/)
-[![Version](https://img.shields.io/badge/version-1.1.0-ffd257.svg?style=for-the-badge&labelColor=05070d)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.2.0-ffd257.svg?style=for-the-badge&labelColor=05070d)](CHANGELOG.md)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-54ffa8.svg?style=for-the-badge&labelColor=05070d)](#-zero-dependencies)
 [![Network calls](https://img.shields.io/badge/network%20calls-none-54ffa8.svg?style=for-the-badge&labelColor=05070d)](#-zero-dependencies)
 
@@ -128,6 +128,37 @@ Works identically from `file://` and from a web server. Works offline. Works on 
 <img src="docs/shots/widescreen.png" alt="Ultrawide 21:9 view: the level reveals more world either side" width="820">
 
 </div>
+
+---
+
+## 📱 On a phone
+
+<div align="center">
+<img src="docs/shots/mobile.png" alt="Portrait phone layout: game band at the top, thumb controls below" width="300">
+&nbsp;&nbsp;
+<img src="docs/shots/mobile-landscape.png" alt="Landscape phone: the game fills the screen edge to edge" width="560">
+</div>
+
+The canvas owns the whole viewport. In landscape the game fills the screen edge to edge; in
+portrait the play area sits at the top with the thumb controls in the lower third, and a
+rotate hint tells you the view gets bigger sideways. Scale is derived from the visual
+viewport, so mobile browser chrome is accounted for, and the layout re-fits on resize,
+rotation and address-bar collapse.
+
+---
+
+## 🆕 What's new in 1.2
+
+- **Phone support, properly.** The canvas is now `position:fixed; inset:0` and owns the
+  viewport. On a 390×844 phone the game used to be a 215-pixel band floating in page padding
+  with a desktop keyboard hint beneath it; it now fills the screen in landscape and lays out
+  as band-plus-thumbs in portrait.
+- **Pause moved out of the play area** — bottom centre in landscape, a thin strip at the top
+  in portrait, so it never covers the game.
+- **Visual-viewport sizing** — the layout listens to `visualViewport` resize and scroll, so
+  the address bar collapsing no longer leaves the game mis-scaled.
+- **Whole-number scale snapping** when it costs less than 12% size, for crisper pixels.
+- Desktop keyboard hint now fades after nine seconds instead of sitting over the game.
 
 ---
 

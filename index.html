@@ -27,12 +27,20 @@
     background:
       radial-gradient(circle at 50% 0%, #0d1726 0%, #05070d 62%, #03040a 100%);
   }
-  #stage{position:relative; line-height:0; filter:drop-shadow(0 0 42px rgba(84,224,255,.13))}
+  /* the canvas owns the whole viewport — no page furniture, no letterbox gaps */
+  #stage{position:fixed; inset:0; display:flex; align-items:center; justify-content:center}
   canvas{
     display:block; image-rendering:pixelated; image-rendering:crisp-edges;
-    background:#070a12; border:1px solid var(--line); border-radius:3px;
-    box-shadow:0 0 0 1px #04060b, 0 18px 60px rgba(0,0,0,.75);
+    background:#070a12; border:0; border-radius:0; box-shadow:none;
   }
+  /* portrait phones: band at the top, thumbs below, no dead margins */
+  body.portrait #stage{align-items:flex-start; padding-top:max(6vh,env(safe-area-inset-top))}
+  #rotate{
+    display:none; position:fixed; left:0; right:0; bottom:36%;
+    text-align:center; font-size:11px; letter-spacing:.14em; color:#3f4d61;
+    pointer-events:none;
+  }
+  body.touch.portrait #rotate{display:block}
   /* on-screen controls — shown only for touch devices */
   #pads{display:none}
   body.touch #pads{display:block}
@@ -52,15 +60,19 @@
   #padR button{background:rgba(40,26,10,.82); border-color:#4a3a1c; font-weight:700; color:var(--amber)}
   #padR button:active, #padR button.on{background:rgba(255,181,69,.3); border-color:var(--amber)}
   #btnPause{
-    position:fixed; top:max(12px,env(safe-area-inset-top)); right:max(12px,env(safe-area-inset-right));
-    width:42px; height:42px; padding:0; z-index:6; color:#cfd8e3; font-size:13px;
-    background:rgba(19,28,40,.82); border:1px solid #26394f; border-radius:12px; display:none;
+    position:fixed; bottom:calc(max(14px,env(safe-area-inset-bottom)) + 8px); left:50%;
+    transform:translateX(-50%); width:46px; height:34px; padding:0; z-index:6;
+    color:#cfd8e3; font-size:12px; background:rgba(19,28,40,.7);
+    border:1px solid #26394f; border-radius:10px; display:none;
   }
+  body.touch.portrait #btnPause{bottom:auto; top:calc(max(10px,env(safe-area-inset-top)) + 4px)}
   body.touch #btnPause{display:block}
   #hint{
     position:fixed; left:0; right:0; bottom:6px; text-align:center; font-size:11px;
-    color:#3f4d61; letter-spacing:.08em; pointer-events:none;
+    color:#3f4d61; letter-spacing:.08em; pointer-events:none; z-index:4;
+    animation:hintFade 1s ease 9s forwards;
   }
+  @keyframes hintFade{to{opacity:0}}
   body.touch #hint{display:none}
   body.shot #hint, body.shot #pads, body.shot #btnPause{display:none!important}
   body.shot{background:#000}
@@ -87,6 +99,7 @@
 </div>
 <button id="btnPause" aria-label="Pause">❙❙</button>
 <div id="hint">ARROWS / WASD move &middot; SPACE jump &middot; Z fire &middot; P pause &middot; M mute</div>
+<div id="rotate">&#8635; ROTATE FOR A BIGGER VIEW</div>
 
 <script>
 
@@ -580,34 +593,47 @@ function fitCanvas() {
   var cv = document.getElementById('c');
   if (!cv) return;
 
-  /* logical width follows the window's aspect ratio (16:9 -> 21:9) */
-  var w = viewWidthFor(window.innerWidth, window.innerHeight);
-  if (w !== W) {
+  /* the visual viewport, so mobile browser chrome is accounted for */
+  var vv = window.visualViewport;
+  var vw = Math.max(240, (vv ? vv.width : window.innerWidth) || 320);
+  var vh = Math.max(240, (vv ? vv.height : window.innerHeight) || 320);
+  var portrait = vh > vw;
+  document.body.classList.toggle('portrait', portrait);
+
+  /* logical width follows the aspect ratio; portrait keeps the 16:9 floor */
+  var w = viewWidthFor(vw, vh);
+  if (w !== W || cv.width !== W) {
     W = w;
     cv.width = W;
     cv.height = H;
     var g2 = cv.getContext('2d');
     g2.imageSmoothingEnabled = false;
     if (typeof Game !== 'undefined' && Game.stage) {
-      Game.camX = clamp(Game.camX, 0, Game.stage.length - W);
+      Game.camX = clamp(Game.camX, 0, Math.max(0, Game.stage.length - W));
     }
   }
 
-  var availW = window.innerWidth;
-  var availH = window.innerHeight;
   if (PARAMS.shot) {
-    var sc0 = Math.min(availW / W, availH / H);
+    var sc0 = Math.min(vw / W, vh / H);
     cv.style.width = Math.round(W * sc0) + 'px';
     cv.style.height = Math.round(H * sc0) + 'px';
     return;
   }
 
-  var pad = document.body.classList.contains('touch') ? 4 : 24;
-  availW -= pad;
-  availH -= document.body.classList.contains('touch') ? 4 : 60;
+  var touch = document.body.classList.contains('touch');
+  var availW = vw;
+  var availH = vh;
+
+  /* in portrait the thumbs need the lower third, so the band sits above them */
+  if (touch && portrait) availH = vh * 0.58;
+
   var scale = Math.min(availW / W, availH / H);
+  if (scale <= 0) scale = 1;
+
+  /* snap to a whole number when it costs almost nothing — crisper pixels */
   var snapped = Math.floor(scale);
-  if (snapped >= 1 && snapped / scale > 0.9) scale = snapped;
+  if (snapped >= 1 && snapped / scale > 0.88) scale = snapped;
+
   cv.style.width = Math.round(W * scale) + 'px';
   cv.style.height = Math.round(H * scale) + 'px';
 }
@@ -3074,7 +3100,7 @@ function drawTitle(g) {
   drawText(g, 'ARROWS / WASD MOVE   SPACE JUMP   Z FIRE   P PAUSE', W / 2, 196, 1, '#7f8fa6', 'center');
   drawText(g, 'HOLD UP TO AIM UP  ·  DOWN IN AIR TO AIM DOWN', W / 2, 208, 1, '#7f8fa6', 'center');
   drawText(g, 'HI SCORE ' + String(Game.hiScore).padStart(7, '0'), W / 2, 232, 1, '#ffd257', 'center');
-  drawText(g, 'V1.0  ·  ONE HTML FILE  ·  ZERO DEPENDENCIES', W / 2, 250, 1, '#3f4d61', 'center');
+  drawText(g, 'V1.2  ·  ONE HTML FILE  ·  ZERO DEPENDENCIES', W / 2, 250, 1, '#3f4d61', 'center');
 }
 
 function drawPause(g) {
@@ -3205,10 +3231,15 @@ function boot() {
   ctx.imageSmoothingEnabled = false;
 
   if (PARAMS.shot) document.body.classList.add('shot');
+  if (PARAMS.touch === '1') document.body.classList.add('touch');
   buildScanlines();
   Input.init();
   fitCanvas();
   window.addEventListener('resize', fitCanvas);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', fitCanvas);
+    window.visualViewport.addEventListener('scroll', fitCanvas);
+  }
   window.addEventListener('orientationchange', function () {
     setTimeout(fitCanvas, 150);
   });

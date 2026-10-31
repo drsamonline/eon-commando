@@ -133,34 +133,47 @@ function fitCanvas() {
   var cv = document.getElementById('c');
   if (!cv) return;
 
-  /* logical width follows the window's aspect ratio (16:9 -> 21:9) */
-  var w = viewWidthFor(window.innerWidth, window.innerHeight);
-  if (w !== W) {
+  /* the visual viewport, so mobile browser chrome is accounted for */
+  var vv = window.visualViewport;
+  var vw = Math.max(240, (vv ? vv.width : window.innerWidth) || 320);
+  var vh = Math.max(240, (vv ? vv.height : window.innerHeight) || 320);
+  var portrait = vh > vw;
+  document.body.classList.toggle('portrait', portrait);
+
+  /* logical width follows the aspect ratio; portrait keeps the 16:9 floor */
+  var w = viewWidthFor(vw, vh);
+  if (w !== W || cv.width !== W) {
     W = w;
     cv.width = W;
     cv.height = H;
     var g2 = cv.getContext('2d');
     g2.imageSmoothingEnabled = false;
     if (typeof Game !== 'undefined' && Game.stage) {
-      Game.camX = clamp(Game.camX, 0, Game.stage.length - W);
+      Game.camX = clamp(Game.camX, 0, Math.max(0, Game.stage.length - W));
     }
   }
 
-  var availW = window.innerWidth;
-  var availH = window.innerHeight;
   if (PARAMS.shot) {
-    var sc0 = Math.min(availW / W, availH / H);
+    var sc0 = Math.min(vw / W, vh / H);
     cv.style.width = Math.round(W * sc0) + 'px';
     cv.style.height = Math.round(H * sc0) + 'px';
     return;
   }
 
-  var pad = document.body.classList.contains('touch') ? 4 : 24;
-  availW -= pad;
-  availH -= document.body.classList.contains('touch') ? 4 : 60;
+  var touch = document.body.classList.contains('touch');
+  var availW = vw;
+  var availH = vh;
+
+  /* in portrait the thumbs need the lower third, so the band sits above them */
+  if (touch && portrait) availH = vh * 0.58;
+
   var scale = Math.min(availW / W, availH / H);
+  if (scale <= 0) scale = 1;
+
+  /* snap to a whole number when it costs almost nothing — crisper pixels */
   var snapped = Math.floor(scale);
-  if (snapped >= 1 && snapped / scale > 0.9) scale = snapped;
+  if (snapped >= 1 && snapped / scale > 0.88) scale = snapped;
+
   cv.style.width = Math.round(W * scale) + 'px';
   cv.style.height = Math.round(H * scale) + 'px';
 }

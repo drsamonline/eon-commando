@@ -19,10 +19,15 @@ function boot() {
   ctx.imageSmoothingEnabled = false;
 
   if (PARAMS.shot) document.body.classList.add('shot');
+  if (PARAMS.touch === '1') document.body.classList.add('touch');
   buildScanlines();
   Input.init();
   fitCanvas();
   window.addEventListener('resize', fitCanvas);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', fitCanvas);
+    window.visualViewport.addEventListener('scroll', fitCanvas);
+  }
   window.addEventListener('orientationchange', function () {
     setTimeout(fitCanvas, 150);
   });
