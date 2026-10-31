@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#05070d">
+<title>EON COMMANDO — a run-and-gun in one HTML file</title>
+<meta name="description" content="EON COMMANDO is a retro run-and-gun platformer: three eras, five weapons, boss fights and chiptune audio in one self-contained HTML file. No dependencies, works offline.">
+<meta property="og:title" content="EON COMMANDO">
+<meta property="og:description" content="A retro run-and-gun platformer in one self-contained HTML file.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%2305070d'/%3E%3Cpath d='M8 2l5 4v4l-5 4-5-4V6z' fill='%23ffb545'/%3E%3Crect x='6' y='7' width='4' height='2' fill='%2305070d'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --ink:#05070d; --panel:#0b1220; --line:#1d2b3f;
+    --amber:#ffb545; --cyan:#54e0ff; --dim:#7f8fa6;
+  }
+  *{box-sizing:border-box}
+  html,body{
+    margin:0; height:100%; background:var(--ink); color:#cfd8e3;
+    font:14px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    overflow:hidden; -webkit-user-select:none; user-select:none;
+    -webkit-tap-highlight-color:transparent; touch-action:none; overscroll-behavior:none;
+  }
+  body{
+    display:flex; align-items:center; justify-content:center;
+    background:
+      radial-gradient(circle at 50% 0%, #0d1726 0%, #05070d 62%, #03040a 100%);
+  }
+  #stage{position:relative; line-height:0; filter:drop-shadow(0 0 42px rgba(84,224,255,.13))}
+  canvas{
+    display:block; image-rendering:pixelated; image-rendering:crisp-edges;
+    background:#070a12; border:1px solid var(--line); border-radius:3px;
+    box-shadow:0 0 0 1px #04060b, 0 18px 60px rgba(0,0,0,.75);
+  }
+  /* on-screen controls — shown only for touch devices */
+  #pads{display:none}
+  body.touch #pads{display:block}
+  .pad{position:fixed; bottom:max(14px,env(safe-area-inset-bottom)); display:grid; gap:8px; z-index:5}
+  #padL{left:max(14px,env(safe-area-inset-left)); grid-template-columns:repeat(3,58px); grid-template-rows:repeat(2,58px)}
+  #padL [data-k="up"]{grid-area:1/2}
+  #padL [data-k="left"]{grid-area:2/1}
+  #padL [data-k="down"]{grid-area:2/2}
+  #padL [data-k="right"]{grid-area:2/3}
+  #padR{right:max(14px,env(safe-area-inset-right)); grid-template-columns:repeat(2,62px); grid-template-rows:62px}
+  .pad button{
+    width:100%; height:100%; padding:0; color:#cfd8e3; font:16px ui-monospace,monospace;
+    background:rgba(19,28,40,.82); border:1px solid #26394f; border-radius:14px;
+    backdrop-filter:blur(2px); transition:background .06s, transform .06s;
+  }
+  .pad button:active, .pad button.on{background:rgba(84,224,255,.28); border-color:var(--cyan); transform:scale(.96)}
+  #padR button{background:rgba(40,26,10,.82); border-color:#4a3a1c; font-weight:700; color:var(--amber)}
+  #padR button:active, #padR button.on{background:rgba(255,181,69,.3); border-color:var(--amber)}
+  #btnPause{
+    position:fixed; top:max(12px,env(safe-area-inset-top)); right:max(12px,env(safe-area-inset-right));
+    width:42px; height:42px; padding:0; z-index:6; color:#cfd8e3; font-size:13px;
+    background:rgba(19,28,40,.82); border:1px solid #26394f; border-radius:12px; display:none;
+  }
+  body.touch #btnPause{display:block}
+  #hint{
+    position:fixed; left:0; right:0; bottom:6px; text-align:center; font-size:11px;
+    color:#3f4d61; letter-spacing:.08em; pointer-events:none;
+  }
+  body.touch #hint{display:none}
+  body.shot #hint, body.shot #pads, body.shot #btnPause{display:none!important}
+  body.shot{background:#000}
+  body.shot canvas{border:0;border-radius:0;box-shadow:none}
+  body.shot #stage{filter:none}
+  @media (max-height:520px){ #hint{display:none} }
+</style>
+</head>
+<body>
+
+<div id="stage"><canvas id="c" width="480" height="270" aria-label="Eon Commando — game screen"></canvas></div>
+
+<div id="pads">
+  <div class="pad" id="padL">
+    <button data-k="up" aria-label="Aim up">▲</button>
+    <button data-k="left" aria-label="Move left">◀</button>
+    <button data-k="down" aria-label="Duck">▼</button>
+    <button data-k="right" aria-label="Move right">▶</button>
+  </div>
+  <div class="pad" id="padR">
+    <button data-k="fire" aria-label="Fire">B</button>
+    <button data-k="jump" aria-label="Jump">A</button>
+  </div>
+</div>
+<button id="btnPause" aria-label="Pause">❙❙</button>
+<div id="hint">ARROWS / WASD move &middot; SPACE jump &middot; Z fire &middot; P pause &middot; M mute</div>
+
+<script>
