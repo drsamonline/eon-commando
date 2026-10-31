@@ -132,18 +132,35 @@ var Input = {
 function fitCanvas() {
   var cv = document.getElementById('c');
   if (!cv) return;
+
+  /* logical width follows the window's aspect ratio (16:9 -> 21:9) */
+  var w = viewWidthFor(window.innerWidth, window.innerHeight);
+  if (w !== W) {
+    W = w;
+    cv.width = W;
+    cv.height = H;
+    var g2 = cv.getContext('2d');
+    g2.imageSmoothingEnabled = false;
+    if (typeof Game !== 'undefined' && Game.stage) {
+      Game.camX = clamp(Game.camX, 0, Game.stage.length - W);
+    }
+  }
+
+  var availW = window.innerWidth;
+  var availH = window.innerHeight;
   if (PARAMS.shot) {
-    var sc = Math.min(window.innerWidth / W, window.innerHeight / H);
-    cv.style.width = Math.round(W * sc) + 'px';
-    cv.style.height = Math.round(H * sc) + 'px';
+    var sc0 = Math.min(availW / W, availH / H);
+    cv.style.width = Math.round(W * sc0) + 'px';
+    cv.style.height = Math.round(H * sc0) + 'px';
     return;
   }
-  var pad = document.body.classList.contains('touch') ? 0 : 24;
-  var availW = window.innerWidth - pad;
-  var availH = window.innerHeight - (document.body.classList.contains('touch') ? 0 : 60);
+
+  var pad = document.body.classList.contains('touch') ? 4 : 24;
+  availW -= pad;
+  availH -= document.body.classList.contains('touch') ? 4 : 60;
   var scale = Math.min(availW / W, availH / H);
   var snapped = Math.floor(scale);
-  if (snapped >= 1 && snapped / scale > 0.86) scale = snapped;
+  if (snapped >= 1 && snapped / scale > 0.9) scale = snapped;
   cv.style.width = Math.round(W * scale) + 'px';
   cv.style.height = Math.round(H * scale) + 'px';
 }

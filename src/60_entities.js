@@ -38,7 +38,7 @@ function supportedAt(x, y) {
 }
 
 /* move an entity, resolving against solids and one-way platforms */
-function moveEntity(e, solids, oneways) {
+function moveEntity(e, solids, oneways, corner) {
   var i, r;
   e.x += e.vx;
   for (i = 0; i < solids.length; i++) {
@@ -56,9 +56,19 @@ function moveEntity(e, solids, oneways) {
   for (i = 0; i < solids.length; i++) {
     r = solids[i];
     if (aabb(e, r)) {
-      if (e.vy > 0) { e.y = r.y - e.h; e.onGround = true; }
-      else if (e.vy < 0) { e.y = r.y + r.h; }
-      e.vy = 0;
+      if (e.vy > 0) { e.y = r.y - e.h; e.onGround = true; e.vy = 0; }
+      else if (e.vy < 0) {
+        /* corner correction: slide around a ledge instead of bonking your head */
+        var pokeL = (e.x + e.w) - r.x;
+        var pokeR = (r.x + r.w) - e.x;
+        var least = Math.min(pokeL, pokeR);
+        if (corner && least > 0 && least <= 4.5) {
+          e.x += (pokeL < pokeR) ? -pokeL : pokeR;
+        } else {
+          e.y = r.y + r.h;
+          e.vy = 0;
+        }
+      }
     }
   }
   if (e.vy >= 0 && oneways) {
@@ -154,7 +164,7 @@ function playerUpdate(p) {
   p.vy = Math.min(p.vy + PHYS.grav, PHYS.maxFall);
 
   var wasAir = !p.onGround;
-  moveEntity(p, solids, oneways);
+  moveEntity(p, solids, oneways, true);
   if (wasAir && p.onGround) {
     puff(p.x + p.w / 2, p.y + p.h, 3, '#8fa4b8');
     if (p.vy > 6) Snd.sfx('land');
@@ -396,8 +406,18 @@ function spawnEnemy(spec) {
     hp: def.hp, maxHp: def.hp, vx: 0, vy: 0,
     facing: -1, onGround: false, walkPhase: 0, age: rnd(0, 120),
     shootT: rndi(40, 120), flash: 0, dead: false,
-    homeX: spec.x, homeY: spec.y, aimAngle: 0
+    homeX: spec.x, homeY: spec.y, aimAngle: 0,
+    /* one rig, many looks: era palette, scale jitter, occasional elite */
+    pal: (typeof Game !== 'undefined' && Game.stageIndex) || 0,
+    scale: 0.94 + Math.random() * 0.12,
+    elite: Math.random() < 0.12
   });
+  var last = Game.enemies[Game.enemies.length - 1];
+  if (last && last.elite) {
+    last.hp = Math.round(last.hp * 1.8);
+    last.maxHp = last.hp;
+    last.w += 2;
+  }
 }
 
 function damageEnemy(e, dmg, knock) {
@@ -533,7 +553,7 @@ function makeBoss(kind) {
   var arenaStart = Game.stage.arenaStart;
   return {
     kind: kind, def: def, name: def.name,
-    x: arenaStart + W - def.w - 20, y: GROUND_Y - def.h,
+    x: arenaStart + ARENA_W - def.w - 20, y: GROUND_Y - def.h,
     w: def.w, h: def.h,
     hp: def.hp, maxHp: def.hp,
     age: 0, flash: 0, phase: 1, dir: -1,
@@ -591,7 +611,7 @@ function bossUpdate(b) {
 
   var arenaStart = Game.stage.arenaStart;
   var leftBound = arenaStart + 20;
-  var rightBound = arenaStart + W - b.w - 20;
+  var rightBound = arenaStart + ARENA_W - b.w - 20;
   var pcx = p.x + p.w / 2;
   var speed = b.phase === 2 ? 1.5 : 1.0;
 
@@ -669,7 +689,7 @@ function bossUpdate(b) {
   }
 
   if (b.kind === 'heart') {
-    b.x = arenaStart + W / 2 - b.w / 2;
+    b.x = arenaStart + ARENA_W / 2 - b.w / 2;
     b.y = GROUND_Y - b.h - 56 + Math.sin(b.age * 0.03) * 8;
 
     if (b.shootT-- <= 0) {

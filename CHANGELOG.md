@@ -2,6 +2,35 @@
 
 All notable changes to Eon Commando.
 
+## [1.1.0] — 2026-11-01
+
+The art and readability release.
+
+### Added
+- **Curved sprite art.** All characters redrawn with rounded caps, arcs, ellipses and
+  bezier limbs instead of stacked rectangles: shaped helmets, angled visors, shoulder
+  pads, capsule limbs, knee bends and rounded boots. Still pixel-pure on the 480×270 grid.
+- **Enemy variation.** Per-era palettes (ember / frost / core) applied to one rig, ±6%
+  scale jitter per spawn, and gold **elite** variants at ~12% frequency with 1.8× health.
+- **Widescreen viewport.** Logical width follows the window aspect ratio from 16:9 to 21:9
+  (`W_MIN`/`W_MAX`), with the backbuffer and canvas resized on every window change.
+- **Fixed-footprint boss arenas.** Arenas stay 480 wide and the camera centres them, so a
+  wide screen shows the arena walls instead of void. Stages extended by 160 px of ground
+  to cover the widest view.
+- **Readability pass.** Dark rims and motion trails on every bullet, off-screen threat
+  arrows for unseen enemies, background dimmed 18% during boss fights.
+- **Corner correction.** The commando now slides around a ledge edge (up to 4.5 px) instead
+  of stopping dead when clipping it with their head.
+- **Rounded platforms and ground edges**, soft elliptical cloud bands.
+
+### Changed
+- `W` is now a live variable rather than a constant; camera, culling, HUD, parallax and
+  every screen read it at draw time.
+- Parallax layer spans are generated with a fixed margin so they survive a viewport change.
+
+### Fixed
+- Camera could drift out of bounds after a window resize mid-stage.
+
 ## [1.0.0] — 2026-11-01
 
 First playable release.

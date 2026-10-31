@@ -4,8 +4,16 @@
    =========================================================================== */
 'use strict';
 
-var W = 480, H = 270;              // internal resolution, upscaled by CSS
+var W = 480, H = 270;              // logical viewport — W widens with the window
+var W_MIN = 480, W_MAX = 640;      // 16:9 floor, 21:9 ceiling (desktop range)
+var ARENA_W = 480;                 // boss arenas keep a fixed 16:9 footprint
 var GROUND_Y = 232;                // world y of the ground surface
+
+/* pick the logical width from the real aspect ratio, clamped to the range */
+function viewWidthFor(px_w, px_h) {
+  var aspect = px_w / Math.max(1, px_h);
+  return clamp(Math.round(H * aspect), W_MIN, W_MAX);
+}
 var FPS = 60, STEP = 1 / FPS;
 
 function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }

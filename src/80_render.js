@@ -5,7 +5,8 @@
 
 function makeBackground(stage) {
   var rng = mulberry32(stage.seed);
-  var span = stage.length + W * 2;
+  var span = stage.length + 1600;
+  var startX = -800;
   var i, x;
 
   var stars = [];
@@ -34,7 +35,7 @@ function makeBackground(stage) {
   }
 
   var mid = [];
-  x = -W;
+  x = startX;
   while (x < span) {
     var w = 20 + rng() * 40;
     var h = 30 + rng() * 92;
@@ -49,14 +50,14 @@ function makeBackground(stage) {
   }
 
   var near = [];
-  x = -W;
+  x = startX;
   while (x < span) {
     near.push({ x: x, w: 30 + rng() * 60, h: 12 + rng() * 34 });
     x += 70 + rng() * 110;
   }
 
   var fore = [];
-  x = -W;
+  x = startX;
   while (x < span) {
     fore.push({ x: x, w: 34 + rng() * 70, h: 6 + rng() * 16 });
     x += 130 + rng() * 190;
@@ -141,8 +142,10 @@ function drawSky(g, stage, bg, camX, time) {
       var cx2 = cl.x - camX * 0.1 - (time * 0.06) % span;
       if (cx2 < -cl.w) cx2 += span;
       if (cx2 > W + cl.w) continue;
-      g.fillStyle = rgba(stage.accent, cl.a);
-      g.fillRect(cx2, cl.y, cl.w, cl.h);
+      g.globalAlpha = clamp(cl.a * 1.7, 0, 0.16);
+      el(g, cx2 + cl.w / 2, cl.y + cl.h / 2, cl.w / 2, cl.h / 2, stage.accent);
+      el(g, cx2 + cl.w * 0.35, cl.y + cl.h * 0.4, cl.w * 0.28, cl.h * 0.42, stage.accent);
+      g.globalAlpha = 1;
     }
   }
 
@@ -228,10 +231,8 @@ function drawGround(g, stage, bg, camX) {
     g.fillStyle = grad;
     g.fillRect(sx, GROUND_Y, sw, H - GROUND_Y);
 
-    g.fillStyle = stage.groundLit;
-    g.fillRect(sx, GROUND_Y, sw, 2);
-    g.fillStyle = rgba(stage.accent, 0.45);
-    g.fillRect(sx, GROUND_Y + 2, sw, 1);
+    rr(g, sx, GROUND_Y, sw, 4, 2, stage.groundLit);
+    rr(g, sx, GROUND_Y, sw, 2, 1, rgba(stage.accent, 0.5));
 
     g.fillStyle = 'rgba(0,0,0,0.18)';
     g.fillRect(sx, GROUND_Y + 9, sw, 1);
@@ -306,12 +307,10 @@ function drawPlatforms(g, stage, camX) {
     var p = plats[i];
     var sx = p.x - camX;
     if (sx + p.w < -20 || sx > W + 20) continue;
-    px(g, sx, p.y + 2, p.w, 8, 'rgba(0,0,0,0.35)');
-    px(g, sx, p.y, p.w, 8, stage.ground);
-    px(g, sx, p.y, p.w, 2, stage.groundLit);
-    px(g, sx, p.y, 2, 8, 'rgba(0,0,0,0.4)');
-    px(g, sx + p.w - 2, p.y, 2, 8, 'rgba(0,0,0,0.4)');
-    px(g, sx + 4, p.y + 4, p.w - 8, 1, rgba(stage.accent, 0.35));
+    rr(g, sx, p.y + 2.5, p.w, 8, 3, 'rgba(0,0,0,0.38)');
+    rr(g, sx, p.y, p.w, 8, 3, stage.ground);
+    rr(g, sx, p.y, p.w, 2.6, 1.3, stage.groundLit);
+    rr(g, sx + 3, p.y + 4.4, p.w - 6, 1.4, 0.7, rgba(stage.accent, 0.4));
   }
 }
 
@@ -327,17 +326,63 @@ function drawParticles(g, camX) {
 }
 
 function drawBullets(g, camX) {
-  for (var i = 0; i < Game.bullets.length; i++) {
-    var b = Game.bullets[i];
-    var x = Math.round(b.x - camX), y = Math.round(b.y);
-    g.globalAlpha = 0.35;
+  var i, b, x, y;
+  /* trails first so cores always sit on top */
+  g.lineCap = 'round';
+  for (i = 0; i < Game.bullets.length; i++) {
+    b = Game.bullets[i];
+    x = b.x - camX; y = b.y;
+    var tl = b.friendly ? 5 : 6.5;
+    g.globalAlpha = b.friendly ? 0.30 : 0.42;
+    g.strokeStyle = b.color;
+    g.lineWidth = Math.max(1.4, b.w * 0.55);
+    g.beginPath();
+    g.moveTo(x - b.vx * tl * 0.16, y - b.vy * tl * 0.16);
+    g.lineTo(x, y);
+    g.stroke();
+  }
+  g.globalAlpha = 1;
+
+  for (i = 0; i < Game.bullets.length; i++) {
+    b = Game.bullets[i];
+    x = Math.round(b.x - camX); y = Math.round(b.y);
+    /* dark rim so a bullet never vanishes against a bright wall */
+    g.globalAlpha = 0.5;
+    g.fillStyle = '#05070d';
+    g.fillRect(x - b.w / 2 - 1.5, y - b.h / 2 - 1.5, b.w + 3, b.h + 3);
+    g.globalAlpha = 0.4;
     g.fillStyle = b.glow;
     g.fillRect(x - b.w / 2 - 1, y - b.h / 2 - 1, b.w + 2, b.h + 2);
     g.globalAlpha = 1;
     g.fillStyle = b.color;
     g.fillRect(x - b.w / 2, y - b.h / 2, b.w, b.h);
-    g.fillStyle = b.glow;
+    g.fillStyle = '#ffffff';
     g.fillRect(x - b.w / 4, y - b.h / 4, Math.max(1, b.w / 2), Math.max(1, b.h / 2));
+  }
+}
+
+/* small arrows at the screen edge for enemies you cannot see yet */
+function drawThreatArrows(g, camX) {
+  var shown = 0;
+  for (var i = 0; i < Game.enemies.length && shown < 4; i++) {
+    var e = Game.enemies[i];
+    var sx = e.x - camX + e.w / 2;
+    if (sx > -30 && sx < W + 30) continue;
+    if (Math.abs(sx - W / 2) > W * 1.2) continue;
+    var side = sx < 0 ? -1 : 1;
+    var ax = side < 0 ? 6 : W - 6;
+    var ay = clamp(e.y - camX * 0 + e.h / 2, 40, H - 30);
+    var col = e.elite ? '#ffe08a' : '#ff4d6d';
+    g.globalAlpha = 0.55 + Math.sin(Game.time * 0.15) * 0.2;
+    g.fillStyle = col;
+    g.beginPath();
+    g.moveTo(ax + side * 5, ay);
+    g.lineTo(ax - side * 3, ay - 4);
+    g.lineTo(ax - side * 3, ay + 4);
+    g.closePath();
+    g.fill();
+    g.globalAlpha = 1;
+    shown++;
   }
 }
 
@@ -345,7 +390,9 @@ function drawWorld(g) {
   var stage = Game.stage, camX = Game.camX;
   var bg = Game.bg;
   drawSky(g, stage, bg, camX, Game.time);
+  g.globalAlpha = Game.boss ? 0.82 : 1;
   drawBackground(g, stage, bg, camX, Game.time);
+  g.globalAlpha = 1;
   drawGround(g, stage, bg, camX);
   drawPlatforms(g, stage, camX);
 
@@ -402,6 +449,7 @@ function drawWorld(g) {
 
   drawBullets(g, camX);
   drawParticles(g, camX);
+  drawThreatArrows(g, camX);
   drawForeground(g, stage, bg, camX);
 
   /* floating score text */

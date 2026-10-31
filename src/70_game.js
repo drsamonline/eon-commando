@@ -248,7 +248,8 @@ var Game = {
     /* camera */
     var target;
     if (this.arenaLocked) {
-      target = this.stage.arenaStart;
+      /* centre the fixed-width arena, letting a wide screen see the walls */
+      target = this.stage.arenaStart + ARENA_W / 2 - W / 2;
     } else {
       target = p.x + p.w / 2 - W * 0.42;
     }

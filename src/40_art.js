@@ -1,12 +1,83 @@
 /* ===========================================================================
    EON COMMANDO — 40 art
-   A 5x7 bitmap font and every sprite, drawn from primitives at runtime.
-   Nothing here loads a file: no PNGs, no atlases, no fonts.
+   Pixel-pure, but drawn with curves: rounded caps, arcs, ellipses and bezier
+   limbs instead of stacked rectangles. Everything is still on the 480x270
+   grid, still asset-free, still drawn at runtime.
    =========================================================================== */
 
 function px(g, x, y, w, h, c) {
   g.fillStyle = c;
   g.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+}
+
+/* ---- curved primitives (pixel-scale friendly) --------------------------- */
+function rr(g, x, y, w, h, r, c) {
+  r = Math.min(r, w / 2, h / 2);
+  g.fillStyle = c;
+  g.beginPath();
+  if (g.roundRect) {
+    g.roundRect(x, y, w, h, r);
+  } else {
+    g.moveTo(x + r, y);
+    g.lineTo(x + w - r, y);
+    g.quadraticCurveTo(x + w, y, x + w, y + r);
+    g.lineTo(x + w, y + h - r);
+    g.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    g.lineTo(x + r, y + h);
+    g.quadraticCurveTo(x, y + h, x, y + h - r);
+    g.lineTo(x, y + r);
+    g.quadraticCurveTo(x, y, x + r, y);
+  }
+  g.closePath();
+  g.fill();
+}
+
+function el(g, cx, cy, rx, ry, c) {
+  g.fillStyle = c;
+  g.beginPath();
+  g.ellipse(cx, cy, Math.max(0.5, rx), Math.max(0.5, ry), 0, 0, 6.2832);
+  g.fill();
+}
+
+function circ(g, cx, cy, r, c) {
+  g.fillStyle = c;
+  g.beginPath();
+  g.arc(cx, cy, Math.max(0.5, r), 0, 6.2832);
+  g.fill();
+}
+
+/* a limb: a stroked line with round caps reads as a capsule */
+function limb(g, x1, y1, x2, y2, thick, c) {
+  g.strokeStyle = c;
+  g.lineWidth = thick;
+  g.lineCap = 'round';
+  g.lineJoin = 'round';
+  g.beginPath();
+  g.moveTo(x1, y1);
+  g.lineTo(x2, y2);
+  g.stroke();
+}
+
+function curve(g, pts, thick, c) {
+  g.strokeStyle = c;
+  g.lineWidth = thick;
+  g.lineCap = 'round';
+  g.lineJoin = 'round';
+  g.beginPath();
+  g.moveTo(pts[0][0], pts[0][1]);
+  for (var i = 1; i < pts.length - 1; i += 2) {
+    g.quadraticCurveTo(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1]);
+  }
+  g.stroke();
+}
+
+/* soft radial glow, used for cores, muzzles and pickups */
+function glow(g, cx, cy, r, c, alpha) {
+  var grd = g.createRadialGradient(cx, cy, 0, cx, cy, Math.max(1, r));
+  grd.addColorStop(0, rgba(c, alpha === undefined ? 0.55 : alpha));
+  grd.addColorStop(1, rgba(c, 0));
+  g.fillStyle = grd;
+  g.fillRect(cx - r, cy - r, r * 2, r * 2);
 }
 
 /* ---- 5x7 font ----------------------------------------------------------- */
@@ -69,21 +140,19 @@ var FONT_SRC = {
   '%': '##..#/##.#./..#../.#.../#..##/...##/.....',
   '=': '...../...../#####/...../#####/...../.....',
   '#': '.#.#./#####/.#.#./.#.#./#####/.#.#./.....',
-  'X': '#...#/#...#/.#.#./..#../.#.#./#...#/#...#',
   '♥': '.#.#./#####/#####/#####/.###./..#../.....',
   '▲': '..#../.###./#####/..#../..#../..#../..#..',
   '▼': '..#../..#../..#../..#../#####/.###./..#..',
   '◀': '...#./..##./.####/#####/.####/..##./...#.',
   '▶': '.#.../.##../####./#####/####./.##../.#...',
   '·': '...../...../...../..##./..##./...../.....',
-  '→': '...../..#../...#./#####/...#./..#../.....'
+  '→': '...../..#../...#./#####/...#./..#../.....',
+  '★': '..#../..#../#####/.###./.#.#./#...#/.....'
 };
 
 var FONT = (function () {
   var out = {};
-  for (var ch in FONT_SRC) {
-    out[ch] = FONT_SRC[ch].split('/');
-  }
+  for (var ch in FONT_SRC) out[ch] = FONT_SRC[ch].split('/');
   return out;
 })();
 
@@ -92,7 +161,6 @@ function textWidth(str, scale) {
   return (str.length * 6 - 1) * scale;
 }
 
-/* draw a string in the 5x7 font. align: 'left' | 'center' | 'right' */
 function drawText(g, str, x, y, scale, color, align, shadow) {
   scale = scale || 1;
   str = String(str).toUpperCase();
@@ -114,7 +182,6 @@ function drawText(g, str, x, y, scale, color, align, shadow) {
   }
 }
 
-/* ---- deterministic noise ------------------------------------------------ */
 function mulberry32(a) {
   return function () {
     a |= 0; a = a + 0x6D2B79F5 | 0;
@@ -124,244 +191,313 @@ function mulberry32(a) {
   };
 }
 
+/* ---- palettes ------------------------------------------------------------
+   One rig, three looks: each era reskins the same enemy silhouette.        */
+var SUIT = {
+  outline: '#070a10',
+  suit: '#2f5a78', suitLit: '#4d8fb0', suitDark: '#1c3a4e',
+  armour: '#b9cbdb', armourLit: '#eaf4fc', armourDark: '#7f95a8',
+  visor: '#ffb545', visorLit: '#ffe9a8',
+  boot: '#16222e', gun: '#9aa7b4', gunDark: '#4b5665'
+};
+
+var ENEMY_PALETTES = [
+  { /* era I — rust and ember */
+    name: 'ember',
+    body: '#8d2f42', bodyLit: '#c05063', bodyDark: '#5c1c2c',
+    metal: '#5b6472', metalLit: '#98a3b3',
+    eye: '#ff4d6d', eyeLit: '#ffd0d8'
+  },
+  { /* era II — glacier */
+    name: 'frost',
+    body: '#2b6f8f', bodyLit: '#57b3d6', bodyDark: '#164256',
+    metal: '#6d8296', metalLit: '#b3c8d8',
+    eye: '#8ef0ff', eyeLit: '#e6fdff'
+  },
+  { /* era III — core */
+    name: 'core',
+    body: '#7a2b7f', bodyLit: '#b85ac0', bodyDark: '#4a1550',
+    metal: '#5a4a72', metalLit: '#9d8cc0',
+    eye: '#ff2d95', eyeLit: '#ffd0e4'
+  }
+];
+
+var ELITE_TINT = {
+  body: '#d9a521', bodyLit: '#ffe08a', bodyDark: '#8a6410',
+  metal: '#8a7b4a', metalLit: '#e0d3a3',
+  eye: '#fff3c4', eyeLit: '#ffffff'
+};
+
+function palFor(e) {
+  if (e.elite) return ELITE_TINT;
+  return ENEMY_PALETTES[clamp(e.pal || 0, 0, ENEMY_PALETTES.length - 1)];
+}
+
 /* ---- the commando ------------------------------------------------------- */
-var SKIN = {
-  outline: '#0a0e16',
-  suit: '#2c4a63',
-  suitLit: '#3f6b8c',
-  armour: '#c8d6e2',
-  armourLit: '#eaf2f8',
-  visor: '#ffb545',
-  visorLit: '#ffe0a3',
-  boot: '#16212d',
-  gun: '#8b97a6',
-  gunDark: '#4b5665',
-  skin: '#d8a074'
-};
-
-var ENEMY_SKIN = {
-  outline: '#120a12',
-  body: '#8d2f42',
-  bodyLit: '#c05063',
-  metal: '#5b6472',
-  metalLit: '#8d98a8',
-  eye: '#ff4d6d',
-  eyeLit: '#ffd0d8'
-};
-
 function drawPlayer(g, p) {
   var x = Math.round(p.x), y = Math.round(p.y);
   var f = p.facing >= 0 ? 1 : -1;
   var duck = p.ducking && p.onGround;
   var hurt = p.hurtFlash > 0 && (Math.floor(p.hurtFlash / 3) % 2 === 0);
-  var OL = '#070a10';
+  var OL = SUIT.outline;
   function C(c) { return hurt ? '#ffffff' : c; }
-  var suit = C('#2f5a78'), suitLit = C('#4d8fb0'), armour = C('#b9cbdb');
-  var armourLit = C('#eaf4fc'), boot = C('#16222e'), visor = C('#ffb545'), visorLit = C('#ffe9a8');
-  var gun = C('#9aa7b4'), gunDark = C('#4b5665');
 
-  /* mirror-aware local rect: lx measured from the sprite's left edge */
-  function R(lx, ly, w, h, c) {
-    var dx = f > 0 ? x + lx : x + 12 - lx - w;
-    px(g, dx, y + ly, w, h, c);
-  }
+  var suit = C(SUIT.suit), suitLit = C(SUIT.suitLit), suitDark = C(SUIT.suitDark);
+  var armour = C(SUIT.armour), armourLit = C(SUIT.armourLit), armourDark = C(SUIT.armourDark);
+  var boot = C(SUIT.boot), visor = C(SUIT.visor), visorLit = C(SUIT.visorLit);
+
+  /* draw in local space, mirrored by the transform — curves stay symmetrical */
+  g.save();
+  g.translate(f > 0 ? x : x + 12, y);
+  g.scale(f, 1);
 
   if (duck) {
-    R(1, 0, 10, 2, OL);
-    R(2, 1, 8, 4, suit);
-    R(2, 1, 8, 1, suitLit);
-    R(5, 2, 4, 2, visor);
-    R(6, 2, 2, 1, visorLit);
-    R(0, 5, 12, 2, OL);
-    R(1, 6, 10, 5, armour);
-    R(1, 6, 10, 1, armourLit);
-    R(4, 8, 4, 1, suit);
-    R(0, 11, 12, 3, OL);
-    R(1, 11, 4, 2, suit);
-    R(7, 11, 4, 2, suit);
-    R(0, 12, 5, 2, boot);
-    R(7, 12, 5, 2, boot);
+    /* crouched: low, coiled, still reads as a soldier */
+    limb(g, 3, 12, 2, 13, 4, suitDark);
+    limb(g, 9, 12, 10, 13, 4, suitDark);
+    rr(g, 1, 6, 10, 6, 2.5, armour);
+    rr(g, 1, 6, 10, 2, 1.5, armourLit);
+    rr(g, 0.5, 9, 3, 3, 1.2, suit);
+    circ(g, 6, 3.4, 3.4, suit);
+    rr(g, 4, 1.6, 6, 3.4, 1.6, suit);
+    rr(g, 4.4, 1.8, 5.2, 1.2, 0.6, suitLit);
+    rr(g, 5.5, 2.6, 4, 1.6, 0.8, visor);
+    px(g, 6.5, 2.6, 2, 0.9, visorLit);
+    rr(g, 0.6, 12, 4.4, 2, 0.8, boot);
+    rr(g, 7, 12, 4.4, 2, 0.8, boot);
   } else {
-    /* helmet + crest */
-    R(4, 0, 4, 1, OL);
-    R(2, 1, 8, 5, OL);
-    R(3, 2, 6, 3, suit);
-    R(3, 2, 6, 1, suitLit);
-    R(5, 2, 4, 3, visor);
-    R(6, 3, 2, 1, visorLit);
-    R(3, 5, 6, 1, OL);
+    /* legs — capsule thighs and shins with a real run cycle */
+    var swing = p.onGround ? Math.sin(p.runPhase * Math.PI * 2) : 0.55;
+    var lift = p.onGround ? Math.max(0, Math.cos(p.runPhase * Math.PI * 2)) : 0;
+    var backX = 5 - swing * 2.2, frontX = 7 + swing * 2.2;
+    var backLift = Math.max(0, -swing) * 2.4, frontLift = Math.max(0, swing) * 2.4;
 
-    /* collar + backpack */
-    R(2, 6, 8, 2, OL);
-    R(3, 6, 6, 1, suitLit);
-    R(0, 8, 2, 6, OL);
-    R(0, 9, 1, 4, C('#24425a'));
+    limb(g, 5, 15, backX, 20 - backLift, 3.2, suitDark);
+    limb(g, 7, 15, frontX, 20 - frontLift, 3.2, suit);
+    rr(g, backX - 2, 19 - backLift, 4.2, 2.2, 0.9, boot);
+    rr(g, frontX - 1.4, 19 - frontLift, 4.6, 2.2, 0.9, boot);
+
+    /* backpack */
+    rr(g, 0.2, 9, 2.2, 5.4, 1, suitDark);
 
     /* torso */
-    R(1, 8, 10, 7, OL);
-    R(2, 9, 8, 5, armour);
-    R(2, 9, 8, 1, armourLit);
-    R(4, 11, 4, 1, suit);
-    R(2, 13, 8, 1, C('#8fa4b8'));
+    rr(g, 1.4, 8, 9.2, 7.4, 2.6, armour);
+    rr(g, 1.4, 8, 9.2, 2.6, 1.6, armourLit);
+    rr(g, 3.4, 11.4, 5.4, 1.4, 0.7, suit);
+    rr(g, 1.6, 13.4, 8.8, 1.2, 0.6, armourDark);
 
-    /* shoulder pad on the leading side */
-    R(1, 8, 3, 3, OL);
-    R(2, 9, 2, 1, armourLit);
+    /* shoulder pad */
+    rr(g, 1, 8, 3.4, 3.2, 1.5, armour);
+    px(g, 1.8, 8.6, 1.8, 0.9, armourLit);
 
-    /* legs — run cycle */
-    var swing = p.onGround ? Math.sin(p.runPhase * Math.PI * 2) : 0.6;
-    var legA = Math.round(swing * 3);
-    var legB = -legA;
-    R(2, 15, 3, 4 + legA, OL);
-    R(2, 15, 2, 4 + legA, suit);
-    R(7, 15, 3, 4 + legB, OL);
-    R(8, 15, 2, 4 + legB, suit);
-    R(1, 19 + legA, 4, 2, OL);
-    R(2, 19 + legA, 3, 1, boot);
-    R(7, 19 + legB, 4, 2, OL);
-    R(7, 19 + legB, 3, 1, boot);
+    /* neck + helmet */
+    rr(g, 4.2, 6.2, 3.6, 2, 0.9, suitDark);
+    circ(g, 6, 3.6, 3.5, suit);
+    rr(g, 3.2, 1.2, 6.2, 4.4, 2, suit);
+    rr(g, 3.8, 1.4, 5, 1.2, 0.6, suitLit);
+    /* crest */
+    rr(g, 5.4, 0.2, 2.4, 1.4, 0.7, armour);
+
+    /* visor, angled with the aim */
+    var vis = clamp(p.aimAngle, -1.1, 1.1);
+    g.save();
+    g.translate(6.4, 3.4);
+    g.rotate(vis * 0.22);
+    rr(g, -1.4, -1.1, 5, 2.2, 1.1, visor);
+    px(g, 0.2, -0.9, 2.2, 0.8, visorLit);
+    g.restore();
   }
+  g.restore();
 
-  /* arm + weapon, rotated to the aim vector */
+  /* arm + weapon in world space, because the aim angle already has facing in it */
   var shoulderX = f > 0 ? x + 8 : x + 4;
-  var shoulderY = y + (duck ? 8 : 11);
+  var shoulderY = y + (duck ? 8 : 10.5);
+  var handX = shoulderX + Math.cos(p.aimAngle) * 5.5;
+  var handY = shoulderY + Math.sin(p.aimAngle) * 5.5;
+  limb(g, shoulderX, shoulderY, handX, handY, 2.6, hurt ? '#ffffff' : SUIT.suit);
+
   g.save();
-  g.translate(shoulderX, shoulderY);
+  g.translate(handX, handY);
   g.rotate(p.aimAngle);
-  px(g, -1, -2, 9, 4, OL);
-  px(g, 0, -1, 8, 2, gun);
-  px(g, 0, -1, 8, 1, C('#d6e2ec'));
-  px(g, 4, -2, 5, 3, OL);
-  px(g, 5, -1, 4, 1, gunDark);
-  px(g, 0, -2, 3, 4, suit);
+  rr(g, -1, -1.4, 8.4, 2.8, 1.2, SUIT.outline);
+  rr(g, -0.4, -0.9, 7.4, 1.8, 0.8, hurt ? '#ffffff' : SUIT.gun);
+  px(g, -0.4, -0.9, 7, 0.7, hurt ? '#ffffff' : '#d6e2ec');
+  rr(g, 3.4, -1.8, 4.4, 3.4, 1.2, SUIT.outline);
+  rr(g, 3.8, -1.3, 3.4, 2.4, 0.9, SUIT.gunDark);
   if (p.muzzle > 0) {
-    px(g, 9, -3, 3, 6, '#ffe9a8');
-    px(g, 10, -2, 4, 4, '#ffb545');
-    px(g, 12, -1, 2, 2, '#fff8e0');
+    glow(g, 9, 0, 7, '#ffb545', 0.55);
+    rr(g, 8, -1.6, 4, 3.2, 1.4, '#ffe9a8');
+    rr(g, 9.4, -0.9, 3, 1.8, 0.9, '#fff8e0');
   }
   g.restore();
 }
 
 /* ---- enemies ------------------------------------------------------------ */
 function drawGrunt(g, e) {
+  var P = palFor(e), OL = '#120810';
+  var flash = e.flash > 0 && (Math.floor(e.flash / 2) % 2 === 0);
+  function C(c) { return flash ? '#ffffff' : c; }
   var x = Math.round(e.x), y = Math.round(e.y);
   var f = e.facing >= 0 ? 1 : -1;
-  var flash = e.flash > 0 && (Math.floor(e.flash / 2) % 2 === 0);
-  var OL = '#120810';
-  function C(c) { return flash ? '#ffffff' : c; }
-  var body = C('#8d2f42'), lit = C('#c05063'), dark = C('#5c1c2c');
-  var metal = C('#5b6472'), metalLit = C('#98a3b3'), eye = C('#ff4d6d'), eyeLit = C('#ffd0d8');
-  function R(lx, ly, w, h, c) {
-    var dx = f > 0 ? x + lx : x + 12 - lx - w;
-    px(g, dx, y + ly, w, h, c);
-  }
-  /* helmet */
-  R(2, 0, 8, 2, OL);
-  R(3, 1, 6, 2, metal);
-  R(3, 1, 6, 1, metalLit);
-  R(3, 3, 6, 1, OL);
-  R(4, 2, 4, 1, eye);
-  /* body */
-  R(1, 4, 10, 9, OL);
-  R(2, 5, 8, 7, body);
-  R(2, 5, 8, 1, lit);
-  R(3, 7, 6, 1, dark);
-  R(2, 9, 8, 1, dark);
-  /* arms */
-  R(0, 6, 2, 5, OL);
-  R(10, 6, 2, 5, OL);
-  /* rifle */
-  R(9, 8, 6, 3, OL);
-  R(9, 9, 5, 1, metalLit);
+  var s = e.scale || 1;
+
+  g.save();
+  g.translate(f > 0 ? x + 6 : x + 6, y + e.h);
+  g.scale(f * s, s);
+  g.translate(-6, -18);
+
   /* legs */
-  var swing = Math.sin(e.walkPhase * Math.PI * 2);
-  var a = Math.round(swing * 1.6), b = -a;
-  R(2, 13, 3, 4 + a, OL);
-  R(7, 13, 3, 4 + b, OL);
-  R(1, 16 + a, 4, 2, OL);
-  R(7, 16 + b, 4, 2, OL);
+  var swing = Math.sin(e.walkPhase * Math.PI * 2) * 1.8;
+  limb(g, 5, 13, 4.4 - swing * 0.4, 17 + swing * 0.3, 2.6, C(P.bodyDark));
+  limb(g, 7, 13, 7.6 + swing * 0.4, 17 - swing * 0.3, 2.6, C(P.bodyDark));
+
+  /* body */
+  rr(g, 1.6, 5, 8.8, 8.6, 2.8, C(P.body));
+  rr(g, 1.6, 5, 8.8, 2.4, 1.4, C(P.bodyLit));
+  rr(g, 3, 8.6, 6, 1.2, 0.6, C(P.bodyDark));
+
+  /* rifle */
+  limb(g, 8, 10, 14, 9.4, 1.8, C(P.metal));
+  px(g, 12.4, 8.6, 1.6, 2, C(P.metalLit));
+
+  /* arms */
+  limb(g, 8.2, 8, 10.4, 9.6, 2, C(P.body));
+
+  /* helmet + eye */
+  circ(g, 6, 3.2, 3.2, C(P.metal));
+  rr(g, 2.9, 0.6, 6.2, 3.4, 1.7, C(P.metal));
+  rr(g, 3.3, 0.8, 5.4, 1, 0.5, C(P.metalLit));
+  rr(g, 4.4, 2.4, 3.6, 1.6, 0.8, C(P.eye));
+  px(g, 5.2, 2.4, 1.6, 0.8, C(P.eyeLit));
+  if (e.elite) {
+    rr(g, 2.6, -0.4, 1.4, 1.6, 0.6, '#ffe08a');
+    rr(g, 8, -0.4, 1.4, 1.6, 0.6, '#ffe08a');
+  }
+  g.restore();
 }
 
 function drawRunner(g, e) {
+  var P = palFor(e), OL = '#120810';
+  var flash = e.flash > 0 && (Math.floor(e.flash / 2) % 2 === 0);
+  function C(c) { return flash ? '#ffffff' : c; }
   var x = Math.round(e.x), y = Math.round(e.y);
   var f = e.facing >= 0 ? 1 : -1;
-  var flash = e.flash > 0 && (Math.floor(e.flash / 2) % 2 === 0);
-  var c = flash ? '#ffffff' : '#b8402f';
-  var cl = flash ? '#ffffff' : '#e8705a';
-  function R(lx, ly, w, h, col) {
-    var dx = f > 0 ? x + lx : x + 14 - lx - w;
-    px(g, dx, y + ly, w, h, col);
-  }
-  R(2, 2, 10, 7, '#120a12');
-  R(3, 3, 8, 5, c);
-  R(4, 3, 5, 2, cl);
-  R(10, 4, 3, 2, '#ffd257');
-  R(1, 8, 12, 5, '#120a12');
-  R(2, 9, 10, 3, c);
-  var s = Math.sin(e.walkPhase * Math.PI * 4);
-  R(2, 12, 3, 3 + Math.round(s * 2), '#120a12');
-  R(9, 12, 3, 3 - Math.round(s * 2), '#120a12');
-  R(0, 9, 2, 2, cl);
+  var s = e.scale || 1;
+  var s2 = Math.sin(e.walkPhase * Math.PI * 4) * 2;
+
+  g.save();
+  g.translate(x + 7, y + e.h);
+  g.scale(f * s, s);
+  g.translate(-7, -15);
+
+  /* hind legs */
+  limb(g, 5, 11, 3.6, 14 + s2 * 0.4, 2.2, C(P.bodyDark));
+  limb(g, 9, 11, 10.4, 14 - s2 * 0.4, 2.2, C(P.bodyDark));
+
+  /* streamlined body */
+  el(g, 7, 7.6, 5.6, 3.6, C(P.body));
+  el(g, 6.2, 6.4, 4.4, 2.2, C(P.bodyLit));
+  /* head */
+  el(g, 11, 5.4, 3, 2.6, C(P.body));
+  el(g, 11.6, 4.6, 2, 1.4, C(P.bodyLit));
+  rr(g, 12.2, 4.6, 2.6, 1.6, 0.8, '#ffd257');
+  px(g, 13.4, 4.8, 1.2, 0.8, '#fff6d0');
+  /* claws */
+  limb(g, 13, 6.6, 15, 7.4, 1.2, C(P.bodyDark));
+  g.restore();
 }
 
 function drawDrone(g, e) {
-  var x = Math.round(e.x), y = Math.round(e.y);
-  var bob = Math.sin(e.age * 0.12) * 1.5;
-  y = Math.round(y + bob);
+  var P = palFor(e);
   var flash = e.flash > 0 && (Math.floor(e.flash / 2) % 2 === 0);
-  var hull = flash ? '#ffffff' : ENEMY_SKIN.metal;
-  px(g, x, y + 3, 16, 6, ENEMY_SKIN.outline);
-  px(g, x + 1, y + 4, 14, 4, hull);
-  px(g, x + 2, y + 4, 12, 1, ENEMY_SKIN.metalLit);
-  px(g, x + 5, y + 2, 6, 2, ENEMY_SKIN.outline);
-  px(g, x + 6, y + 2, 4, 1, hull);
-  px(g, x + 6, y + 5, 4, 2, flash ? '#ffffff' : ENEMY_SKIN.eye);
-  px(g, x + 7, y + 5, 2, 1, ENEMY_SKIN.eyeLit);
-  /* rotors */
-  var spin = Math.floor(e.age / 3) % 2 === 0 ? 5 : 3;
-  px(g, x - 2, y, spin, 1, '#7f8fa6');
-  px(g, x + 16 - spin, y, spin, 1, '#7f8fa6');
-  px(g, x + 7, y - 1, 1, 1, '#7f8fa6');
+  function C(c) { return flash ? '#ffffff' : c; }
+  var x = Math.round(e.x), y = Math.round(e.y);
+  var bob = Math.sin(e.age * 0.12) * 1.4;
+  var cx = x + 8, cy = y + 5 + bob;
+  var s = e.scale || 1;
+
+  glow(g, cx, cy, 13, C(P.eye), 0.16);
+
+  g.save();
+  g.translate(cx, cy);
+  g.scale(s, s);
+
+  /* rotor arms */
+  limb(g, -9, -2, -4, -1, 1.2, C(P.metal));
+  limb(g, 9, -2, 4, -1, 1.2, C(P.metal));
+  var spin = Math.floor(e.age / 3) % 2 === 0 ? 4.4 : 2.6;
+  el(g, -9, -2.6, spin, 0.9, '#8fa4b8');
+  el(g, 9, -2.6, spin, 0.9, '#8fa4b8');
+
+  /* hull */
+  el(g, 0, 0, 8, 4.6, C(P.metal));
+  el(g, 0, -1.2, 6.4, 2.6, C(P.metalLit));
+  rr(g, -3, -4.4, 6, 2.4, 1.2, C(P.metal));
+
+  /* eye */
+  circ(g, 0, 0.8, 2.4, C(P.eye));
+  circ(g, -0.4, 0.2, 1.1, C(P.eyeLit));
+  g.restore();
 }
 
 function drawTurret(g, e) {
-  var x = Math.round(e.x), y = Math.round(e.y);
+  var P = palFor(e);
   var flash = e.flash > 0 && (Math.floor(e.flash / 2) % 2 === 0);
-  var base = flash ? '#ffffff' : ENEMY_SKIN.metal;
-  px(g, x, y + 8, 16, 6, ENEMY_SKIN.outline);
-  px(g, x + 1, y + 9, 14, 4, base);
-  px(g, x + 2, y + 9, 12, 1, ENEMY_SKIN.metalLit);
-  px(g, x + 3, y + 2, 10, 7, ENEMY_SKIN.outline);
-  px(g, x + 4, y + 3, 8, 5, base);
-  px(g, x + 6, y + 4, 4, 2, flash ? '#ffffff' : ENEMY_SKIN.eye);
-  /* barrel aims at the player */
+  function C(c) { return flash ? '#ffffff' : c; }
+  var x = Math.round(e.x), y = Math.round(e.y);
+  var cx = x + 8, base = y + 14;
+
+  /* base */
+  el(g, cx, base, 8, 2.6, C(P.bodyDark));
+  rr(g, x + 1, base - 5, 14, 5, 2.2, C(P.metal));
+  rr(g, x + 1, base - 5, 14, 1.4, 0.7, C(P.metalLit));
+
+  /* dome */
+  circ(g, cx, y + 6.4, 5.2, C(P.metal));
+  rr(g, cx - 5.2, y + 4, 10.4, 4, 2, C(P.metal));
+  el(g, cx, y + 4.4, 4, 1.4, C(P.metalLit));
+
+  /* eye */
+  circ(g, cx, y + 6, 1.8, C(P.eye));
+  circ(g, cx - 0.3, y + 5.6, 0.8, C(P.eyeLit));
+
+  /* barrel */
   g.save();
-  g.translate(x + 8, y + 6);
+  g.translate(cx, y + 7);
   g.rotate(e.aimAngle || 0);
-  px(g, 0, -1, 10, 3, ENEMY_SKIN.outline);
-  px(g, 0, 0, 9, 1, ENEMY_SKIN.metalLit);
+  rr(g, 0, -1.6, 11, 3.2, 1.4, C(P.metal));
+  rr(g, 0, -1, 10, 1.2, 0.6, C(P.metalLit));
+  rr(g, 9, -1.9, 3, 3.8, 1.2, C(P.bodyDark));
   g.restore();
 }
 
 function drawJumper(g, e) {
+  var P = palFor(e);
+  var flash = e.flash > 0 && (Math.floor(e.flash / 2) % 2 === 0);
+  function C(c) { return flash ? '#ffffff' : c; }
   var x = Math.round(e.x), y = Math.round(e.y);
   var f = e.facing >= 0 ? 1 : -1;
-  var flash = e.flash > 0 && (Math.floor(e.flash / 2) % 2 === 0);
-  var c = flash ? '#ffffff' : '#6b3fa0';
-  var cl = flash ? '#ffffff' : '#9a6bd0';
   var squash = e.onGround ? 1 : 0;
-  function R(lx, ly, w, h, col) {
-    var dx = f > 0 ? x + lx : x + 14 - lx - w;
-    px(g, dx, y + ly, w, h, col);
-  }
-  R(2, 1 + squash, 10, 6 - squash, '#120a12');
-  R(3, 2 + squash, 8, 4 - squash, c);
-  R(4, 2 + squash, 6, 2, cl);
-  R(9, 3 + squash, 3, 2, '#ffd257');
-  R(1, 7, 12, 3, '#120a12');
-  R(2, 7, 10, 2, c);
-  R(0, 9, 3, 2, cl);
-  R(11, 9, 3, 2, cl);
+  var s = e.scale || 1;
+
+  g.save();
+  g.translate(x + 7, y + e.h);
+  g.scale(f * s, s);
+  g.translate(-7, -12);
+
+  /* legs, coiled when grounded */
+  limb(g, 5, 8, 2.6, 11 + squash, 2.2, C(P.bodyDark));
+  limb(g, 9, 8, 11.4, 11 + squash, 2.2, C(P.bodyDark));
+
+  /* body */
+  el(g, 7, 6.4 - squash * 0.6, 6, 3.4 - squash * 0.4, C(P.body));
+  el(g, 6.2, 5.4 - squash * 0.6, 4.6, 2, C(P.bodyLit));
+
+  /* eyes */
+  circ(g, 9.6, 4.6, 1.5, C(P.eye));
+  px(g, 10.1, 4.2, 0.8, 0.8, C(P.eyeLit));
+  circ(g, 5.4, 4.8, 1.2, C(P.eye));
+  g.restore();
 }
 
 /* ---- pickups ------------------------------------------------------------ */
@@ -369,129 +505,141 @@ function drawCapsule(g, c) {
   var x = Math.round(c.x), y = Math.round(c.y);
   var bob = Math.sin(c.age * 0.1) * 2;
   y += bob;
-  var glow = c.kind === 'health' ? '#54ffa8' : (c.kind === 'coin' ? '#ffd257' : '#54e0ff');
-  g.globalAlpha = 0.25;
-  px(g, x - 2, y - 2, 18, 18, glow);
-  g.globalAlpha = 1;
-  px(g, x, y, 14, 14, '#0a0e16');
-  px(g, x + 1, y + 1, 12, 12, glow);
-  px(g, x + 2, y + 2, 10, 3, '#ffffff');
+  var col = c.kind === 'health' ? '#54ffa8' : (c.kind === 'coin' ? '#ffd257' : '#54e0ff');
+
+  glow(g, x + 7, y + 7, 15, col, 0.22);
+  rr(g, x - 0.5, y - 0.5, 15, 15, 5, 'rgba(8,14,22,0.85)');
+  rr(g, x + 0.5, y + 0.5, 13, 13, 4.4, col);
+  rr(g, x + 2, y + 2, 10, 3.4, 1.6, 'rgba(255,255,255,0.75)');
+
   if (c.kind === 'health') {
-    px(g, x + 6, y + 4, 2, 6, '#08301c');
-    px(g, x + 4, y + 6, 6, 2, '#08301c');
+    rr(g, x + 6, y + 4, 2.4, 6.4, 1, '#08301c');
+    rr(g, x + 4, y + 6, 6.4, 2.4, 1, '#08301c');
   } else if (c.kind === 'coin') {
-    drawText(g, 'E', x + 5, y + 4, 1, '#4a3200');
+    circ(g, x + 7, y + 7, 3.2, '#7a5400');
+    circ(g, x + 7, y + 7, 2.2, '#fff0b8');
   } else {
-    drawText(g, c.label || 'W', x + 5, y + 4, 1, '#062231');
+    drawText(g, c.label || 'W', x + 4.4, y + 3.6, 1, '#062231');
   }
 }
 
 /* ---- bosses ------------------------------------------------------------- */
 function drawWarden(g, b) {
-  var x = Math.round(b.x), y = Math.round(b.y);
   var flash = b.flash > 0 && (Math.floor(b.flash / 2) % 2 === 0);
-  var OL = '#080b12';
   function C(c) { return flash ? '#ffffff' : c; }
+  var x = Math.round(b.x), y = Math.round(b.y);
+  var w = b.w, h = b.h;
+  var step = Math.sin(b.age * 0.08) * 3;
   var plate = C('#4a5568'), plateLit = C('#7c8a9e'), plateDark = C('#2c3444');
-  var accent = C('#c0392b'), w = b.w, h = b.h;
-  var step = Math.round(Math.sin(b.age * 0.08) * 3);
+  var accent = C('#c0392b');
 
-  /* outline pass, then fill pass — every part reads at a distance */
-  function P(lx, ly, lw, lh, fill, lit) {
-    px(g, x + lx - 1, y + ly - 1, lw + 2, lh + 2, OL);
-    px(g, x + lx, y + ly, lw, lh, fill);
-    if (lit) px(g, x + lx, y + ly, lw, 2, lit);
-  }
-
-  /* legs */
-  P(9, h - 28 + step, 13, 28 - step, plate, plateLit);
-  P(9, h - 6 + step, 15, 6, plateDark, null);
-  P(w - 22, h - 28 - step, 13, 28 + step, plate, plateLit);
-  P(w - 24, h - 6 - step, 15, 6, plateDark, null);
+  /* legs — rounded joints, heavy stance */
+  limb(g, x + 16, y + h - 30 + step, x + 15, y + h - 4 + step, 11, plateDark);
+  limb(g, x + w - 16, y + h - 30 - step, x + w - 15, y + h - 4 - step, 11, plateDark);
+  rr(g, x + 6, y + h - 8 + step, 19, 7, 3, plate);
+  rr(g, x + w - 25, y + h - 8 - step, 19, 7, 3, plate);
 
   /* hips + torso */
-  P(6, 26, w - 12, h - 46, plate, plateLit);
-  P(10, 34, w - 20, 8, plateDark, null);
-  P(10, 50, w - 20, 3, accent, null);
-  P(14, 58, w - 28, 10, plateDark, null);
+  rr(g, x + 6, y + 24, w - 12, h - 46, 9, plate);
+  rr(g, x + 6, y + 24, w - 12, 8, 4, plateLit);
+  rr(g, x + 11, y + 34, w - 22, 9, 4, plateDark);
+  rr(g, x + 11, y + 50, w - 22, 4, 2, accent);
 
   /* shoulder cannons */
-  P(-4, 28, 13, 13, plateLit, C('#a9b6c6'));
-  px(g, x - 8, y + 32, 5, 5, OL);
-  P(w - 9, 28, 13, 13, plateLit, C('#a9b6c6'));
-  px(g, x + w + 3, y + 32, 5, 5, OL);
+  rr(g, x - 6, y + 26, 15, 15, 5, plateLit);
+  circ(g, x - 7, y + 33, 3.4, plateDark);
+  rr(g, x + w - 9, y + 26, 15, 15, 5, plateLit);
+  circ(g, x + w + 7, y + 33, 3.4, plateDark);
 
   /* head */
-  P(w / 2 - 12, 6, 24, 19, plateLit, C('#a9b6c6'));
-  px(g, x + w / 2 - 8, y + 12, 16, 7, OL);
-  px(g, x + w / 2 - 7, y + 13, 14, 5, accent);
-  px(g, x + w / 2 - 4, y + 14, 8, 3, C('#ffe9a8'));
-  px(g, x + w / 2 - 14, y + 2, 3, 6, OL);
-  px(g, x + w / 2 + 11, y + 2, 3, 6, OL);
+  rr(g, x + w / 2 - 12, y + 5, 24, 19, 7, plateLit);
+  rr(g, x + w / 2 - 12, y + 5, 24, 6, 3, C('#a9b6c6'));
+  rr(g, x + w / 2 - 8, y + 12, 16, 7, 3, '#0a0e16');
+  rr(g, x + w / 2 - 7, y + 13, 14, 5, 2.4, accent);
+  rr(g, x + w / 2 - 4, y + 14, 8, 3, 1.4, C('#ffe9a8'));
+  limb(g, x + w / 2 - 14, y + 2, x + w / 2 - 14, y + 8, 2.4, plateDark);
+  limb(g, x + w / 2 + 14, y + 2, x + w / 2 + 14, y + 8, 2.4, plateDark);
 
   /* core */
-  var coreY = y + h - 42;
-  px(g, x + w / 2 - 10, coreY - 2, 20, 20, OL);
-  px(g, x + w / 2 - 8, coreY, 16, 16, C('#1a1f2a'));
-  g.globalAlpha = 0.75;
-  px(g, x + w / 2 - 6, coreY + 2, 12, 12, b.phase === 2 ? '#ff5c3c' : '#ffb545');
-  g.globalAlpha = 1;
-  px(g, x + w / 2 - 4, coreY + 4, 8, 8, '#fff3c4');
+  var coreY = y + h - 42, cx = x + w / 2;
+  circ(g, cx, coreY + 8, 11, '#0a0e16');
+  glow(g, cx, coreY + 8, 20, b.phase === 2 ? '#ff5c3c' : '#ffb545', 0.5);
+  circ(g, cx, coreY + 8, 7.4, b.phase === 2 ? '#ff5c3c' : '#ffb545');
+  circ(g, cx, coreY + 8, 4, '#fff3c4');
 }
 
 function drawWraith(g, b) {
-  var x = Math.round(b.x), y = Math.round(b.y);
   var flash = b.flash > 0 && (Math.floor(b.flash / 2) % 2 === 0);
-  var shell = flash ? '#ffffff' : '#2b6f8f';
-  var shellLit = flash ? '#ffffff' : '#7fe3ff';
+  function C(c) { return flash ? '#ffffff' : c; }
+  var x = Math.round(b.x), y = Math.round(b.y);
   var w = b.w, h = b.h;
   var flap = Math.sin(b.age * 0.14) * 6;
-  /* wings */
-  px(g, x - 14, y + 10 + flap, 18, 6, shell);
-  px(g, x - 12, y + 8 + flap, 12, 4, shellLit);
-  px(g, x + w - 4, y + 10 - flap, 18, 6, shell);
-  px(g, x + w - 2, y + 8 - flap, 12, 4, shellLit);
-  /* body */
-  px(g, x + 4, y + 6, w - 8, h - 12, '#08131c');
-  px(g, x + 6, y + 8, w - 12, h - 16, shell);
-  px(g, x + 8, y + 10, w - 16, 5, shellLit);
-  /* crystal core */
+  var shell = C('#2b6f8f'), shellLit = C('#7fe3ff'), dark = '#08131c';
   var cx = x + w / 2, cy = y + h / 2;
-  px(g, cx - 9, cy - 9, 18, 18, '#08131c');
-  px(g, cx - 7, cy - 7, 14, 14, b.phase === 2 ? '#ff5c3c' : '#bff4ff');
-  px(g, cx - 3, cy - 3, 6, 6, '#ffffff');
-  /* eye */
-  px(g, cx - 12, y + 14, 6, 4, '#08131c');
-  px(g, cx + 6, y + 14, 6, 4, '#08131c');
-  px(g, cx - 11, y + 15, 4, 2, '#ff4d6d');
-  px(g, cx + 7, y + 15, 4, 2, '#ff4d6d');
+
+  /* wings — bezier membranes */
+  g.save();
+  g.fillStyle = shell;
+  g.beginPath();
+  g.moveTo(cx - 12, cy - 2);
+  g.quadraticCurveTo(cx - 34, cy - 16 + flap, cx - 46, cy - 2 + flap);
+  g.quadraticCurveTo(cx - 30, cy + 2 + flap, cx - 12, cy + 8);
+  g.closePath();
+  g.fill();
+  g.beginPath();
+  g.moveTo(cx + 12, cy - 2);
+  g.quadraticCurveTo(cx + 34, cy - 16 - flap, cx + 46, cy - 2 - flap);
+  g.quadraticCurveTo(cx + 30, cy + 2 - flap, cx + 12, cy + 8);
+  g.closePath();
+  g.fill();
+  g.restore();
+  limb(g, cx - 14, cy - 1, cx - 42, cy - 4 + flap, 1.6, shellLit);
+  limb(g, cx + 14, cy - 1, cx + 42, cy - 4 - flap, 1.6, shellLit);
+
+  /* body */
+  el(g, cx, cy, w / 2 - 6, h / 2 - 6, dark);
+  el(g, cx, cy, w / 2 - 8, h / 2 - 8, shell);
+  el(g, cx, cy - 6, w / 2 - 12, 4, shellLit);
+
+  /* crystal core */
+  glow(g, cx, cy + 4, 24, b.phase === 2 ? '#ff5c3c' : '#bff4ff', 0.45);
+  circ(g, cx, cy + 4, 8, dark);
+  circ(g, cx, cy + 4, 6, b.phase === 2 ? '#ff5c3c' : '#bff4ff');
+  circ(g, cx, cy + 4, 2.6, '#ffffff');
+
+  /* eyes */
+  circ(g, cx - 13, cy - 8, 2.4, dark);
+  circ(g, cx + 13, cy - 8, 2.4, dark);
+  circ(g, cx - 13, cy - 8, 1.3, '#ff4d6d');
+  circ(g, cx + 13, cy - 8, 1.3, '#ff4d6d');
 }
 
 function drawHeart(g, b) {
-  var x = Math.round(b.x), y = Math.round(b.y);
   var flash = b.flash > 0 && (Math.floor(b.flash / 2) % 2 === 0);
+  function C(c) { return flash ? '#ffffff' : c; }
+  var x = Math.round(b.x), y = Math.round(b.y);
   var cx = x + b.w / 2, cy = y + b.h / 2;
   var spin = b.age * 0.04;
-  /* orbiting rings */
+  var pulse = 1 + Math.sin(b.age * 0.16) * 0.08;
+
+  /* orbiting nodes */
   for (var i = 0; i < 3; i++) {
     var a = spin + i * Math.PI * 2 / 3;
-    var rx = Math.cos(a) * (b.w / 2 - 4);
-    var ry = Math.sin(a) * (b.h / 4);
-    px(g, cx + rx - 5, cy + ry - 5, 10, 10, '#0a0e16');
-    px(g, cx + rx - 4, cy + ry - 4, 8, 8, flash ? '#ffffff' : '#c9a227');
-    px(g, cx + rx - 2, cy + ry - 2, 4, 4, '#ffe9a8');
+    var ox = cx + Math.cos(a) * (b.w / 2 - 5);
+    var oy = cy + Math.sin(a) * (b.h / 4);
+    circ(g, ox, oy, 4.4, '#0a0e16');
+    circ(g, ox, oy, 3.4, C('#c9a227'));
+    circ(g, ox, oy, 1.6, '#ffe9a8');
   }
+
   /* shell */
-  px(g, cx - 26, cy - 26, 52, 52, '#0a0e16');
-  px(g, cx - 24, cy - 24, 48, 48, flash ? '#ffffff' : '#3a1030');
-  px(g, cx - 20, cy - 20, 40, 8, flash ? '#ffffff' : '#6b1d4f');
-  /* the heart itself */
-  var pulse = 1 + Math.sin(b.age * 0.16) * 0.12;
-  var r = 15 * pulse;
-  g.globalAlpha = 0.5;
-  px(g, cx - r - 4, cy - r - 4, (r + 4) * 2, (r + 4) * 2, b.phase === 2 ? '#ff3b2f' : '#ff2d95');
-  g.globalAlpha = 1;
-  px(g, cx - r, cy - r, r * 2, r * 2, b.phase === 2 ? '#ff5c3c' : '#ff2d95');
-  px(g, cx - r * 0.6, cy - r * 0.6, r * 1.2, r * 1.2, '#ffd0e4');
-  px(g, cx - r * 0.3, cy - r * 0.3, r * 0.6, r * 0.6, '#ffffff');
+  circ(g, cx, cy, 26, '#0a0e16');
+  circ(g, cx, cy, 24, C('#3a1030'));
+  el(g, cx, cy - 12, 20, 8, C('#6b1d4f'));
+
+  /* the heart */
+  glow(g, cx, cy, 34, b.phase === 2 ? '#ff3b2f' : '#ff2d95', 0.5);
+  circ(g, cx, cy, 15 * pulse, b.phase === 2 ? '#ff5c3c' : '#ff2d95');
+  circ(g, cx, cy, 9 * pulse, '#ffd0e4');
+  circ(g, cx, cy, 4.4 * pulse, '#ffffff');
 }

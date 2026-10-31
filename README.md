@@ -33,13 +33,13 @@
 <br>
 
 [![Hosted on GitHub Pages](https://img.shields.io/badge/hosted%20on-GitHub%20Pages-222222?logo=githubpages&logoColor=white&style=for-the-badge&labelColor=05070d)](https://drsamonline.github.io/eon-commando/)
-[![Version](https://img.shields.io/badge/version-1.0.0-ffd257.svg?style=for-the-badge&labelColor=05070d)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.0-ffd257.svg?style=for-the-badge&labelColor=05070d)](CHANGELOG.md)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-54ffa8.svg?style=for-the-badge&labelColor=05070d)](#-zero-dependencies)
 [![Network calls](https://img.shields.io/badge/network%20calls-none-54ffa8.svg?style=for-the-badge&labelColor=05070d)](#-zero-dependencies)
 
 [![Single file](https://img.shields.io/badge/build-single%20HTML%20file-ffd257.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
-[![Size](https://img.shields.io/badge/minified-100%20KB-54e0ff.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
-[![Gzipped](https://img.shields.io/badge/gzipped-27%20KB-54e0ff.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
+[![Size](https://img.shields.io/badge/minified-109%20KB-54e0ff.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
+[![Gzipped](https://img.shields.io/badge/gzipped-30%20KB-54e0ff.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
 [![Made with](https://img.shields.io/badge/made%20with-vanilla%20JS%20%2B%20canvas-ffd257.svg?style=for-the-badge&labelColor=05070d)](#-how-it-works)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge&labelColor=05070d)](#-contributing)
 
@@ -84,7 +84,7 @@ Works identically from `file://` and from a web server. Works offline. Works on 
 | | |
 | :-- | :-- |
 | **Source** | [github.com/drsamonline/eon-commando](https://github.com/drsamonline/eon-commando) |
-| **Download** | [index.html](https://github.com/drsamonline/eon-commando/raw/main/index.html) (100 KB, self-contained) |
+| **Download** | [index.html](https://github.com/drsamonline/eon-commando/raw/main/index.html) (109 KB, self-contained) |
 | **Landing page** | [drsamonline.github.io/eon-commando](https://drsamonline.github.io/eon-commando/) |
 
 ---
@@ -121,7 +121,32 @@ Works identically from `file://` and from a web server. Works offline. Works on 
 
 <img src="docs/shots/boss3.png" alt="The Eon Heart boss throwing a spiral of bullets" width="820">
 
+<br><br>
+
+**Widescreen** — the view widens from 16:9 to 21:9 instead of letterboxing
+
+<img src="docs/shots/widescreen.png" alt="Ultrawide 21:9 view: the level reveals more world either side" width="820">
+
 </div>
+
+---
+
+## 🆕 What's new in 1.1
+
+- **Curved, hand-drawn sprites.** Every character was rebuilt from stacked rectangles into
+  rounded caps, arcs, ellipses and bezier limbs — helmets, visors, shoulders, knees and
+  boots all have real silhouettes now, while the game stays pixel-pure on the 480×270 grid.
+- **Enemy variation.** One rig, many looks: each era reskins the same enemy silhouette
+  (ember → frost → core), spawns get ±6% scale jitter, and roughly one in eight is an
+  **elite** in gold with ~1.8× health.
+- **Widescreen.** The logical viewport follows your window's aspect ratio from 16:9 up to
+  21:9, so ultrawide and 16:10 screens fill properly instead of letterboxing. Boss arenas
+  keep a fixed 16:9 footprint and the camera centres them, so a wide screen sees the walls
+  rather than the void.
+- **Readability pass.** Enemy bullets got dark rims, glow and motion trails; screen-edge
+  arrows point at enemies you cannot see; the background dims 18% during boss fights.
+- **Better feel.** Corner correction — you now slide around a ledge instead of bonking your
+  head on it — plus rounded platforms and ground edges that no longer read as knife cuts.
 
 ---
 
@@ -291,8 +316,11 @@ index.html?shot=1&stage=3&warp=2520&demo=320&right=0
 - [x] Chiptune music and sound effects, synthesised at runtime
 - [x] Keyboard, touch pads and gamepad
 - [x] High-score persistence, pause, mute
+- [x] Curved sprite art with per-era palettes, scale jitter and elite variants
+- [x] Widescreen viewport (16:9 → 21:9) with a fixed-footprint boss arena
+- [x] Readability pass: bullet rims and trails, off-screen threat arrows, background dimming
 - [ ] Difficulty select (Recruit / Commando / Eon)
-- [ ] Two-player local co-op on one keyboard
+- [ ] Two-player local co-op on one keyboard, then LAN play on [`lan-kit`](https://github.com/drsamonline/lan-kit)
 - [ ] Endless mode with escalating waves
 - [ ] Optional CRT shader toggle
 
