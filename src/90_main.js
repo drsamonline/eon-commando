@@ -106,7 +106,7 @@ function keepAwake(on) {
 
 /* ---- deterministic demo: used for screenshots and smoke tests ----------- */
 function runDemo(n) {
-  Game.startGame();
+  Game.startGame(PARAMS.coop === '1');
   if (PARAMS.stage) {
     var idx = clamp(parseInt(PARAMS.stage, 10) - 1, 0, STAGES.length - 1);
     Game.loadStage(idx);
@@ -126,11 +126,27 @@ function runDemo(n) {
     Input.touch.fire = fire;
     Input.touch.jump = jump && move && (i % 96 < 5);
     Input.touch.up = PARAMS.aimup === '1' && (i % 120 < 40);
+    Input.keys2.right = move;
+    Input.keys2.fire = fire;
+    Input.keys2.jump = jump && move && (i % 96 < 5);
     Input.frame();
     Game.update();
   }
   /* optional final pose, then settle the camera */
-  if (PARAMS.px) Game.player.x = parseFloat(PARAMS.px);
+  if (PARAMS.px) {
+    var bx = parseFloat(PARAMS.px);
+    for (var qi = 0; qi < Game.players.length; qi++) {
+      var qp = Game.players[qi];
+      qp.x = bx - qi * 34;
+      qp.y = GROUND_Y - qp.h;
+      qp.vx = 0; qp.vy = 0;
+      qp.dead = false; qp.downed = false;
+      if (qp.hp < 2) qp.hp = Math.max(2, qp.maxHp - 1);
+      qp.invuln = 0; qp.hurtFlash = 0;
+    }
+    Game.player = Game.players[0];
+  }
+  Input.keys2 = {};
   if (PARAMS.py) Game.player.y = parseFloat(PARAMS.py);
   if (PARAMS.px || PARAMS.py) {
     Game.camX = Game.arenaLocked ? Game.stage.arenaStart

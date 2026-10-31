@@ -442,12 +442,29 @@ function drawWorld(g) {
   }
 
   var p = Game.player;
-  if (p && !(p.dead && Math.floor(p.deadTimer / 4) % 2 === 1)) {
+  var plist = (Game.players && Game.players.length) ? Game.players : (p ? [p] : []);
+  for (var pj = 0; pj < plist.length; pj++) {
+    var pp = plist[pj];
+    if (!pp || (pp.dead && Math.floor(pp.deadTimer / 4) % 2 === 1)) continue;
     g.save();
     g.translate(-camX, 0);
-    if (p.invuln > 0 && !p.dead && Math.floor(p.invuln / 4) % 2 === 1) g.globalAlpha = 0.45;
-    drawPlayer(g, p);
-    g.globalAlpha = 1;
+    if (pp.downed) {
+      /* downed: greyed out, pulsing, with a revive ring */
+      g.globalAlpha = 0.55 + Math.sin(Game.time * 0.2) * 0.15;
+      drawPlayer(g, pp);
+      g.globalAlpha = 1;
+      var prx = pp.x + pp.w / 2 - camX, pry = pp.y - 10;
+      g.strokeStyle = 'rgba(84,255,168,0.8)';
+      g.lineWidth = 2;
+      g.beginPath();
+      g.arc(prx, pry, 7, -1.57, -1.57 + 6.2832 * clamp(pp.reviveT / 55, 0, 1));
+      g.stroke();
+      drawText(g, 'DOWN', prx, pry - 12, 1, '#ff4d6d', 'center', 'rgba(0,0,0,0.8)');
+    } else {
+      if (pp.invuln > 0 && !pp.dead && Math.floor(pp.invuln / 4) % 2 === 1) g.globalAlpha = 0.45;
+      drawPlayer(g, pp);
+      g.globalAlpha = 1;
+    }
     g.restore();
   }
 
@@ -459,7 +476,9 @@ function drawWorld(g) {
   for (i = 0; i < Game.grenades.length; i++) drawGrenade(g, Game.grenades[i]);
   g.restore();
 
-  if (p && p.meleeT > 0) drawMeleeArc(g, p, camX);
+  for (var mi = 0; mi < plist.length; mi++) {
+    if (plist[mi] && plist[mi].meleeT > 0) drawMeleeArc(g, plist[mi], camX);
+  }
 
   drawBullets(g, camX);
   drawParticles(g, camX);
@@ -476,9 +495,9 @@ function drawWorld(g) {
 }
 
 /* ---- HUD ---------------------------------------------------------------- */
-function drawHeartIcon(g, x, y, full) {
-  var c = full ? '#ff4d6d' : '#31161f';
-  var c2 = full ? '#ffd0d8' : '#20101a';
+function drawHeartIcon(g, x, y, full, tint) {
+  var c = full ? (tint || '#ff4d6d') : '#31161f';
+  var c2 = full ? (tint ? '#d8f8ff' : '#ffd0d8') : '#20101a';
   px(g, x + 1, y, 2, 1, c); px(g, x + 4, y, 2, 1, c);
   px(g, x, y + 1, 7, 2, c);
   px(g, x + 1, y + 3, 5, 1, c);
@@ -514,6 +533,16 @@ function drawHUD(g) {
     px(g, 34 + i * 6, 16, 4, 4, i < p.grenades ? '#9ef0ff' : '#20303f');
   }
   g.restore();
+
+  /* player two's hearts, tinted, under player one's */
+  if (Game.coop && Game.players[1]) {
+    var p2h = Game.players[1];
+    g.save();
+    g.scale(k, k);
+    for (i = 0; i < p2h.maxHp; i++) drawHeartIcon(g, 7 + i * 10, 27, i < p2h.hp, '#54e0ff');
+    drawText(g, 'P2', 7 + p2h.maxHp * 10 + 3, 28, 1, p2h.downed ? '#ff4d6d' : '#54e0ff');
+    g.restore();
+  }
 
   /* right cluster, anchored to the far edge */
   g.save();
@@ -592,6 +621,7 @@ function drawTitle(g) {
   drawText(g, 'ARROWS / WASD MOVE   SPACE JUMP   Z FIRE', W / 2, 190, 1, '#7f8fa6', 'center');
   drawText(g, 'SHIFT DASH   V MELEE   G GRENADE   O SETTINGS', W / 2, 202, 1, '#7f8fa6', 'center');
   drawText(g, 'DIFFICULTY ' + DIFFICULTY[clamp(SET.difficulty, 0, 2)].name, W / 2, 216, 1, '#54e0ff', 'center');
+  drawText(g, 'PRESS 2 FOR TWO PLAYERS', W / 2, 176, 1, '#54ffa8', 'center');
   drawText(g, 'HI SCORE ' + String(Game.hiScore).padStart(7, '0'), W / 2, 232, 1, '#ffd257', 'center');
   var runs = Scores.all().slice(0, 3);
   for (var li = 0; li < runs.length; li++) {

@@ -33,13 +33,13 @@
 <br>
 
 [![Hosted on GitHub Pages](https://img.shields.io/badge/hosted%20on-GitHub%20Pages-222222?logo=githubpages&logoColor=white&style=for-the-badge&labelColor=05070d)](https://drsamonline.github.io/eon-commando/)
-[![Version](https://img.shields.io/badge/version-2.0.0-ffd257.svg?style=for-the-badge&labelColor=05070d)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.1.0-ffd257.svg?style=for-the-badge&labelColor=05070d)](CHANGELOG.md)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-54ffa8.svg?style=for-the-badge&labelColor=05070d)](#-zero-dependencies)
 [![Network calls](https://img.shields.io/badge/network%20calls-none-54ffa8.svg?style=for-the-badge&labelColor=05070d)](#-zero-dependencies)
 
 [![Single file](https://img.shields.io/badge/build-single%20HTML%20file-ffd257.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
 [![Size](https://img.shields.io/badge/minified-109%20KB-54e0ff.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
-[![Gzipped](https://img.shields.io/badge/gzipped-36%20KB-54e0ff.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
+[![Gzipped](https://img.shields.io/badge/gzipped-38%20KB-54e0ff.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
 [![Made with](https://img.shields.io/badge/made%20with-vanilla%20JS%20%2B%20canvas-ffd257.svg?style=for-the-badge&labelColor=05070d)](#-how-it-works)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge&labelColor=05070d)](#-contributing)
 
@@ -128,6 +128,32 @@ Works identically from `file://` and from a web server. Works offline. Works on 
 <img src="docs/shots/widescreen.png" alt="Ultrawide 21:9 view: the level reveals more world either side" width="820">
 
 </div>
+
+---
+
+## 🆕 What's new in 2.1
+
+**Two players, one screen.** Press **2** on the title screen. Player one takes the arrows and
+`Space`/`Z`; player two takes `WASD` and `,` `.` `/` `;` `'`. Two gamepads also work — the
+second pad becomes player two automatically.
+
+<div align="center">
+<img src="docs/shots/coop.png" alt="Two commandos fighting side by side, with player two's hearts in cyan" width="820">
+</div>
+
+- **Shared camera** frames both players and follows their midpoint.
+- **Soft leash** — wander too far and you are nudged back toward your partner at 3 px a frame.
+  No teleporting, no rubber-banding snap.
+- **Revive instead of death.** Go down and you have six seconds; a partner standing close for
+  about a second brings you back at one heart. If nobody reaches you, you bleed out.
+- **A life is only lost when nobody is left standing** — both down means the run restarts at
+  the last checkpoint together.
+- Enemies, turrets and bosses all target **whichever commando is nearest**, and contact damage
+  is checked against both.
+
+Also in this release: the **brute's shoulder charge** is now telegraphed and on a 150-frame
+cooldown instead of firing whenever it is close, and **downed players no longer fall through
+the floor** (they were unreachable, so revive could never trigger).
 
 ---
 
@@ -261,6 +287,7 @@ rotation and address-bar collapse.
 | Settings | `O` | from pause | — |
 | Fullscreen | `F` | — | — |
 | Pause | `P` `Esc` | ❙❙ | Start |
+| **Player 2** | `WASD` + `,` `.` `/` `;` `'` | — | second pad |
 | Mute | `M` | — | — |
 
 Hold jump for the full arc, tap it for a short hop. Aiming is eight-directional: hold a direction while firing.

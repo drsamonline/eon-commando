@@ -2,6 +2,31 @@
 
 All notable changes to Eon Commando.
 
+## [2.1.0] — 2026-11-01
+
+Local co-op release.
+
+### Added
+- **Two-player local co-op** — press `2` on the title screen. Player one uses the arrows
+  and `Space`/`Z`; player two uses `WASD` and `,` `.` `/` `;` `'`. A second gamepad is
+  picked up automatically as player two.
+- **Shared camera** framing both players from their midpoint, with a soft 3 px/frame leash
+  that nudges a straggler back into view instead of teleporting them.
+- **Downed state and revive** — a player at zero health goes down for six seconds; a partner
+  standing within 26 px for about a second revives them at one heart, with a progress ring.
+- **A life is lost only when nobody is left standing**; both players respawn together at the
+  last checkpoint.
+- Enemies, turrets and bosses now target the **nearest** commando; contact damage is checked
+  against every player; pickups go to whichever player touches them first.
+- Player two's hearts render under player one's in cyan, with a `P2` label.
+
+### Fixed
+- **Downed players fell through the floor**, which made them unreachable and meant revive
+  could never trigger.
+- **The co-op leash teleported players** instead of pushing them.
+- The brute's shoulder charge fired whenever it was within 70 px, which read as relentless;
+  it now telegraphs for 14 frames and sits on a 150-frame cooldown.
+
 ## [2.0.0] — 2026-11-01
 
 The combat, enemies and accessibility release.

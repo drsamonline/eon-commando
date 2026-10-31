@@ -7,9 +7,20 @@ var Input = {
   keys: {},          // physical keys currently down
   touch: {},         // on-screen buttons currently down
   pad: {},           // gamepad-derived actions
-  cur: {},           // merged actions this frame
+  cur: {},           // merged actions this frame (player one)
   prev: {},          // merged actions last frame
+  keys2: {}, touch2: {}, pad2: {},
+  cur2: {}, prev2: {},   // player two
   anyKey: false,
+  anyKey: false,
+
+  /* player two on one keyboard: left hand on WASD, right hand on , . / ; ' */
+  MAP2: {
+    KeyA: 'left', KeyD: 'right', KeyW: 'up', KeyS: 'down',
+    Period: 'jump', Comma: 'fire',
+    Slash: 'dash', Semicolon: 'melee', Quote: 'grenade',
+    Digit2: 'start2'
+  },
 
   MAP: {
     ArrowLeft: 'left', KeyA: 'left',
@@ -23,6 +34,7 @@ var Input = {
     KeyG: 'grenade', KeyB: 'grenade',
     KeyF: 'fullscreen',
     Enter: 'start', NumpadEnter: 'start',
+    Digit2: 'start2',
     KeyP: 'pause', Escape: 'pause',
     KeyM: 'mute',
     KeyR: 'restart',
@@ -30,12 +42,18 @@ var Input = {
   },
 
   ACTIONS: ['left', 'right', 'up', 'down', 'jump', 'fire', 'dash', 'melee', 'grenade',
-            'start', 'pause', 'mute', 'restart', 'fullscreen', 'settings'],
+            'start', 'start2', 'pause', 'mute', 'restart', 'fullscreen', 'settings'],
 
   init: function () {
     var self = this;
 
     window.addEventListener('keydown', function (e) {
+      var a2 = self.MAP2[e.code];
+      if (a2) {
+        self.keys2[a2] = true;
+        self.anyKey = true;
+        if (e.code === 'Period' || e.code === 'Comma') e.preventDefault();
+      }
       var a = self.MAP[e.code];
       if (a) {
         self.keys[a] = true;
@@ -48,11 +66,15 @@ var Input = {
     window.addEventListener('keyup', function (e) {
       var a = self.MAP[e.code];
       if (a) self.keys[a] = false;
+      var a2 = self.MAP2[e.code];
+      if (a2) self.keys2[a2] = false;
     });
 
     window.addEventListener('blur', function () {
       self.keys = {};
       self.touch = {};
+      self.keys2 = {};
+      self.touch2 = {};
     });
 
     /* on-screen pads -------------------------------------------------------- */
@@ -99,32 +121,54 @@ var Input = {
 
   frame: function () {
     this.prev = this.cur;
-    var cur = {};
-    for (var i = 0; i < this.ACTIONS.length; i++) {
-      var a = this.ACTIONS[i];
+    var cur = {}, i, a;
+    for (i = 0; i < this.ACTIONS.length; i++) {
+      a = this.ACTIONS[i];
       cur[a] = !!(this.keys[a] || this.touch[a] || this.pad[a]);
     }
     this.cur = cur;
+
+    this.prev2 = this.cur2;
+    var cur2 = {};
+    for (i = 0; i < this.ACTIONS.length; i++) {
+      a = this.ACTIONS[i];
+      cur2[a] = !!(this.keys2[a] || this.touch2[a] || this.pad2[a]);
+    }
+    this.cur2 = cur2;
+
     this.pollGamepad();
   },
 
   pollGamepad: function () {
     if (!navigator.getGamepads) return;
     var pads = navigator.getGamepads();
-    for (var i = 0; i < pads.length; i++) {
+    var seen = 0;
+    for (var i = 0; i < pads.length && seen < 2; i++) {
       var p = pads[i];
       if (!p) continue;
       var b = p.buttons, ax = p.axes;
-      this.pad.left = (b[14] && b[14].pressed) || ax[0] < -0.4;
-      this.pad.right = (b[15] && b[15].pressed) || ax[0] > 0.4;
-      this.pad.up = (b[12] && b[12].pressed) || ax[1] < -0.4;
-      this.pad.down = (b[13] && b[13].pressed) || ax[1] > 0.4;
-      this.pad.jump = !!(b[0] && b[0].pressed);
-      this.pad.fire = !!((b[2] && b[2].pressed) || (b[1] && b[1].pressed));
-      this.pad.start = !!((b[9] && b[9].pressed) || (b[8] && b[8].pressed));
-      this.pad.pause = !!(b[9] && b[9].pressed);
-      return;
+      var set = seen === 0 ? this.pad : this.pad2;
+      set.left = (b[14] && b[14].pressed) || ax[0] < -0.4;
+      set.right = (b[15] && b[15].pressed) || ax[0] > 0.4;
+      set.up = (b[12] && b[12].pressed) || ax[1] < -0.4;
+      set.down = (b[13] && b[13].pressed) || ax[1] > 0.4;
+      set.jump = !!(b[0] && b[0].pressed);
+      set.fire = !!((b[2] && b[2].pressed) || (b[1] && b[1].pressed));
+      set.dash = !!((b[5] && b[5].pressed) || (b[7] && b[7].pressed));
+      set.melee = !!(b[3] && b[3].pressed);
+      set.grenade = !!(b[4] && b[4].pressed);
+      set.start = !!((b[9] && b[9].pressed) || (b[8] && b[8].pressed));
+      set.pause = !!(b[9] && b[9].pressed);
+      seen++;
     }
+    if (seen < 2) this.pad2 = {};
+  },
+
+  /* player two reads through the same interface as player one */
+  ctl2: {
+    held: function (a) { return !!Input.cur2[a]; },
+    pressed: function (a) { return !!Input.cur2[a] && !Input.prev2[a]; },
+    axis: function () { return (Input.cur2.right ? 1 : 0) - (Input.cur2.left ? 1 : 0); }
   },
 
   held: function (a) { return !!this.cur[a]; },

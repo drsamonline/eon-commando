@@ -599,9 +599,20 @@ var Input = {
   keys: {},          // physical keys currently down
   touch: {},         // on-screen buttons currently down
   pad: {},           // gamepad-derived actions
-  cur: {},           // merged actions this frame
+  cur: {},           // merged actions this frame (player one)
   prev: {},          // merged actions last frame
+  keys2: {}, touch2: {}, pad2: {},
+  cur2: {}, prev2: {},   // player two
   anyKey: false,
+  anyKey: false,
+
+  /* player two on one keyboard: left hand on WASD, right hand on , . / ; ' */
+  MAP2: {
+    KeyA: 'left', KeyD: 'right', KeyW: 'up', KeyS: 'down',
+    Period: 'jump', Comma: 'fire',
+    Slash: 'dash', Semicolon: 'melee', Quote: 'grenade',
+    Digit2: 'start2'
+  },
 
   MAP: {
     ArrowLeft: 'left', KeyA: 'left',
@@ -615,6 +626,7 @@ var Input = {
     KeyG: 'grenade', KeyB: 'grenade',
     KeyF: 'fullscreen',
     Enter: 'start', NumpadEnter: 'start',
+    Digit2: 'start2',
     KeyP: 'pause', Escape: 'pause',
     KeyM: 'mute',
     KeyR: 'restart',
@@ -622,12 +634,18 @@ var Input = {
   },
 
   ACTIONS: ['left', 'right', 'up', 'down', 'jump', 'fire', 'dash', 'melee', 'grenade',
-            'start', 'pause', 'mute', 'restart', 'fullscreen', 'settings'],
+            'start', 'start2', 'pause', 'mute', 'restart', 'fullscreen', 'settings'],
 
   init: function () {
     var self = this;
 
     window.addEventListener('keydown', function (e) {
+      var a2 = self.MAP2[e.code];
+      if (a2) {
+        self.keys2[a2] = true;
+        self.anyKey = true;
+        if (e.code === 'Period' || e.code === 'Comma') e.preventDefault();
+      }
       var a = self.MAP[e.code];
       if (a) {
         self.keys[a] = true;
@@ -640,11 +658,15 @@ var Input = {
     window.addEventListener('keyup', function (e) {
       var a = self.MAP[e.code];
       if (a) self.keys[a] = false;
+      var a2 = self.MAP2[e.code];
+      if (a2) self.keys2[a2] = false;
     });
 
     window.addEventListener('blur', function () {
       self.keys = {};
       self.touch = {};
+      self.keys2 = {};
+      self.touch2 = {};
     });
 
     /* on-screen pads -------------------------------------------------------- */
@@ -691,32 +713,54 @@ var Input = {
 
   frame: function () {
     this.prev = this.cur;
-    var cur = {};
-    for (var i = 0; i < this.ACTIONS.length; i++) {
-      var a = this.ACTIONS[i];
+    var cur = {}, i, a;
+    for (i = 0; i < this.ACTIONS.length; i++) {
+      a = this.ACTIONS[i];
       cur[a] = !!(this.keys[a] || this.touch[a] || this.pad[a]);
     }
     this.cur = cur;
+
+    this.prev2 = this.cur2;
+    var cur2 = {};
+    for (i = 0; i < this.ACTIONS.length; i++) {
+      a = this.ACTIONS[i];
+      cur2[a] = !!(this.keys2[a] || this.touch2[a] || this.pad2[a]);
+    }
+    this.cur2 = cur2;
+
     this.pollGamepad();
   },
 
   pollGamepad: function () {
     if (!navigator.getGamepads) return;
     var pads = navigator.getGamepads();
-    for (var i = 0; i < pads.length; i++) {
+    var seen = 0;
+    for (var i = 0; i < pads.length && seen < 2; i++) {
       var p = pads[i];
       if (!p) continue;
       var b = p.buttons, ax = p.axes;
-      this.pad.left = (b[14] && b[14].pressed) || ax[0] < -0.4;
-      this.pad.right = (b[15] && b[15].pressed) || ax[0] > 0.4;
-      this.pad.up = (b[12] && b[12].pressed) || ax[1] < -0.4;
-      this.pad.down = (b[13] && b[13].pressed) || ax[1] > 0.4;
-      this.pad.jump = !!(b[0] && b[0].pressed);
-      this.pad.fire = !!((b[2] && b[2].pressed) || (b[1] && b[1].pressed));
-      this.pad.start = !!((b[9] && b[9].pressed) || (b[8] && b[8].pressed));
-      this.pad.pause = !!(b[9] && b[9].pressed);
-      return;
+      var set = seen === 0 ? this.pad : this.pad2;
+      set.left = (b[14] && b[14].pressed) || ax[0] < -0.4;
+      set.right = (b[15] && b[15].pressed) || ax[0] > 0.4;
+      set.up = (b[12] && b[12].pressed) || ax[1] < -0.4;
+      set.down = (b[13] && b[13].pressed) || ax[1] > 0.4;
+      set.jump = !!(b[0] && b[0].pressed);
+      set.fire = !!((b[2] && b[2].pressed) || (b[1] && b[1].pressed));
+      set.dash = !!((b[5] && b[5].pressed) || (b[7] && b[7].pressed));
+      set.melee = !!(b[3] && b[3].pressed);
+      set.grenade = !!(b[4] && b[4].pressed);
+      set.start = !!((b[9] && b[9].pressed) || (b[8] && b[8].pressed));
+      set.pause = !!(b[9] && b[9].pressed);
+      seen++;
     }
+    if (seen < 2) this.pad2 = {};
+  },
+
+  /* player two reads through the same interface as player one */
+  ctl2: {
+    held: function (a) { return !!Input.cur2[a]; },
+    pressed: function (a) { return !!Input.cur2[a] && !Input.prev2[a]; },
+    axis: function () { return (Input.cur2.right ? 1 : 0) - (Input.cur2.left ? 1 : 0); }
   },
 
   held: function (a) { return !!this.cur[a]; },
@@ -1854,6 +1898,25 @@ function moveEntity(e, solids, oneways, corner) {
   }
 }
 
+/* ---- player helpers ----------------------------------------------------- */
+function livePlayers() {
+  var out = [], i;
+  for (i = 0; i < Game.players.length; i++) {
+    var p = Game.players[i];
+    if (p && !p.dead && !p.downed) out.push(p);
+  }
+  return out.length ? out : (Game.player ? [Game.player] : []);
+}
+
+function nearestPlayer(x, y) {
+  var list = livePlayers(), best = list[0], bd = Infinity, i;
+  for (i = 0; i < list.length; i++) {
+    var d = dist2(x, y, list[i].x + list[i].w / 2, list[i].y + list[i].h / 2);
+    if (d < bd) { bd = d; best = list[i]; }
+  }
+  return best;
+}
+
 /* ---- the commando ------------------------------------------------------- */
 function makePlayer(x, y) {
   return {
@@ -1868,6 +1931,7 @@ function makePlayer(x, y) {
     dashT: 0, dashCd: 0, dashDir: 1,
     meleeT: 0, meleeCd: 0,
     grenades: 3, maxGrenades: 3,
+    ctl: null, downed: false, downTimer: 0, reviveT: 0,
     dead: false, deadTimer: 0,
     spawnX: x, spawnY: y
   };
@@ -1891,6 +1955,16 @@ function setDuck(p, want) {
 
 function playerUpdate(p) {
   var solids = groundRects(), oneways = platformRects();
+  var ctl = p.ctl || Input;
+
+  /* downed in co-op: no control, but still subject to gravity and the floor */
+  if (p.downed) {
+    p.downTimer--;
+    p.vx *= 0.9;
+    p.vy = Math.min(p.vy + PHYS.grav, PHYS.maxFall);
+    moveEntity(p, solids, oneways, false);
+    return;
+  }
 
   if (p.dead) {
     p.deadTimer++;
@@ -1901,8 +1975,8 @@ function playerUpdate(p) {
     return;
   }
 
-  var ax = Input.axis();
-  var wantDuck = Input.held('down') && p.onGround;
+  var ax = ctl.axis();
+  var wantDuck = ctl.held('down') && p.onGround;
   setDuck(p, wantDuck);
 
   /* horizontal */
@@ -1916,7 +1990,7 @@ function playerUpdate(p) {
 
   /* jump with coyote time + input buffering + variable height */
   if (p.onGround) p.coyote = PHYS.coyote; else if (p.coyote > 0) p.coyote--;
-  if (Input.pressed('jump')) p.jumpBuffer = PHYS.buffer; else if (p.jumpBuffer > 0) p.jumpBuffer--;
+  if (ctl.pressed('jump')) p.jumpBuffer = PHYS.buffer; else if (p.jumpBuffer > 0) p.jumpBuffer--;
 
   if (p.jumpBuffer > 0 && p.coyote > 0) {
     p.vy = PHYS.jumpV;
@@ -1927,7 +2001,7 @@ function playerUpdate(p) {
     Snd.sfx('jump');
     puff(p.x + p.w / 2, p.y + p.h, 5, '#c8d6e2');
   }
-  if (p.jumpHeld && !Input.held('jump') && p.vy < PHYS.jumpCut) {
+  if (p.jumpHeld && !ctl.held('jump') && p.vy < PHYS.jumpCut) {
     p.vy = PHYS.jumpCut;
     p.jumpHeld = false;
   }
@@ -1935,7 +2009,7 @@ function playerUpdate(p) {
 
   /* dash — short, invulnerable, horizontal */
   if (p.dashCd > 0) p.dashCd--;
-  if (Input.pressed('dash') && p.dashCd <= 0 && !p.ducking) {
+  if (ctl.pressed('dash') && p.dashCd <= 0 && !p.ducking) {
     p.dashT = 10;
     p.dashCd = 42;
     p.dashDir = p.facing;
@@ -1954,7 +2028,7 @@ function playerUpdate(p) {
 
   /* melee — a short arc that solves "enemy on top of me" */
   if (p.meleeCd > 0) p.meleeCd--;
-  if (Input.pressed('melee') && p.meleeCd <= 0) {
+  if (ctl.pressed('melee') && p.meleeCd <= 0) {
     p.meleeT = 9;
     p.meleeCd = 26;
     Snd.sfx('melee');
@@ -1979,7 +2053,7 @@ function playerUpdate(p) {
   if (p.meleeT > 0) p.meleeT--;
 
   /* grenades */
-  if (Input.pressed('grenade') && p.grenades > 0) {
+  if (ctl.pressed('grenade') && p.grenades > 0) {
     p.grenades--;
     spawnGrenade(p);
     Snd.sfx('throw');
@@ -2005,13 +2079,13 @@ function playerUpdate(p) {
   else if (p.onGround) p.runPhase = 0;
 
   /* aim direction */
-  var up = Input.held('up'), down = Input.held('down');
+  var up = ctl.held('up'), down = ctl.held('down');
   var axAim = 0, ayAim = 0;
   if (up) ayAim = -1;
   else if (down && !p.onGround) ayAim = 1;
   if (up || (down && !p.onGround)) {
-    if (Input.held('left')) axAim = -1;
-    else if (Input.held('right')) axAim = 1;
+    if (ctl.held('left')) axAim = -1;
+    else if (ctl.held('right')) axAim = 1;
   } else {
     axAim = p.facing;
   }
@@ -2021,7 +2095,7 @@ function playerUpdate(p) {
   /* firing */
   if (p.cd > 0) p.cd--;
   if (p.muzzle > 0) p.muzzle--;
-  if (Input.held('fire') && p.cd <= 0) fireWeapon(p);
+  if (ctl.held('fire') && p.cd <= 0) fireWeapon(p);
 
   /* timers */
   if (p.invuln > 0) p.invuln--;
@@ -2068,7 +2142,27 @@ function playerHurt(p, dmg) {
 }
 
 function killPlayer(p) {
-  if (p.dead) return;
+  if (p.dead || p.downed) return;
+
+  /* with a partner still standing, go down instead of dying */
+  var partnerUp = false;
+  for (var i = 0; i < Game.players.length; i++) {
+    var q = Game.players[i];
+    if (q !== p && q && !q.dead && !q.downed) partnerUp = true;
+  }
+  if (Game.coop && partnerUp) {
+    p.downed = true;
+    p.downTimer = 360;
+    p.reviveT = 0;
+    p.hp = 0;
+    p.vx = 0;
+    p.vy = -2.4;
+    Game.shake = 6;
+    Snd.sfx('death');
+    floatText(p.x, p.y - 8, 'DOWN', '#ff4d6d');
+    return;
+  }
+
   p.dead = true;
   p.deadTimer = 0;
   p.hp = 0;
@@ -2195,8 +2289,16 @@ function spawnPickup(o) {
 function pickupUpdate(c) {
   c.age++;
   c.y = c.baseY + Math.sin(c.age * 0.06) * 3;
-  var p = Game.player;
-  if (!p.dead && aabb({ x: c.x - 2, y: c.y - 2, w: 18, h: 18 }, { x: p.x, y: p.y, w: p.w, h: p.h })) {
+  var p = null, pi;
+  for (pi = 0; pi < Game.players.length; pi++) {
+    var cand = Game.players[pi];
+    if (cand && !cand.dead && !cand.downed &&
+        aabb({ x: c.x - 2, y: c.y - 2, w: 18, h: 18 }, { x: cand.x, y: cand.y, w: cand.w, h: cand.h })) {
+      p = cand;
+      break;
+    }
+  }
+  if (p) {
     c.dead = true;
     if (c.kind === 'weapon') {
       p.weapon = c.w;
@@ -2237,7 +2339,7 @@ function spawnEnemy(spec) {
     pal: (typeof Game !== 'undefined' && Game.stageIndex) || 0,
     scale: 0.94 + RNG.s() * 0.12,
     elite: RNG.sChance(0.12),
-    wind: 0
+    wind: 0, chargeCd: 0
   });
   var last = Game.enemies[Game.enemies.length - 1];
   if (last) {
@@ -2274,7 +2376,7 @@ function damageEnemy(e, dmg, knock) {
 }
 
 function enemyShootAt(e, speed, count, spreadArc, offsetY) {
-  var p = Game.player;
+  var p = nearestPlayer(e.x + e.w / 2, e.y + e.h / 2) || Game.player;
   var ox = e.x + e.w / 2, oy = e.y + (offsetY === undefined ? e.h / 2 : offsetY);
   var base = Math.atan2((p.y + p.h / 2) - oy, (p.x + p.w / 2) - ox);
   count = count || 1;
@@ -2291,7 +2393,7 @@ function enemyShootAt(e, speed, count, spreadArc, offsetY) {
 
 function enemyUpdate(e) {
   var def = ENEMIES[e.t];
-  var p = Game.player;
+  var p = nearestPlayer(e.x + e.w / 2, e.y + e.h / 2) || Game.player;
   var solids = groundRects(), oneways = platformRects();
   e.age++;
   if (e.flash > 0) e.flash--;
@@ -2380,10 +2482,19 @@ function enemyUpdate(e) {
       break;
 
     case 'brute':
+      if (e.chargeCd > 0) e.chargeCd--;
       if (adx < 220) {
         e.facing = sign(dx) || e.facing;
         e.vx = e.facing * def.speed;
-        if (e.onGround && adx < 70) e.vy = -4.2;    /* shoulder charge */
+        if (e.onGround && adx < 90 && e.chargeCd <= 0) {
+          e.wind = 14;              /* telegraphed shoulder charge */
+          e.chargeCd = 150;
+        }
+        if (e.wind > 0) {
+          e.wind--;
+          e.vx = 0;
+          if (e.wind === 0) { e.vy = -4.6; e.vx = e.facing * 3.2; Snd.sfx('jump'); }
+        }
       } else {
         e.vx = e.facing * def.speed * 0.4;
         if (!supportedAt(e.x + (e.facing > 0 ? e.w + 2 : -2), e.y + e.h + 2)) e.facing *= -1;
@@ -2431,9 +2542,13 @@ function enemyUpdate(e) {
     if (Math.abs(e.vx) > 0.1) e.walkPhase += Math.abs(e.vx) * 0.09;
   }
 
-  /* contact damage */
-  if (!p.dead && aabb(e, { x: p.x + 1, y: p.y + 1, w: p.w - 2, h: p.h - 2 })) {
-    playerHurt(p, 1);
+  /* contact damage, against every commando on screen */
+  for (var ci = 0; ci < Game.players.length; ci++) {
+    var cp = Game.players[ci];
+    if (cp && !cp.dead && !cp.downed &&
+        aabb(e, { x: cp.x + 1, y: cp.y + 1, w: cp.w - 2, h: cp.h - 2 })) {
+      playerHurt(cp, 1);
+    }
   }
 
   /* cull enemies far behind the camera */
@@ -2521,7 +2636,7 @@ function damageBoss(b, dmg) {
 }
 
 function bossUpdate(b) {
-  var p = Game.player;
+  var p = nearestPlayer(b.x + b.w / 2, b.y + b.h / 2) || Game.player;
   b.age++;
   if (b.flash > 0) b.flash--;
 
@@ -2662,8 +2777,12 @@ function bossUpdate(b) {
   }
 
   /* contact damage */
-  if (!p.dead && aabb(b, { x: p.x + 1, y: p.y + 1, w: p.w - 2, h: p.h - 2 })) {
-    playerHurt(p, 1);
+  for (var bi = 0; bi < Game.players.length; bi++) {
+    var bp = Game.players[bi];
+    if (bp && !bp.dead && !bp.downed &&
+        aabb(b, { x: bp.x + 1, y: bp.y + 1, w: bp.w - 2, h: bp.h - 2 })) {
+      playerHurt(bp, 1);
+    }
   }
 }
 
@@ -2685,6 +2804,8 @@ var Game = {
   stage: null,
   bg: null,
   player: null,
+  players: [],
+  coop: false,
   enemies: [],
   bullets: [],
   particles: [],
@@ -2724,7 +2845,8 @@ var Game = {
     this.time = 0;
   },
 
-  startGame: function () {
+  startGame: function (coop) {
+    this.coop = !!coop;
     var d = diff();
     this.score = 0;
     this.lives = d.lives;
@@ -2756,12 +2878,7 @@ var Game = {
     this.shake = 0;
     this.flash = 0;
 
-    this.player = makePlayer(48, GROUND_Y - 22);
-    this.player.invuln = 60;
-    this.player.maxHp = diff().hp;
-    this.player.hp = diff().hp;
-    this.player.grenades = 3;
-    this.player.maxGrenades = 3;
+    this.spawnPlayers();
     this.grenades = [];
     this.ghosts = [];
     this.hitStop = 0;
@@ -2778,6 +2895,29 @@ var Game = {
     Snd.playMusic(TRACKS[this.stage.music]);
   },
 
+  spawnPlayers: function () {
+    var d = diff();
+    var p1 = makePlayer(48, GROUND_Y - 22);
+    p1.invuln = 60;
+    p1.maxHp = d.hp;
+    p1.hp = d.hp;
+    p1.grenades = 3;
+    p1.maxGrenades = 3;
+    this.players = [p1];
+    if (this.coop) {
+      var p2 = makePlayer(72, GROUND_Y - 22);
+      p2.invuln = 60;
+      p2.maxHp = d.hp;
+      p2.hp = d.hp;
+      p2.grenades = 3;
+      p2.maxGrenades = 3;
+      p2.ctl = Input.ctl2;
+      p2.facing = 1;
+      this.players.push(p2);
+    }
+    this.player = p1;
+  },
+
   checkpointX: function () {
     if (this.arenaLocked) return this.stage.arenaStart + 40;
     var cps = this.stage.checkpoints || [48];
@@ -2789,12 +2929,16 @@ var Game = {
 
   respawn: function () {
     var x = this.checkpointX();
-    this.player = makePlayer(x, GROUND_Y - 22);
-    this.player.maxHp = diff().hp;
-    this.player.hp = diff().hp;
-    this.player.invuln = 110;
-    this.player.weapon = 'rifle';
-    this.player.grenades = 2;
+    this.spawnPlayers();
+    var i;
+    for (i = 0; i < this.players.length; i++) {
+      var q = this.players[i];
+      q.x = x + i * 24;
+      q.y = GROUND_Y - 22;
+      q.invuln = 110;
+      q.weapon = 'rifle';
+      q.grenades = 2;
+    }
     this.grenades = [];
     if (this.arenaLocked) {
       this.bullets = this.bullets.filter(function (b) { return b.friendly; });
@@ -2921,8 +3065,10 @@ var Game = {
   updateTitle: function () {
     if (!Snd.track) Snd.playMusic(TRACKS.title);
     this.stateTimer++;
-    if (Input.pressed('start') || Input.pressed('jump') || Input.pressed('fire')) {
-      this.startGame();
+    if (Input.pressed('start2')) {
+      this.startGame(true);
+    } else if (Input.pressed('start') || Input.pressed('jump') || Input.pressed('fire')) {
+      this.startGame(false);
     }
   },
 
@@ -2967,7 +3113,40 @@ var Game = {
       return;
     }
 
-    playerUpdate(p);
+    var pi;
+    for (pi = 0; pi < this.players.length; pi++) playerUpdate(this.players[pi]);
+
+    /* co-op revive: stand near a downed partner to bring them back */
+    for (pi = 0; pi < this.players.length; pi++) {
+      var dp = this.players[pi];
+      if (!dp.downed) continue;
+      dp.downTimer--;
+      var helper = null, hi;
+      for (hi = 0; hi < this.players.length; hi++) {
+        var other = this.players[hi];
+        if (other === dp || other.dead || other.downed) continue;
+        if (dist2(other.x, other.y, dp.x, dp.y) < 26 * 26) { helper = other; break; }
+      }
+      if (helper) {
+        dp.reviveT++;
+        if (dp.reviveT > 55) {
+          dp.downed = false;
+          dp.hp = 1;
+          dp.invuln = 100;
+          dp.reviveT = 0;
+          floatText(dp.x, dp.y - 8, 'REVIVED', '#54ffa8');
+          Snd.sfx('health');
+        }
+      } else {
+        dp.reviveT = Math.max(0, dp.reviveT - 2);
+      }
+      if (dp.downTimer <= 0) {
+        dp.downed = false;
+        dp.dead = true;
+        dp.deadTimer = 0;
+        Snd.sfx('death');
+      }
+    }
 
     /* spawn enemies as the camera approaches */
     while (this.pending.length && this.pending[0].x < this.camX + W + 80) {
@@ -3006,20 +3185,47 @@ var Game = {
       this.triggerBoss();
     }
 
-    /* camera */
+    /* camera — frames every live player */
     var target;
     if (this.arenaLocked) {
       /* centre the fixed-width arena, letting a wide screen see the walls */
       target = this.stage.arenaStart + ARENA_W / 2 - W / 2;
     } else {
-      target = p.x + p.w / 2 - W * 0.42;
+      var sumX = 0, n = 0, ci;
+      for (ci = 0; ci < this.players.length; ci++) {
+        var cp2 = this.players[ci];
+        if (cp2.dead) continue;
+        sumX += cp2.x + cp2.w / 2;
+        n++;
+      }
+      var midX = n ? sumX / n : (p.x + p.w / 2);
+      target = midX - W * 0.42;
     }
     target = clamp(target, 0, this.stage.length - W);
     this.camX = lerp(this.camX, target, 0.14);
     if (Math.abs(this.camX - target) < 0.4) this.camX = target;
 
-    /* death handling */
-    if (p.dead && p.deadTimer > 90) {
+    /* keep co-op partners from walking off the shared screen */
+    if (this.players.length > 1) {
+      for (var li = 0; li < this.players.length; li++) {
+        var lp = this.players[li];
+        if (lp.dead || lp.downed) continue;
+        /* soft leash: push back toward the view, never teleport */
+        var lo = this.camX + 6, hiX = this.camX + W - lp.w - 6;
+        if (lp.x < lo) { lp.x = Math.min(lo, lp.x + 3); if (lp.vx < 0) lp.vx = 0; }
+        else if (lp.x > hiX) { lp.x = Math.max(hiX, lp.x - 3); if (lp.vx > 0) lp.vx = 0; }
+      }
+    }
+
+    /* death handling — a life is lost only when nobody is left standing */
+    var live = 0, downed = 0, settled = true, di;
+    for (di = 0; di < this.players.length; di++) {
+      var qp = this.players[di];
+      if (!qp.dead && !qp.downed) live++;
+      if (qp.downed) downed++;
+      if (!(qp.dead && qp.deadTimer > 90)) settled = false;
+    }
+    if (live === 0 && downed === 0 && settled) {
       this.lives--;
       if (this.lives < 0) {
         this.gameOver();
@@ -3512,12 +3718,29 @@ function drawWorld(g) {
   }
 
   var p = Game.player;
-  if (p && !(p.dead && Math.floor(p.deadTimer / 4) % 2 === 1)) {
+  var plist = (Game.players && Game.players.length) ? Game.players : (p ? [p] : []);
+  for (var pj = 0; pj < plist.length; pj++) {
+    var pp = plist[pj];
+    if (!pp || (pp.dead && Math.floor(pp.deadTimer / 4) % 2 === 1)) continue;
     g.save();
     g.translate(-camX, 0);
-    if (p.invuln > 0 && !p.dead && Math.floor(p.invuln / 4) % 2 === 1) g.globalAlpha = 0.45;
-    drawPlayer(g, p);
-    g.globalAlpha = 1;
+    if (pp.downed) {
+      /* downed: greyed out, pulsing, with a revive ring */
+      g.globalAlpha = 0.55 + Math.sin(Game.time * 0.2) * 0.15;
+      drawPlayer(g, pp);
+      g.globalAlpha = 1;
+      var prx = pp.x + pp.w / 2 - camX, pry = pp.y - 10;
+      g.strokeStyle = 'rgba(84,255,168,0.8)';
+      g.lineWidth = 2;
+      g.beginPath();
+      g.arc(prx, pry, 7, -1.57, -1.57 + 6.2832 * clamp(pp.reviveT / 55, 0, 1));
+      g.stroke();
+      drawText(g, 'DOWN', prx, pry - 12, 1, '#ff4d6d', 'center', 'rgba(0,0,0,0.8)');
+    } else {
+      if (pp.invuln > 0 && !pp.dead && Math.floor(pp.invuln / 4) % 2 === 1) g.globalAlpha = 0.45;
+      drawPlayer(g, pp);
+      g.globalAlpha = 1;
+    }
     g.restore();
   }
 
@@ -3529,7 +3752,9 @@ function drawWorld(g) {
   for (i = 0; i < Game.grenades.length; i++) drawGrenade(g, Game.grenades[i]);
   g.restore();
 
-  if (p && p.meleeT > 0) drawMeleeArc(g, p, camX);
+  for (var mi = 0; mi < plist.length; mi++) {
+    if (plist[mi] && plist[mi].meleeT > 0) drawMeleeArc(g, plist[mi], camX);
+  }
 
   drawBullets(g, camX);
   drawParticles(g, camX);
@@ -3546,9 +3771,9 @@ function drawWorld(g) {
 }
 
 /* ---- HUD ---------------------------------------------------------------- */
-function drawHeartIcon(g, x, y, full) {
-  var c = full ? '#ff4d6d' : '#31161f';
-  var c2 = full ? '#ffd0d8' : '#20101a';
+function drawHeartIcon(g, x, y, full, tint) {
+  var c = full ? (tint || '#ff4d6d') : '#31161f';
+  var c2 = full ? (tint ? '#d8f8ff' : '#ffd0d8') : '#20101a';
   px(g, x + 1, y, 2, 1, c); px(g, x + 4, y, 2, 1, c);
   px(g, x, y + 1, 7, 2, c);
   px(g, x + 1, y + 3, 5, 1, c);
@@ -3584,6 +3809,16 @@ function drawHUD(g) {
     px(g, 34 + i * 6, 16, 4, 4, i < p.grenades ? '#9ef0ff' : '#20303f');
   }
   g.restore();
+
+  /* player two's hearts, tinted, under player one's */
+  if (Game.coop && Game.players[1]) {
+    var p2h = Game.players[1];
+    g.save();
+    g.scale(k, k);
+    for (i = 0; i < p2h.maxHp; i++) drawHeartIcon(g, 7 + i * 10, 27, i < p2h.hp, '#54e0ff');
+    drawText(g, 'P2', 7 + p2h.maxHp * 10 + 3, 28, 1, p2h.downed ? '#ff4d6d' : '#54e0ff');
+    g.restore();
+  }
 
   /* right cluster, anchored to the far edge */
   g.save();
@@ -3662,6 +3897,7 @@ function drawTitle(g) {
   drawText(g, 'ARROWS / WASD MOVE   SPACE JUMP   Z FIRE', W / 2, 190, 1, '#7f8fa6', 'center');
   drawText(g, 'SHIFT DASH   V MELEE   G GRENADE   O SETTINGS', W / 2, 202, 1, '#7f8fa6', 'center');
   drawText(g, 'DIFFICULTY ' + DIFFICULTY[clamp(SET.difficulty, 0, 2)].name, W / 2, 216, 1, '#54e0ff', 'center');
+  drawText(g, 'PRESS 2 FOR TWO PLAYERS', W / 2, 176, 1, '#54ffa8', 'center');
   drawText(g, 'HI SCORE ' + String(Game.hiScore).padStart(7, '0'), W / 2, 232, 1, '#ffd257', 'center');
   var runs = Scores.all().slice(0, 3);
   for (var li = 0; li < runs.length; li++) {
@@ -3920,7 +4156,7 @@ function keepAwake(on) {
 
 /* ---- deterministic demo: used for screenshots and smoke tests ----------- */
 function runDemo(n) {
-  Game.startGame();
+  Game.startGame(PARAMS.coop === '1');
   if (PARAMS.stage) {
     var idx = clamp(parseInt(PARAMS.stage, 10) - 1, 0, STAGES.length - 1);
     Game.loadStage(idx);
@@ -3940,11 +4176,27 @@ function runDemo(n) {
     Input.touch.fire = fire;
     Input.touch.jump = jump && move && (i % 96 < 5);
     Input.touch.up = PARAMS.aimup === '1' && (i % 120 < 40);
+    Input.keys2.right = move;
+    Input.keys2.fire = fire;
+    Input.keys2.jump = jump && move && (i % 96 < 5);
     Input.frame();
     Game.update();
   }
   /* optional final pose, then settle the camera */
-  if (PARAMS.px) Game.player.x = parseFloat(PARAMS.px);
+  if (PARAMS.px) {
+    var bx = parseFloat(PARAMS.px);
+    for (var qi = 0; qi < Game.players.length; qi++) {
+      var qp = Game.players[qi];
+      qp.x = bx - qi * 34;
+      qp.y = GROUND_Y - qp.h;
+      qp.vx = 0; qp.vy = 0;
+      qp.dead = false; qp.downed = false;
+      if (qp.hp < 2) qp.hp = Math.max(2, qp.maxHp - 1);
+      qp.invuln = 0; qp.hurtFlash = 0;
+    }
+    Game.player = Game.players[0];
+  }
+  Input.keys2 = {};
   if (PARAMS.py) Game.player.y = parseFloat(PARAMS.py);
   if (PARAMS.px || PARAMS.py) {
     Game.camX = Game.arenaLocked ? Game.stage.arenaStart

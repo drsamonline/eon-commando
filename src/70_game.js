@@ -9,6 +9,8 @@ var Game = {
   stage: null,
   bg: null,
   player: null,
+  players: [],
+  coop: false,
   enemies: [],
   bullets: [],
   particles: [],
@@ -48,7 +50,8 @@ var Game = {
     this.time = 0;
   },
 
-  startGame: function () {
+  startGame: function (coop) {
+    this.coop = !!coop;
     var d = diff();
     this.score = 0;
     this.lives = d.lives;
@@ -80,12 +83,7 @@ var Game = {
     this.shake = 0;
     this.flash = 0;
 
-    this.player = makePlayer(48, GROUND_Y - 22);
-    this.player.invuln = 60;
-    this.player.maxHp = diff().hp;
-    this.player.hp = diff().hp;
-    this.player.grenades = 3;
-    this.player.maxGrenades = 3;
+    this.spawnPlayers();
     this.grenades = [];
     this.ghosts = [];
     this.hitStop = 0;
@@ -102,6 +100,29 @@ var Game = {
     Snd.playMusic(TRACKS[this.stage.music]);
   },
 
+  spawnPlayers: function () {
+    var d = diff();
+    var p1 = makePlayer(48, GROUND_Y - 22);
+    p1.invuln = 60;
+    p1.maxHp = d.hp;
+    p1.hp = d.hp;
+    p1.grenades = 3;
+    p1.maxGrenades = 3;
+    this.players = [p1];
+    if (this.coop) {
+      var p2 = makePlayer(72, GROUND_Y - 22);
+      p2.invuln = 60;
+      p2.maxHp = d.hp;
+      p2.hp = d.hp;
+      p2.grenades = 3;
+      p2.maxGrenades = 3;
+      p2.ctl = Input.ctl2;
+      p2.facing = 1;
+      this.players.push(p2);
+    }
+    this.player = p1;
+  },
+
   checkpointX: function () {
     if (this.arenaLocked) return this.stage.arenaStart + 40;
     var cps = this.stage.checkpoints || [48];
@@ -113,12 +134,16 @@ var Game = {
 
   respawn: function () {
     var x = this.checkpointX();
-    this.player = makePlayer(x, GROUND_Y - 22);
-    this.player.maxHp = diff().hp;
-    this.player.hp = diff().hp;
-    this.player.invuln = 110;
-    this.player.weapon = 'rifle';
-    this.player.grenades = 2;
+    this.spawnPlayers();
+    var i;
+    for (i = 0; i < this.players.length; i++) {
+      var q = this.players[i];
+      q.x = x + i * 24;
+      q.y = GROUND_Y - 22;
+      q.invuln = 110;
+      q.weapon = 'rifle';
+      q.grenades = 2;
+    }
     this.grenades = [];
     if (this.arenaLocked) {
       this.bullets = this.bullets.filter(function (b) { return b.friendly; });
@@ -245,8 +270,10 @@ var Game = {
   updateTitle: function () {
     if (!Snd.track) Snd.playMusic(TRACKS.title);
     this.stateTimer++;
-    if (Input.pressed('start') || Input.pressed('jump') || Input.pressed('fire')) {
-      this.startGame();
+    if (Input.pressed('start2')) {
+      this.startGame(true);
+    } else if (Input.pressed('start') || Input.pressed('jump') || Input.pressed('fire')) {
+      this.startGame(false);
     }
   },
 
@@ -291,7 +318,40 @@ var Game = {
       return;
     }
 
-    playerUpdate(p);
+    var pi;
+    for (pi = 0; pi < this.players.length; pi++) playerUpdate(this.players[pi]);
+
+    /* co-op revive: stand near a downed partner to bring them back */
+    for (pi = 0; pi < this.players.length; pi++) {
+      var dp = this.players[pi];
+      if (!dp.downed) continue;
+      dp.downTimer--;
+      var helper = null, hi;
+      for (hi = 0; hi < this.players.length; hi++) {
+        var other = this.players[hi];
+        if (other === dp || other.dead || other.downed) continue;
+        if (dist2(other.x, other.y, dp.x, dp.y) < 26 * 26) { helper = other; break; }
+      }
+      if (helper) {
+        dp.reviveT++;
+        if (dp.reviveT > 55) {
+          dp.downed = false;
+          dp.hp = 1;
+          dp.invuln = 100;
+          dp.reviveT = 0;
+          floatText(dp.x, dp.y - 8, 'REVIVED', '#54ffa8');
+          Snd.sfx('health');
+        }
+      } else {
+        dp.reviveT = Math.max(0, dp.reviveT - 2);
+      }
+      if (dp.downTimer <= 0) {
+        dp.downed = false;
+        dp.dead = true;
+        dp.deadTimer = 0;
+        Snd.sfx('death');
+      }
+    }
 
     /* spawn enemies as the camera approaches */
     while (this.pending.length && this.pending[0].x < this.camX + W + 80) {
@@ -330,20 +390,47 @@ var Game = {
       this.triggerBoss();
     }
 
-    /* camera */
+    /* camera — frames every live player */
     var target;
     if (this.arenaLocked) {
       /* centre the fixed-width arena, letting a wide screen see the walls */
       target = this.stage.arenaStart + ARENA_W / 2 - W / 2;
     } else {
-      target = p.x + p.w / 2 - W * 0.42;
+      var sumX = 0, n = 0, ci;
+      for (ci = 0; ci < this.players.length; ci++) {
+        var cp2 = this.players[ci];
+        if (cp2.dead) continue;
+        sumX += cp2.x + cp2.w / 2;
+        n++;
+      }
+      var midX = n ? sumX / n : (p.x + p.w / 2);
+      target = midX - W * 0.42;
     }
     target = clamp(target, 0, this.stage.length - W);
     this.camX = lerp(this.camX, target, 0.14);
     if (Math.abs(this.camX - target) < 0.4) this.camX = target;
 
-    /* death handling */
-    if (p.dead && p.deadTimer > 90) {
+    /* keep co-op partners from walking off the shared screen */
+    if (this.players.length > 1) {
+      for (var li = 0; li < this.players.length; li++) {
+        var lp = this.players[li];
+        if (lp.dead || lp.downed) continue;
+        /* soft leash: push back toward the view, never teleport */
+        var lo = this.camX + 6, hiX = this.camX + W - lp.w - 6;
+        if (lp.x < lo) { lp.x = Math.min(lo, lp.x + 3); if (lp.vx < 0) lp.vx = 0; }
+        else if (lp.x > hiX) { lp.x = Math.max(hiX, lp.x - 3); if (lp.vx > 0) lp.vx = 0; }
+      }
+    }
+
+    /* death handling — a life is lost only when nobody is left standing */
+    var live = 0, downed = 0, settled = true, di;
+    for (di = 0; di < this.players.length; di++) {
+      var qp = this.players[di];
+      if (!qp.dead && !qp.downed) live++;
+      if (qp.downed) downed++;
+      if (!(qp.dead && qp.deadTimer > 90)) settled = false;
+    }
+    if (live === 0 && downed === 0 && settled) {
       this.lives--;
       if (this.lives < 0) {
         this.gameOver();

@@ -84,6 +84,25 @@ function moveEntity(e, solids, oneways, corner) {
   }
 }
 
+/* ---- player helpers ----------------------------------------------------- */
+function livePlayers() {
+  var out = [], i;
+  for (i = 0; i < Game.players.length; i++) {
+    var p = Game.players[i];
+    if (p && !p.dead && !p.downed) out.push(p);
+  }
+  return out.length ? out : (Game.player ? [Game.player] : []);
+}
+
+function nearestPlayer(x, y) {
+  var list = livePlayers(), best = list[0], bd = Infinity, i;
+  for (i = 0; i < list.length; i++) {
+    var d = dist2(x, y, list[i].x + list[i].w / 2, list[i].y + list[i].h / 2);
+    if (d < bd) { bd = d; best = list[i]; }
+  }
+  return best;
+}
+
 /* ---- the commando ------------------------------------------------------- */
 function makePlayer(x, y) {
   return {
@@ -98,6 +117,7 @@ function makePlayer(x, y) {
     dashT: 0, dashCd: 0, dashDir: 1,
     meleeT: 0, meleeCd: 0,
     grenades: 3, maxGrenades: 3,
+    ctl: null, downed: false, downTimer: 0, reviveT: 0,
     dead: false, deadTimer: 0,
     spawnX: x, spawnY: y
   };
@@ -121,6 +141,16 @@ function setDuck(p, want) {
 
 function playerUpdate(p) {
   var solids = groundRects(), oneways = platformRects();
+  var ctl = p.ctl || Input;
+
+  /* downed in co-op: no control, but still subject to gravity and the floor */
+  if (p.downed) {
+    p.downTimer--;
+    p.vx *= 0.9;
+    p.vy = Math.min(p.vy + PHYS.grav, PHYS.maxFall);
+    moveEntity(p, solids, oneways, false);
+    return;
+  }
 
   if (p.dead) {
     p.deadTimer++;
@@ -131,8 +161,8 @@ function playerUpdate(p) {
     return;
   }
 
-  var ax = Input.axis();
-  var wantDuck = Input.held('down') && p.onGround;
+  var ax = ctl.axis();
+  var wantDuck = ctl.held('down') && p.onGround;
   setDuck(p, wantDuck);
 
   /* horizontal */
@@ -146,7 +176,7 @@ function playerUpdate(p) {
 
   /* jump with coyote time + input buffering + variable height */
   if (p.onGround) p.coyote = PHYS.coyote; else if (p.coyote > 0) p.coyote--;
-  if (Input.pressed('jump')) p.jumpBuffer = PHYS.buffer; else if (p.jumpBuffer > 0) p.jumpBuffer--;
+  if (ctl.pressed('jump')) p.jumpBuffer = PHYS.buffer; else if (p.jumpBuffer > 0) p.jumpBuffer--;
 
   if (p.jumpBuffer > 0 && p.coyote > 0) {
     p.vy = PHYS.jumpV;
@@ -157,7 +187,7 @@ function playerUpdate(p) {
     Snd.sfx('jump');
     puff(p.x + p.w / 2, p.y + p.h, 5, '#c8d6e2');
   }
-  if (p.jumpHeld && !Input.held('jump') && p.vy < PHYS.jumpCut) {
+  if (p.jumpHeld && !ctl.held('jump') && p.vy < PHYS.jumpCut) {
     p.vy = PHYS.jumpCut;
     p.jumpHeld = false;
   }
@@ -165,7 +195,7 @@ function playerUpdate(p) {
 
   /* dash — short, invulnerable, horizontal */
   if (p.dashCd > 0) p.dashCd--;
-  if (Input.pressed('dash') && p.dashCd <= 0 && !p.ducking) {
+  if (ctl.pressed('dash') && p.dashCd <= 0 && !p.ducking) {
     p.dashT = 10;
     p.dashCd = 42;
     p.dashDir = p.facing;
@@ -184,7 +214,7 @@ function playerUpdate(p) {
 
   /* melee — a short arc that solves "enemy on top of me" */
   if (p.meleeCd > 0) p.meleeCd--;
-  if (Input.pressed('melee') && p.meleeCd <= 0) {
+  if (ctl.pressed('melee') && p.meleeCd <= 0) {
     p.meleeT = 9;
     p.meleeCd = 26;
     Snd.sfx('melee');
@@ -209,7 +239,7 @@ function playerUpdate(p) {
   if (p.meleeT > 0) p.meleeT--;
 
   /* grenades */
-  if (Input.pressed('grenade') && p.grenades > 0) {
+  if (ctl.pressed('grenade') && p.grenades > 0) {
     p.grenades--;
     spawnGrenade(p);
     Snd.sfx('throw');
@@ -235,13 +265,13 @@ function playerUpdate(p) {
   else if (p.onGround) p.runPhase = 0;
 
   /* aim direction */
-  var up = Input.held('up'), down = Input.held('down');
+  var up = ctl.held('up'), down = ctl.held('down');
   var axAim = 0, ayAim = 0;
   if (up) ayAim = -1;
   else if (down && !p.onGround) ayAim = 1;
   if (up || (down && !p.onGround)) {
-    if (Input.held('left')) axAim = -1;
-    else if (Input.held('right')) axAim = 1;
+    if (ctl.held('left')) axAim = -1;
+    else if (ctl.held('right')) axAim = 1;
   } else {
     axAim = p.facing;
   }
@@ -251,7 +281,7 @@ function playerUpdate(p) {
   /* firing */
   if (p.cd > 0) p.cd--;
   if (p.muzzle > 0) p.muzzle--;
-  if (Input.held('fire') && p.cd <= 0) fireWeapon(p);
+  if (ctl.held('fire') && p.cd <= 0) fireWeapon(p);
 
   /* timers */
   if (p.invuln > 0) p.invuln--;
@@ -298,7 +328,27 @@ function playerHurt(p, dmg) {
 }
 
 function killPlayer(p) {
-  if (p.dead) return;
+  if (p.dead || p.downed) return;
+
+  /* with a partner still standing, go down instead of dying */
+  var partnerUp = false;
+  for (var i = 0; i < Game.players.length; i++) {
+    var q = Game.players[i];
+    if (q !== p && q && !q.dead && !q.downed) partnerUp = true;
+  }
+  if (Game.coop && partnerUp) {
+    p.downed = true;
+    p.downTimer = 360;
+    p.reviveT = 0;
+    p.hp = 0;
+    p.vx = 0;
+    p.vy = -2.4;
+    Game.shake = 6;
+    Snd.sfx('death');
+    floatText(p.x, p.y - 8, 'DOWN', '#ff4d6d');
+    return;
+  }
+
   p.dead = true;
   p.deadTimer = 0;
   p.hp = 0;
@@ -425,8 +475,16 @@ function spawnPickup(o) {
 function pickupUpdate(c) {
   c.age++;
   c.y = c.baseY + Math.sin(c.age * 0.06) * 3;
-  var p = Game.player;
-  if (!p.dead && aabb({ x: c.x - 2, y: c.y - 2, w: 18, h: 18 }, { x: p.x, y: p.y, w: p.w, h: p.h })) {
+  var p = null, pi;
+  for (pi = 0; pi < Game.players.length; pi++) {
+    var cand = Game.players[pi];
+    if (cand && !cand.dead && !cand.downed &&
+        aabb({ x: c.x - 2, y: c.y - 2, w: 18, h: 18 }, { x: cand.x, y: cand.y, w: cand.w, h: cand.h })) {
+      p = cand;
+      break;
+    }
+  }
+  if (p) {
     c.dead = true;
     if (c.kind === 'weapon') {
       p.weapon = c.w;
@@ -467,7 +525,7 @@ function spawnEnemy(spec) {
     pal: (typeof Game !== 'undefined' && Game.stageIndex) || 0,
     scale: 0.94 + RNG.s() * 0.12,
     elite: RNG.sChance(0.12),
-    wind: 0
+    wind: 0, chargeCd: 0
   });
   var last = Game.enemies[Game.enemies.length - 1];
   if (last) {
@@ -504,7 +562,7 @@ function damageEnemy(e, dmg, knock) {
 }
 
 function enemyShootAt(e, speed, count, spreadArc, offsetY) {
-  var p = Game.player;
+  var p = nearestPlayer(e.x + e.w / 2, e.y + e.h / 2) || Game.player;
   var ox = e.x + e.w / 2, oy = e.y + (offsetY === undefined ? e.h / 2 : offsetY);
   var base = Math.atan2((p.y + p.h / 2) - oy, (p.x + p.w / 2) - ox);
   count = count || 1;
@@ -521,7 +579,7 @@ function enemyShootAt(e, speed, count, spreadArc, offsetY) {
 
 function enemyUpdate(e) {
   var def = ENEMIES[e.t];
-  var p = Game.player;
+  var p = nearestPlayer(e.x + e.w / 2, e.y + e.h / 2) || Game.player;
   var solids = groundRects(), oneways = platformRects();
   e.age++;
   if (e.flash > 0) e.flash--;
@@ -610,10 +668,19 @@ function enemyUpdate(e) {
       break;
 
     case 'brute':
+      if (e.chargeCd > 0) e.chargeCd--;
       if (adx < 220) {
         e.facing = sign(dx) || e.facing;
         e.vx = e.facing * def.speed;
-        if (e.onGround && adx < 70) e.vy = -4.2;    /* shoulder charge */
+        if (e.onGround && adx < 90 && e.chargeCd <= 0) {
+          e.wind = 14;              /* telegraphed shoulder charge */
+          e.chargeCd = 150;
+        }
+        if (e.wind > 0) {
+          e.wind--;
+          e.vx = 0;
+          if (e.wind === 0) { e.vy = -4.6; e.vx = e.facing * 3.2; Snd.sfx('jump'); }
+        }
       } else {
         e.vx = e.facing * def.speed * 0.4;
         if (!supportedAt(e.x + (e.facing > 0 ? e.w + 2 : -2), e.y + e.h + 2)) e.facing *= -1;
@@ -661,9 +728,13 @@ function enemyUpdate(e) {
     if (Math.abs(e.vx) > 0.1) e.walkPhase += Math.abs(e.vx) * 0.09;
   }
 
-  /* contact damage */
-  if (!p.dead && aabb(e, { x: p.x + 1, y: p.y + 1, w: p.w - 2, h: p.h - 2 })) {
-    playerHurt(p, 1);
+  /* contact damage, against every commando on screen */
+  for (var ci = 0; ci < Game.players.length; ci++) {
+    var cp = Game.players[ci];
+    if (cp && !cp.dead && !cp.downed &&
+        aabb(e, { x: cp.x + 1, y: cp.y + 1, w: cp.w - 2, h: cp.h - 2 })) {
+      playerHurt(cp, 1);
+    }
   }
 
   /* cull enemies far behind the camera */
@@ -751,7 +822,7 @@ function damageBoss(b, dmg) {
 }
 
 function bossUpdate(b) {
-  var p = Game.player;
+  var p = nearestPlayer(b.x + b.w / 2, b.y + b.h / 2) || Game.player;
   b.age++;
   if (b.flash > 0) b.flash--;
 
@@ -892,8 +963,12 @@ function bossUpdate(b) {
   }
 
   /* contact damage */
-  if (!p.dead && aabb(b, { x: p.x + 1, y: p.y + 1, w: p.w - 2, h: p.h - 2 })) {
-    playerHurt(p, 1);
+  for (var bi = 0; bi < Game.players.length; bi++) {
+    var bp = Game.players[bi];
+    if (bp && !bp.dead && !bp.downed &&
+        aabb(b, { x: bp.x + 1, y: bp.y + 1, w: bp.w - 2, h: bp.h - 2 })) {
+      playerHurt(bp, 1);
+    }
   }
 }
 
