@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eon Commando — a retro run-and-gun in one HTML file</title>
+<meta name="description" content="Eon Commando is a Contra-style run-and-gun platformer that ships as ONE self-contained HTML file. Three eras, five weapons, three bosses, chiptune audio. No install, no dependencies, works offline.">
+<meta name="author" content="Dr. Sohil Momin">
+<meta name="theme-color" content="#05070d">
+<meta name="color-scheme" content="dark">
+<link rel="canonical" href="https://drsamonline.github.io/eon-commando/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Eon Commando — a retro run-and-gun in one HTML file">
+<meta property="og:description" content="Three eras. One commando. No mercy. Run, jump, duck and shoot through three collapsing eras in a single self-contained HTML file.">
+<meta property="og:url" content="https://drsamonline.github.io/eon-commando/">
+<meta property="og:image" content="https://drsamonline.github.io/eon-commando/shots/gameplay.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%2305070d'/%3E%3Cpath d='M8 2l5 4v4l-5 4-5-4V6z' fill='%23ffb545'/%3E%3Crect x='6' y='7' width='4' height='2' fill='%2305070d'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --ink:#05070d; --ink2:#0a1019; --panel:#0c1421; --line:#1b2839;
+    --amber:#ffb545; --amber2:#ffd257; --cyan:#54e0ff; --pink:#ff2d95;
+    --text:#cfd8e3; --dim:#7f8fa6; --dim2:#54637a;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--ink); color:var(--text); font-family:var(--mono);
+    font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255,181,69,.10), transparent 70%),
+      radial-gradient(ellipse 60% 40% at 85% 10%, rgba(84,224,255,.07), transparent 70%),
+      linear-gradient(transparent 0 1px, rgba(255,255,255,.022) 1px 2px);
+    background-size:auto, auto, 100% 3px;
+  }
+  a{color:var(--cyan); text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:1060px; margin:0 auto; padding:0 22px}
+
+  /* nav */
+  nav{
+    position:sticky; top:0; z-index:20; backdrop-filter:blur(10px);
+    background:rgba(5,7,13,.78); border-bottom:1px solid var(--line);
+  }
+  nav .wrap{display:flex; align-items:center; gap:18px; height:56px}
+  .mark{display:flex; align-items:center; gap:9px; font-weight:700; letter-spacing:.14em; font-size:13px; color:var(--amber)}
+  .mark i{width:12px; height:12px; background:var(--amber); display:block; transform:rotate(45deg); box-shadow:0 0 14px rgba(255,181,69,.6)}
+  nav .links{margin-left:auto; display:flex; gap:18px; font-size:12.5px; letter-spacing:.06em}
+  nav .links a{color:var(--dim)}
+  nav .links a:hover{color:var(--cyan); text-decoration:none}
+  @media(max-width:640px){ nav .links{display:none} }
+
+  /* hero */
+  header.hero{padding:64px 0 30px; text-align:center}
+  .eyebrow{font-size:11.5px; letter-spacing:.28em; color:var(--dim2); text-transform:uppercase}
+  h1{
+    margin:16px 0 0; font-size:clamp(34px,7vw,66px); line-height:1.02; letter-spacing:.02em;
+    color:var(--amber2); text-shadow:0 3px 0 #3a1f24, 0 0 46px rgba(255,181,69,.35);
+  }
+  h1 span{display:block; color:var(--amber)}
+  .lede{max-width:660px; margin:20px auto 0; color:#b8c6d6; font-size:clamp(14px,2.1vw,17px)}
+  .cta{display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin-top:30px}
+  .btn{
+    display:inline-flex; align-items:center; gap:10px; padding:15px 26px; border-radius:10px;
+    font-size:13px; letter-spacing:.14em; font-weight:700; border:1px solid transparent; transition:.15s;
+  }
+  .btn.primary{background:var(--amber); color:#1a1206; box-shadow:0 10px 34px rgba(255,181,69,.28)}
+  .btn.primary:hover{background:var(--amber2); text-decoration:none; transform:translateY(-1px)}
+  .btn.ghost{border-color:var(--line); color:var(--text); background:rgba(255,255,255,.02)}
+  .btn.ghost:hover{border-color:var(--cyan); color:var(--cyan); text-decoration:none}
+
+  .stats{
+    display:flex; justify-content:center; flex-wrap:wrap; gap:10px 26px; margin:30px 0 0;
+    font-size:12px; color:var(--dim); letter-spacing:.08em;
+  }
+  .stats b{color:var(--text); font-weight:600}
+
+  /* shot frame */
+  .shot{
+    margin:40px 0 0; border:1px solid var(--line); border-radius:12px; overflow:hidden;
+    background:#070b12; box-shadow:0 30px 90px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.02) inset;
+  }
+  .shot .bar{
+    display:flex; align-items:center; gap:8px; padding:9px 13px; border-bottom:1px solid var(--line);
+    background:#080d15; font-size:11px; color:var(--dim2); letter-spacing:.1em;
+  }
+  .shot .bar em{width:9px; height:9px; border-radius:50%; background:#243247; display:block}
+  .shot .bar span{margin-left:6px}
+  .shot img{display:block; width:100%; height:auto; image-rendering:pixelated}
+
+  /* sections */
+  section{padding:64px 0 0}
+  h2{
+    margin:0 0 6px; font-size:12px; letter-spacing:.3em; color:var(--cyan); text-transform:uppercase; font-weight:700;
+  }
+  h3.big{margin:0 0 14px; font-size:clamp(21px,3.4vw,30px); line-height:1.2; color:#eef4fa; letter-spacing:.01em}
+  p.body{color:#b3c2d2; max-width:70ch}
+  .rule{height:1px; background:linear-gradient(90deg,var(--line),transparent); margin:56px 0 0}
+
+  .grid{display:grid; gap:18px; margin-top:26px}
+  .grid.two{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+  .grid.three{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+  .card{
+    background:linear-gradient(180deg,var(--panel),#080e17); border:1px solid var(--line);
+    border-radius:12px; padding:20px; transition:.18s;
+  }
+  .card:hover{border-color:#2b3f57; transform:translateY(-2px)}
+  .card .tag{font-size:10.5px; letter-spacing:.2em; color:var(--dim2)}
+  .card h4{margin:6px 0 8px; font-size:16px; color:var(--amber2); letter-spacing:.04em}
+  .card p{margin:0; font-size:13px; color:#9fb0c2; line-height:1.6}
+  .card img{width:100%; height:auto; display:block; border-radius:7px; margin-bottom:14px; image-rendering:pixelated; border:1px solid #14202f}
+
+  .weapons{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-top:26px}
+  .w{display:flex; gap:12px; align-items:flex-start; padding:14px; border:1px solid var(--line); border-radius:10px; background:var(--panel)}
+  .w i{width:10px; height:10px; border-radius:2px; margin-top:6px; flex:none; box-shadow:0 0 12px currentColor}
+  .w b{display:block; font-size:12.5px; letter-spacing:.12em; color:#e8f0f8}
+  .w small{color:var(--dim); font-size:11.5px; line-height:1.5; display:block}
+
+  table{width:100%; border-collapse:collapse; margin-top:22px; font-size:13px}
+  th,td{text-align:left; padding:11px 12px; border-bottom:1px solid var(--line)}
+  th{font-size:10.5px; letter-spacing:.2em; color:var(--dim2); text-transform:uppercase; font-weight:600}
+  td kbd{
+    display:inline-block; padding:2px 7px; border:1px solid #2b3f57; border-bottom-width:2px;
+    border-radius:5px; background:#0e1826; font-size:11.5px; color:#dbe6f2; margin:0 2px 2px 0;
+  }
+  td:last-child{color:var(--dim)}
+
+  pre{
+    margin:18px 0 0; padding:16px 18px; background:#070c14; border:1px solid var(--line);
+    border-radius:10px; overflow-x:auto; font-size:12.5px; color:#a9bdd1; line-height:1.7;
+  }
+  pre b{color:var(--amber)}
+  code{font-family:var(--mono)}
+
+  footer{margin-top:70px; padding:34px 0 60px; border-top:1px solid var(--line); color:var(--dim2); font-size:12px}
+  footer .wrap{display:flex; flex-wrap:wrap; gap:14px; justify-content:space-between; align-items:center}
+  footer a{color:var(--dim)}
+  footer a:hover{color:var(--cyan)}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <span class="mark"><i></i>EON COMMANDO</span>
+    <span class="links">
+      <a href="#campaign">Campaign</a>
+      <a href="#arsenal">Arsenal</a>
+      <a href="#controls">Controls</a>
+      <a href="#build">How it's built</a>
+      <a href="https://github.com/drsamonline/eon-commando">GitHub</a>
+    </span>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">One HTML file &middot; Zero dependencies &middot; Works offline</div>
+    <h1>EON<span>COMMANDO</span></h1>
+    <p class="lede">
+      A Contra-style run-and-gun platformer. Run, jump, duck and shoot your way through
+      three collapsing eras &mdash; five weapons, three bosses, chiptune audio, and not one line
+      of third-party code.
+    </p>
+    <div class="cta">
+      <a class="btn primary" href="play/">▶&nbsp; PLAY NOW</a>
+      <a class="btn ghost" href="https://github.com/drsamonline/eon-commando">View source</a>
+    </div>
+    <div class="stats">
+      <span><b>1</b> file</span>
+      <span><b>100</b> KB</span>
+      <span><b>0</b> dependencies</span>
+      <span><b>0</b> network calls</span>
+      <span><b>3</b> eras</span>
+      <span><b>5</b> weapons</span>
+    </div>
+
+    <div class="shot">
+      <div class="bar"><em></em><em></em><em></em><span>eon-commando &mdash; era I: ashen dawn</span></div>
+      <img src="shots/gameplay.png" alt="Eon Commando gameplay: the commando firing at enemy soldiers under a setting sun">
+    </div>
+  </div>
+</header>
+
+<section id="campaign">
+  <div class="wrap">
+    <h2>The campaign</h2>
+    <h3 class="big">Three eras, each with its own sky, its own hazards, its own boss.</h3>
+    <p class="body">
+      Every stage is hand-laid &mdash; ground segments, one-way platforms, chasms, turrets and
+      flying drones &mdash; and every stage ends the same way: the camera locks, the gate shuts
+      behind you, and something very large wakes up.
+    </p>
+    <div class="grid three">
+      <div class="card">
+        <span class="tag">ERA I</span>
+        <h4>ASHEN DAWN</h4>
+        <p>The burning city at dusk. Long sightlines, chasms to clear, turrets dug into the rooftops.</p>
+      </div>
+      <div class="card">
+        <span class="tag">ERA II</span>
+        <h4>GLACIER EON</h4>
+        <p>The frozen vault. Narrow ledges, more air than ground, drones dropping through the snow.</p>
+      </div>
+      <div class="card">
+        <span class="tag">ERA III</span>
+        <h4>EON CORE</h4>
+        <p>The heart of time. Tighter platforms, denser fire, and the thing the other two were guarding.</p>
+      </div>
+    </div>
+
+    <div class="grid two" style="margin-top:18px">
+      <div class="card">
+        <img src="shots/stage2.png" alt="Era II, Glacier Eon: icy ledges, a pale moon and enemy drones">
+        <span class="tag">ERA II</span>
+        <h4>GLACIER EON</h4>
+        <p>Ice shelves over open air. The moon does nothing to help you see the drone above your head.</p>
+      </div>
+      <div class="card">
+        <img src="shots/stage3.png" alt="Era III, Eon Core: magenta sky, spiked ground and enemy turrets">
+        <span class="tag">ERA III</span>
+        <h4>EON CORE</h4>
+        <p>The last approach. Every enemy you met earlier comes back with better aim.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="arsenal">
+  <div class="wrap">
+    <h2>Arsenal</h2>
+    <h3 class="big">Five weapons. You lose the good one when you die.</h3>
+    <p class="body">
+      Weapons drop from floating capsules and stay with you until you take a fatal hit &mdash;
+      then it is back to the rifle. That single rule turns every pickup into a decision about
+      how much further you are willing to push.
+    </p>
+    <div class="weapons">
+      <div class="w"><i style="background:#ffd257;color:#ffd257"></i><span><b>RIFLE</b><small>Default. Even cadence, clean damage, always with you.</small></span></div>
+      <div class="w"><i style="background:#ff8a3c;color:#ff8a3c"></i><span><b>SPREAD</b><small>Three pellets in a fan. Best at bad-breath range.</small></span></div>
+      <div class="w"><i style="background:#9ef0ff;color:#9ef0ff"></i><span><b>MACHINE</b><small>Fast, jittery, forgiving. Melts anything that stands still.</small></span></div>
+      <div class="w"><i style="background:#54e0ff;color:#54e0ff"></i><span><b>LASER</b><small>Slow to fire, punches through three targets at once.</small></span></div>
+      <div class="w"><i style="background:#ff5c3c;color:#ff5c3c"></i><span><b>FLAME</b><small>Short reach, wide cloud, burns through a crowd.</small></span></div>
+    </div>
+  </div>
+</section>
+
+<section id="bosses">
+  <div class="wrap">
+    <h2>Bosses</h2>
+    <h3 class="big">Three of them. Each one has a second phase.</h3>
+    <p class="body">
+      Half health flips a switch: the Warden fires wider spreads and stomps shockwaves,
+      the Glacier Wraith calls in drones, and the Eon Heart starts spinning its volleys
+      faster than you can walk.
+    </p>
+    <div class="grid two">
+      <div class="card">
+        <img src="shots/boss1.png" alt="The Warden boss: a heavy mech with a glowing core, firing spread shots">
+        <span class="tag">ERA I BOSS</span>
+        <h4>THE WARDEN</h4>
+        <p>A walking bunker with shoulder cannons and a ground shockwave you have to jump.</p>
+      </div>
+      <div class="card">
+        <img src="shots/boss3.png" alt="The Eon Heart boss: a pulsing core throwing a spiral of bullets">
+        <span class="tag">ERA III BOSS</span>
+        <h4>THE EON HEART</h4>
+        <p>It does not move. It does not have to. The spiral closes in from every angle.</p>
+      </div>
+    </div>
+    <p class="body" style="margin-top:18px">
+      Between them sits the <b style="color:var(--amber2)">GLACIER WRAITH</b> &mdash; airborne, wing-flapping,
+      dropping ice shards in a fan and calling in reinforcements when it drops below half health.
+    </p>
+  </div>
+</section>
+
+<section id="controls">
+  <div class="wrap">
+    <h2>Controls</h2>
+    <h3 class="big">Keyboard, touch pads, or a gamepad.</h3>
+    <table>
+      <tr><th>Action</th><th>Keyboard</th><th>On a phone</th></tr>
+      <tr><td>Move</td><td><kbd>←</kbd><kbd>→</kbd> or <kbd>A</kbd><kbd>D</kbd></td><td>Left D-pad</td></tr>
+      <tr><td>Aim up / down</td><td><kbd>↑</kbd> / <kbd>↓</kbd> (down in mid-air)</td><td>D-pad up / down</td></tr>
+      <tr><td>Duck</td><td><kbd>↓</kbd> while standing</td><td>D-pad down</td></tr>
+      <tr><td>Jump</td><td><kbd>Space</kbd> <kbd>X</kbd> <kbd>K</kbd></td><td><b>A</b></td></tr>
+      <tr><td>Fire</td><td><kbd>Z</kbd> <kbd>J</kbd> <kbd>Ctrl</kbd></td><td><b>B</b></td></tr>
+      <tr><td>Pause</td><td><kbd>P</kbd> <kbd>Esc</kbd></td><td>❙❙ button</td></tr>
+      <tr><td>Mute</td><td><kbd>M</kbd></td><td>&mdash;</td></tr>
+    </table>
+    <p class="body" style="margin-top:16px; font-size:13px; color:var(--dim)">
+      Holding the jump key gives you the full arc; tapping it gives you a short hop.
+      That difference is the whole game when the ground stops.
+    </p>
+  </div>
+</section>
+
+<section id="build">
+  <div class="wrap">
+    <h2>How it's built</h2>
+    <h3 class="big">No engine, no assets, no network.</h3>
+    <p class="body">
+      Everything you see is drawn from rectangles and paths at runtime: the commando, the enemies,
+      the bosses, the parallax skylines, the 5&times;7 pixel font on the HUD. Everything you hear is
+      synthesised from oscillators and noise buffers in the Web Audio API &mdash; there is no
+      <code>.png</code>, no <code>.wav</code>, no font file, no CDN.
+    </p>
+    <div class="grid three">
+      <div class="card"><span class="tag">SIMULATION</span><h4>Fixed 60 Hz step</h4><p>A fixed timestep with an accumulator, so physics behaves the same on a 60 Hz laptop and a 144 Hz monitor.</p></div>
+      <div class="card"><span class="tag">MOVEMENT</span><h4>Coyote time &amp; buffering</h4><p>Six frames of coyote time and seven frames of jump buffering, so a jump pressed a hair early still counts.</p></div>
+      <div class="card"><span class="tag">AUDIO</span><h4>Chiptune at runtime</h4><p>Two-pulse leads, a triangle bass and a noise kit, sequenced ahead of time against the audio clock.</p></div>
+    </div>
+    <pre><b>git clone</b> https://github.com/drsamonline/eon-commando
+<b>cd</b> eon-commando
+<b>python3</b> build.py          <span style="color:#54637a"># src/ -> index.html (one file)</span>
+<b>open</b> index.html          <span style="color:#54637a"># or just double-click it</span></pre>
+    <p class="body" style="margin-top:16px">
+      The shipped game is one file. The source is split into readable parts under
+      <code>src/</code> &mdash; core, audio, input, art, content, entities, game, render, main &mdash;
+      and <code>build.py</code> concatenates them in order. Edit a part, rebuild, reload.
+    </p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>EON COMMANDO &middot; v1.0 &middot; PolyForm Noncommercial 1.0.0</span>
+    <span>
+      <a href="https://github.com/drsamonline/eon-commando">GitHub</a> &middot;
+      <a href="https://github.com/drsamonline/eon-commando/releases">Releases</a> &middot;
+      <a href="https://drsamonline.github.io/">All projects</a>
+    </span>
+  </div>
+</footer>
+
+</body>
+</html>
