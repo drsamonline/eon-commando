@@ -786,6 +786,8 @@ function drawHUD(g) {
   var panelW = Math.max(row1w, row2w, row3w) + 10;
   var panelH = 40;
 
+  Game.debugRects = Game.debugRects || {};
+  Game.debugRects.left = { x: 4, y: 4, w: panelW, h: panelH };
   rr(g, 4, 4, panelW, panelH, 4, 'rgba(4,8,14,0.62)');
   rr(g, 4, 4, panelW, panelH, 4, 'rgba(255,255,255,0.05)');
   px(g, 5, 4.5, panelW - 2, 1, 'rgba(255,255,255,0.10)');
@@ -846,9 +848,12 @@ function drawHUD(g) {
   g.save();
   g.translate(W, 0);
   g.scale(k, k);
-  var sc = 'SCORE ' + String(Game.score).padStart(7, '0');
-  var hi = 'HI ' + String(Math.max(Game.hiScore, Game.score)).padStart(7, '0');
+  /* on a phone the words cost more than they explain */
+  var sc = (W < 380 ? '' : 'SCORE ') + String(Game.score).padStart(7, '0');
+  var hi = (W < 380 ? '' : 'HI ') + String(Math.max(Game.hiScore, Game.score)).padStart(7, '0');
   var sw = Math.max(textWidth(sc, 1), textWidth(hi, 1)) + 12;
+  Game.debugRects = Game.debugRects || {};
+  Game.debugRects.score = { x: W - sw - 4, y: 4, w: sw, h: 24 };
   rr(g, -sw - 4, 4, sw, 24, 4, 'rgba(4,8,14,0.62)');
   rr(g, -sw - 4, 4, sw, 24, 4, 'rgba(255,255,255,0.05)');
   drawText(g, sc, -10, 9, 1, '#ffffff', 'right');
@@ -1063,6 +1068,21 @@ function drawRemap(g) {
 }
 
 /* ---- story panel -------------------------------------------------------- */
+/* wrap by measured width, not character count — a character-count wrap is only
+   correct for one font size and one panel width, which is how cutscene text
+   ended up outside its box on a phone */
+function wrapTextPx(str, maxPx, scale) {
+  scale = scale || 1;
+  var words = String(str).toUpperCase().split(' '), lines = [], cur = '';
+  for (var i = 0; i < words.length; i++) {
+    var t = cur ? cur + ' ' + words[i] : words[i];
+    if (textWidth(t, scale) > maxPx && cur) { lines.push(cur); cur = words[i]; }
+    else cur = t;
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
 function wrapText(str, max) {
   var words = String(str).split(' '), lines = [], cur = '';
   for (var i = 0; i < words.length; i++) {
@@ -1092,10 +1112,20 @@ function drawStory(g) {
 
   dim(g, 0.82);
 
-  var padX = narrow ? 12 : 34;
-  var boxH = narrow ? 112 : 100;
-  var boxY = H - boxH - (narrow ? 10 : 16);
+  /* The panel belongs inside the play band, not floating over the letterboxed
+     ground on a portrait phone. */
+  var bandH = Math.min(H, GROUND_Y + 26);
+  var padX = narrow ? 10 : 34;
   var boxW = W - padX * 2;
+  var pw = narrow ? 30 : 44;
+  var tx = padX + pw + 16;
+  var textW = padX + boxW - 8 - tx;          /* the column the text may use */
+
+  var lines = wrapTextPx(line.text, textW, 1);
+  var lineH = narrow ? 11 : 12;
+  var boxH = Math.max(narrow ? 74 : 76, 44 + lines.length * lineH);
+  var boxY = clamp(bandH - boxH - 8, 6, H - boxH - 6);
+  Game.debugRects = { story: { x: padX, y: boxY, w: boxW, h: boxH, tx: tx, textW: textW } };
 
   px(g, padX, boxY, boxW, boxH, 'rgba(6,9,14,0.94)');
   g.strokeStyle = '#22344a';
@@ -1104,12 +1134,11 @@ function drawStory(g) {
   px(g, padX, boxY, boxW, 2, line.who === 'YOU' ? '#54e0ff' : '#ff2d95');
 
   /* portrait plate */
-  var pw = narrow ? 34 : 44;
-  px(g, padX + 8, boxY + 12, pw, pw, '#0b1220');
+  px(g, padX + 8, boxY + 10, pw, pw, '#0b1220');
   g.strokeStyle = '#1b2839';
-  g.strokeRect(padX + 8.5, boxY + 12.5, pw - 1, pw - 1);
+  g.strokeRect(padX + 8.5, boxY + 10.5, pw - 1, pw - 1);
   if (line.who === 'YOU') {
-    var ghost = { x: padX + 8 + pw / 2 - 6, y: boxY + 14, w: 12, h: 22, facing: 1, aimAngle: 0,
+    var ghost = { x: padX + 8 + pw / 2 - 6, y: boxY + 12, w: 12, h: 22, facing: 1, aimAngle: 0,
                   onGround: true, ducking: false, runPhase: 0, invuln: 0, hurtFlash: 0, vx: 0 };
     g.save();
     g.translate(0, 6);
@@ -1118,7 +1147,7 @@ function drawStory(g) {
   } else {
     g.fillStyle = line.who === 'CONTROL' ? '#54e0ff' : '#ff2d95';
     g.beginPath();
-    var cx0 = padX + 8 + pw / 2, cy0 = boxY + 12 + pw / 2;
+    var cx0 = padX + 8 + pw / 2, cy0 = boxY + 10 + pw / 2;
     g.moveTo(cx0, cy0 - pw * 0.3);
     g.lineTo(cx0 + pw * 0.3, cy0);
     g.lineTo(cx0, cy0 + pw * 0.3);
@@ -1127,24 +1156,22 @@ function drawStory(g) {
     g.fill();
   }
 
-  var tx = padX + pw + 20;
-  drawText(g, line.who, tx, boxY + 12, 1, line.who === 'YOU' ? '#54e0ff' : '#ff2d95');
+  drawText(g, line.who, tx, boxY + 10, 1, line.who === 'YOU' ? '#54e0ff' : '#ff2d95');
 
-  var lines = wrapText(line.text, narrow ? 26 : 44);
   var budget = Math.floor(Game.storyChars);
-  var ty = boxY + 30;
-  for (var i = 0; i < lines.length && i < 4; i++) {
+  var ty = boxY + 26;
+  for (var i = 0; i < lines.length; i++) {
     var l = lines[i];
     var part = l.length <= budget ? l : l.slice(0, Math.max(0, budget));
     budget -= l.length + 1;
     if (part.length) drawText(g, part, tx, ty, 1, '#e6edf5');
-    ty += 12;
+    ty += lineH;
   }
 
   if (Game.storyChars >= line.text.length && Math.floor(Game.time / 20) % 2 === 0) {
-    drawText(g, narrow ? 'TAP TO CONTINUE' : 'ENTER / TAP', W - padX - 10, boxY + boxH - 14, 1, '#54637a', 'right');
+    drawText(g, narrow ? 'TAP' : 'ENTER / TAP', padX + boxW - 10, boxY + boxH - 12, 1, '#54637a', 'right');
   }
-  drawText(g, (Game.storyIndex + 1) + '/' + st.length, padX + 10, boxY + boxH - 14, 1, '#38465a');
+  drawText(g, (Game.storyIndex + 1) + '/' + st.length, padX + 10, boxY + boxH - 12, 1, '#38465a');
 }
 
 /* ---- credits ------------------------------------------------------------ */
@@ -1247,20 +1274,51 @@ function drawPerk(g) {
   var narrow = W < 380;
 
   drawFit(g, 'CHOOSE A PERK', narrow ? 26 : 30, 3, '#ffd257', 'rgba(0,0,0,0.85)', W - 16);
-  drawText(g, 'THE ERA IS HELD. TAKE ONE THING WITH YOU.', W / 2, narrow ? 50 : 56, 1, '#9fb2c6', 'center');
+  drawText(g, narrow ? 'TAKE ONE THING WITH YOU' : 'THE ERA IS HELD. TAKE ONE THING WITH YOU.',
+           W / 2, narrow ? 48 : 56, 1, '#9fb2c6', 'center');
 
   var picks = Game.perkChoices;
   var n = picks.length;
   if (!n) return;
+  var i;
 
-  var gap = narrow ? 6 : 10;
-  var cardW = narrow ? (W - 24 - gap * (n - 1)) / n : Math.min(132, (W - 60 - gap * (n - 1)) / n);
-  var cardH = narrow ? 150 : 120;
+  if (narrow) {
+    /* Three narrow columns leave ~49 px of text on a phone — not enough for a
+       single word like OVERCHARGE. Stack them full width instead. */
+    var cardW2 = W - 20;
+    var cardH2 = 36;
+    var gapY = 5;
+    var y2 = 62;
+    for (i = 0; i < n; i++) {
+      var pk2 = picks[i];
+      var sel2 = i === Game.perkIndex;
+      var cy2 = y2 + i * (cardH2 + gapY);
+      px(g, 10, cy2, cardW2, cardH2, sel2 ? 'rgba(30,44,60,0.96)' : 'rgba(12,18,26,0.92)');
+      g.strokeStyle = sel2 ? pk2.color : '#22344a';
+      g.lineWidth = sel2 ? 2 : 1;
+      g.strokeRect(10.5, cy2 + 0.5, cardW2 - 1, cardH2 - 1);
+      px(g, 10, cy2, 3, cardH2, pk2.color);
+
+      drawText(g, pk2.name, 18, cy2 + 7, 1, '#ffffff');
+      drawText(g, pk2.tag, 10 + cardW2 - 8, cy2 + 7, 1, pk2.color, 'right');
+      var dLines = wrapTextPx(pk2.desc, cardW2 - 20, 1);
+      for (var d = 0; d < dLines.length && d < 2; d++) {
+        drawText(g, dLines[d], 18, cy2 + 19 + d * 9, 1, '#9fb2c6');
+      }
+      Game.hitRows.push({ x0: 10, x1: 10 + cardW2, y0: cy2, y1: cy2 + cardH2, i: i });
+    }
+    drawText(g, 'TAP A CARD', W / 2, y2 + n * (cardH2 + gapY) + 10, 1, '#54637a', 'center');
+    return;
+  }
+
+  var gap = 10;
+  var cardW = Math.min(132, (W - 60 - gap * (n - 1)) / n);
+  var cardH = 120;
   var totalW = cardW * n + gap * (n - 1);
   var x0 = (W - totalW) / 2;
-  var y0 = narrow ? 66 : 74;
+  var y0 = 74;
 
-  for (var i = 0; i < n; i++) {
+  for (i = 0; i < n; i++) {
     var pk = picks[i];
     var sel = i === Game.perkIndex;
     var cx = x0 + i * (cardW + gap);
@@ -1271,28 +1329,33 @@ function drawPerk(g) {
     g.strokeRect(cx + 0.5, y0 + 0.5, cardW - 1, cardH - 1);
     px(g, cx, y0, cardW, 2, pk.color);
 
-    drawText(g, pk.tag, cx + 6, y0 + 8, 1, pk.color);
-    var nameLines = wrapText(pk.name, narrow ? 8 : 11);
-    var ny = y0 + 24;
+    var tagLines = wrapTextPx(pk.tag, cardW - 12, 1);
+    var ty = y0 + 8;
+    for (var tl = 0; tl < tagLines.length && tl < 2; tl++) {
+      drawText(g, tagLines[tl], cx + 6, ty, 1, pk.color);
+      ty += 9;
+    }
+
+    var nameLines = wrapTextPx(pk.name, cardW - 12, 1);
+    var ny = ty + 6;
     for (var nl = 0; nl < nameLines.length && nl < 2; nl++) {
       drawText(g, nameLines[nl], cx + 6, ny, 1, '#ffffff');
       ny += 10;
     }
 
-    var descLines = wrapText(pk.desc, narrow ? 11 : 16);
-    var dy = ny + 8;
-    for (var dl = 0; dl < descLines.length && dl < 7; dl++) {
+    var descLines = wrapTextPx(pk.desc, cardW - 12, 1);
+    var dy = ny + 6;
+    var room = Math.floor((y0 + cardH - 16 - dy) / 9);
+    for (var dl = 0; dl < descLines.length && dl < room; dl++) {
       drawText(g, descLines[dl], cx + 6, dy, 1, '#9fb2c6');
       dy += 9;
     }
 
-    if (sel) {
-      px(g, cx + cardW / 2 - 10, y0 + cardH - 12, 20, 2, pk.color);
-    }
+    if (sel) px(g, cx + cardW / 2 - 10, y0 + cardH - 12, 20, 2, pk.color);
     Game.hitRows.push({ x0: cx, x1: cx + cardW, y0: y0, y1: y0 + cardH, i: i });
   }
 
-  drawText(g, narrow ? 'TAP A CARD' : '\u25C0 \u25B6  CHOOSE     ENTER  TAKE', W / 2, y0 + cardH + 12, 1, '#54637a', 'center');
+  drawText(g, '\u25C0 \u25B6  CHOOSE     ENTER  TAKE', W / 2, y0 + cardH + 12, 1, '#54637a', 'center');
 }
 
 function drawPads(g) {

@@ -2,6 +2,27 @@
 
 All notable changes to Eon Commando.
 
+## [4.6.1] — 2026-11-01
+
+**Cutscene and perk text stayed inside the panel.**
+
+### Fixed
+- **Text wrapped by character count, not pixels.** `wrapText(str, 26)` is only correct for one
+  font size in one panel width; on a 220 px portrait view the dialogue column is ~142 px wide and
+  a 26-character line is ~156 px, so lines ran past the panel edge. Both the cutscene and the
+  perk cards now wrap with `wrapTextPx()`, which measures with the real font.
+- **The cutscene panel straddled the play band** in portrait, half over the letterboxed ground.
+  It is now anchored inside the band and its height is derived from the wrapped line count.
+- **Perk cards were three squeezed columns on a phone**, leaving ~49 px of text — narrower than
+  the word OVERCHARGE. Narrow views now stack the three perks full width.
+- The perk card tag was never wrapped, so RATE OF FIRE overflowed a narrow card.
+
+### Added
+- `wrapTextPx()` — pixel-accurate wrapping.
+- `Game.debugRects` exposes the HUD, cutscene and score boxes so tests can assert text stays
+  inside them, not merely inside the viewport. That is the check that was missing: the previous
+  audit passed because everything was on screen while overflowing its box.
+
 ## [4.6.0] — 2026-11-01
 
 HUD and readability pass.

@@ -4,7 +4,7 @@
 
 <!-- shot:start -->
 
-![Screenshot](docs/shot.png)
+![Gameplay](docs/shots/gameplay.png)
 
 <!-- shot:end -->
 
@@ -33,7 +33,7 @@
 <br>
 
 [![Hosted on GitHub Pages](https://img.shields.io/badge/hosted%20on-GitHub%20Pages-222222?logo=githubpages&logoColor=white&style=for-the-badge&labelColor=05070d)](https://drsamonline.github.io/eon-commando/)
-[![Version](https://img.shields.io/badge/version-4.6.0-ffd257.svg?style=for-the-badge&labelColor=05070d)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-4.6.1-ffd257.svg?style=for-the-badge&labelColor=05070d)](CHANGELOG.md)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-54ffa8.svg?style=for-the-badge&labelColor=05070d)](#-zero-dependencies)
 [![Network calls](https://img.shields.io/badge/network%20calls-none-54ffa8.svg?style=for-the-badge&labelColor=05070d)](#-zero-dependencies)
 
@@ -130,6 +130,22 @@ Works identically from `file://` and from a web server. Works offline. Works on 
 </div>
 
 ---
+
+## 🆕 What's new in 4.6.1
+
+**Cutscene and perk text now stays inside its panel.**
+
+Text was wrapped by *character count*, which is only correct for one font size in one panel
+width — on a 220 px portrait view a 26-character line is wider than the dialogue column, so it
+ran past the panel edge. Both now wrap by measured pixels. The cutscene panel is also anchored
+inside the play band rather than straddling into the letterboxed ground, and the three perk cards
+**stack full width on a phone** instead of being squeezed into ~49 px columns.
+
+<div align="center">
+<img src="docs/shots/mobile-story.png" alt="A cutscene on a phone: the panel sits inside the play area with the text fully contained" width="260">
+&nbsp;
+<img src="docs/shots/mobile-perks.png" alt="Perk cards stacked full width on a phone" width="260">
+</div>
 
 ## 🆕 What's new in 4.6
 
