@@ -3,9 +3,10 @@
 # The heavy lifting lives in the shared kit so this repo inherits its fixes:
 #   https://github.com/drsamonline/app-builder
 #
-# deploy_path is deliberately empty: this repo publishes Pages from the `docs`
-# folder on the main branch (legacy Pages), and the kit's artifact deployment
-# would fight with that.
+# deploy_path is deliberately empty AND the Pages permissions are withheld:
+# this repo publishes Pages from the `docs` folder on the main branch (legacy
+# Pages). Granting pages:write let an early run upload Pages artifacts, which
+# interfered with the legacy builder and left it stuck in "building".
 name: Build apps
 
 on:
@@ -15,8 +16,6 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
   group: build-apps
@@ -31,5 +30,3 @@ jobs:
       deploy_path: ""
     permissions:
       contents: write
-      pages: write
-      id-token: write
