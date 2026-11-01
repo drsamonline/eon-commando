@@ -4,7 +4,7 @@
 
 <!-- shot:start -->
 
-![Gameplay](docs/shots/gameplay.png)
+![Screenshot](docs/shot.png)
 
 <!-- shot:end -->
 
