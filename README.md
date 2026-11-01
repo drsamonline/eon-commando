@@ -4,7 +4,7 @@
 
 <!-- shot:start -->
 
-![Screenshot](docs/shot.png)
+![Gameplay](docs/shots/gameplay.png)
 
 <!-- shot:end -->
 
@@ -33,7 +33,7 @@
 <br>
 
 [![Hosted on GitHub Pages](https://img.shields.io/badge/hosted%20on-GitHub%20Pages-222222?logo=githubpages&logoColor=white&style=for-the-badge&labelColor=05070d)](https://drsamonline.github.io/eon-commando/)
-[![Version](https://img.shields.io/badge/version-4.6.1-ffd257.svg?style=for-the-badge&labelColor=05070d)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-4.6.2-ffd257.svg?style=for-the-badge&labelColor=05070d)](CHANGELOG.md)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-54ffa8.svg?style=for-the-badge&labelColor=05070d)](#-zero-dependencies)
 [![Network calls](https://img.shields.io/badge/network%20calls-none-54ffa8.svg?style=for-the-badge&labelColor=05070d)](#-zero-dependencies)
 
@@ -130,6 +130,20 @@ Works identically from `file://` and from a web server. Works offline. Works on 
 </div>
 
 ---
+
+## 🆕 What's new in 4.6.2
+
+**Cross-audit with [neon-runner](https://github.com/drsamonline/neon-runner), and two things
+adopted from it.**
+
+- **The next frame is scheduled before any work runs.** neon-runner has always done this; it's
+  a stronger guarantee than scheduling afterwards, because the following frame is booked even if
+  the error guard itself fails.
+- **Pad opacity**: a `FADE` button in the pad editor cycles 100% → 70% → 45%, so the on-screen
+  controls can stop covering the play area.
+
+The audit also confirmed what neon-runner does *not* need: it has no undefined-variable bugs (the
+class that froze Eon for two releases), and it already wraps text by measured width.
 
 ## 🆕 What's new in 4.6.1
 

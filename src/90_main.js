@@ -18,6 +18,8 @@ function applyPadLayout() {
   var p = SET.pads;
   if (!p) {
     padL.style.cssText = ''; padR.style.cssText = '';
+    var op0 = clamp(SET.padOpacity === undefined ? 1 : SET.padOpacity, 0.3, 1);
+    padL.style.opacity = op0; padR.style.opacity = op0;
     return;
   }
   function place(el, x, y) {
@@ -30,6 +32,11 @@ function applyPadLayout() {
   }
   place(padL, p.lx, p.ly);
   place(padR, p.rx, p.ry);
+  /* translucent controls, so the pads stop covering the play area — the same
+     idea as neon-runner's touchOpacity setting */
+  var op = clamp(SET.padOpacity === undefined ? 1 : SET.padOpacity, 0.3, 1);
+  padL.style.opacity = op;
+  padR.style.opacity = op;
 }
 
 var padDrag = null;
@@ -77,6 +84,12 @@ function initPadEditor() {
   var big = document.getElementById('peBig');
   var reset = document.getElementById('peReset');
   var done = document.getElementById('peDone');
+  var fade = document.getElementById('peFade');
+  if (fade) fade.addEventListener('click', function () {
+    var cur = SET.padOpacity === undefined ? 1 : SET.padOpacity;
+    SET.padOpacity = cur > 0.9 ? 0.7 : (cur > 0.6 ? 0.45 : 1);
+    saveSettings(); applyPadLayout(); Snd.sfx('select');
+  });
   if (small) small.addEventListener('click', function () { padScale(-0.1); });
   if (big) big.addEventListener('click', function () { padScale(0.1); });
   if (reset) reset.addEventListener('click', function () {
@@ -219,10 +232,11 @@ function boot() {
 }
 
 function loop(now) {
-  /* Nothing in a frame is allowed to stop the next frame. An uncaught error
-     anywhere in here — update, render, audio, a stray DOM call — used to skip
-     requestAnimationFrame and freeze the game on its last image with no way
-     back. The whole body is guarded and the next frame is always scheduled. */
+  /* Schedule the next frame BEFORE doing any work. neon-runner has always done
+     this and it is the stronger guarantee: even if the guard below somehow
+     fails, the frame after is already booked. An uncaught error used to skip
+     requestAnimationFrame entirely and freeze the game on its last image. */
+  requestAnimationFrame(loop);
   try {
     loopBody(now);
   } catch (err) {
@@ -232,7 +246,6 @@ function loop(now) {
       try { console.error('[eon] frame error:', err); } catch (e) {}
     }
   }
-  requestAnimationFrame(loop);
 }
 
 function loopBody(now) {

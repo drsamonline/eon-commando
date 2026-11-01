@@ -2,6 +2,33 @@
 
 All notable changes to Eon Commando.
 
+## [4.6.2] — 2026-11-01
+
+Cross-audit against `neon-runner`, and two things adopted from it.
+
+### Changed
+- **The next frame is now scheduled before any work runs**, not after it. This is how
+  `neon-runner` has always done it and it is the stronger guarantee: even if the error guard
+  itself failed, the following frame is already booked. The try/catch stays, so errors are still
+  logged.
+- **On-screen pad opacity.** A `FADE` button in the pad editor cycles 100% → 70% → 45%, so the
+  controls can stop covering the play area. Adopted from `neon-runner`'s `touchOpacity` setting.
+
+### Cross-audit: what `neon-runner` does better
+- `requestAnimationFrame` first — adopted.
+- `touchOpacity` / `touchSize` settings — opacity adopted; size is already covered by the pad
+  editor's scale.
+- Offscreen canvas caching for sprites, and object pools for bullets/particles. Not adopted:
+  Eon's arrays measured bounded (particles peak 89) and it already bakes its ground, so there is
+  nothing to win yet.
+- It wraps text by measured width, same as Eon now does.
+
+### Cross-audit: what `neon-runner` did not need
+- ESLint over its 177 KB minified bundle: one finding, a `no-cond-assign` that is the deliberate
+  `(t=Et[k])?t.dmg:1` idiom. No `no-undef` — the class of bug that froze Eon for two releases
+  does not exist there.
+- No console errors on load; renders normally.
+
 ## [4.6.1] — 2026-11-01
 
 **Cutscene and perk text stayed inside the panel.**
