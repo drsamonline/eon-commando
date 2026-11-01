@@ -2,6 +2,28 @@
 
 All notable changes to Eon Commando.
 
+## [2.6.0] — 2026-11-01
+
+Rebindable controls.
+
+### Added
+- **Controls screen** (Settings → Controls, or `O` then Enter): nine actions per player,
+  up/down to pick, Enter to listen, next key press binds, `R` resets to defaults,
+  left/right switches player.
+- **Bindings are data**, not code: a `BINDINGS` table per player persisted in `localStorage`,
+  with a reverse keycode map rebuilt on change. Keyboard and gamepad both flow through it.
+- **Key stealing**: binding a key removes it from any other action, which falls back to its
+  default rather than becoming unbound.
+- Player two's keys are now defaults rather than a hardcoded second map, so co-op is
+  rebindable too.
+
+### Changed
+- Arrow keys render as glyphs on the controls screen instead of the words LEFT/RIGHT.
+- The HUD is hidden behind the settings and controls screens.
+
+### Known gap
+- On-screen touch buttons are fixed-position; rebinding covers keyboard and gamepad only.
+
 ## [2.5.0] — 2026-11-01
 
 Replays and daily runs.

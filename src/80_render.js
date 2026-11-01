@@ -836,7 +836,8 @@ function drawSettings(g) {
     ['HUD SIZE', Math.round(SET.hudScale * 100) + '%'],
     ['MUSIC', Math.round(SET.music * 100) + '%'],
     ['SOUND FX', Math.round(SET.sfx * 100) + '%'],
-    ['AUTO FIRE', SET.autoFire ? 'ON' : 'OFF']
+    ['AUTO FIRE', SET.autoFire ? 'ON' : 'OFF'],
+    ['CONTROLS', 'OPEN >']
   ];
   var narrow = W < 380;
   var padX = narrow ? 26 : 76;
@@ -858,6 +859,51 @@ function drawSettings(g) {
     drawText(g, 'UP / DOWN TO CHOOSE   LEFT / RIGHT TO CHANGE', W / 2, H - 34, 1, '#54637a', 'center');
     drawText(g, 'P OR ESC TO RESUME', W / 2, H - 22, 1, '#54637a', 'center');
   }
+}
+
+function keyLabel(code) {
+  if (!code) return '---';
+  if (code.indexOf('Key') === 0) return code.slice(3);
+  if (code.indexOf('Digit') === 0) return code.slice(5);
+  var m = {
+    ArrowLeft: '\u25C0', ArrowRight: '\u25B6', ArrowUp: '\u25B2', ArrowDown: '\u25BC',
+    Space: 'SPACE', Enter: 'ENTER', Escape: 'ESC', Backspace: 'BKSP', Tab: 'TAB',
+    ShiftLeft: 'L-SHIFT', ShiftRight: 'R-SHIFT', ControlLeft: 'L-CTRL',
+    ControlRight: 'R-CTRL', Period: 'PERIOD', Comma: 'COMMA', Slash: 'SLASH',
+    Semicolon: 'SEMI', Quote: 'QUOTE', NumpadEnter: 'NP-ENTER'
+  };
+  return m[code] || code.toUpperCase();
+}
+
+function drawRemap(g) {
+  dim(g, 0.85);
+  var narrow = W < 380;
+  drawText(g, 'CONTROLS', W / 2, 20, 3, '#54e0ff', 'center', 'rgba(0,0,0,0.85)');
+
+  var who = Game.remapPlayer === 'p1' ? 'PLAYER 1' : 'PLAYER 2';
+  drawText(g, '< ' + who + ' >', W / 2, 44, 1, '#ffd257', 'center');
+
+  var acts = Game.REMAP_ACTIONS;
+  var y = 62;
+  var padX = narrow ? 26 : 60;
+  for (var i = 0; i < acts.length; i++) {
+    var sel = i === Game.remapIndex;
+    var act = acts[i];
+    var bound = (Input.BINDINGS[Game.remapPlayer][act] || [])[0];
+    if (sel) {
+      px(g, padX - 14, y - 4, W - (padX - 14) * 2, 13, 'rgba(84,224,255,0.14)');
+      drawText(g, '>', padX - 10, y, 1, '#54e0ff');
+    }
+    drawText(g, act.toUpperCase(), padX, y, 1, sel ? '#ffffff' : '#9fb2c6');
+    var listening = Input.listening && Input.listening.action === act &&
+                    Input.listening.player === Game.remapPlayer;
+    drawText(g, listening ? 'PRESS A KEY' : keyLabel(bound),
+             W - padX, y, 1, listening ? '#ff4d6d' : (sel ? '#ffd257' : '#7f8fa6'), 'right');
+    y += narrow ? 15 : 16;
+  }
+
+  drawText(g, 'ENTER REBIND   R RESET', W / 2, H - 30, 1, '#54637a', 'center');
+  drawText(g, 'LEFT/RIGHT SWITCH PLAYER   P BACK', W / 2, H - 19, 1, '#54637a', 'center');
 }
 
 function drawStageClear(g) {
@@ -950,15 +996,18 @@ function Render(g) {
     g.translate(Math.round(shakeX), Math.round(shakeY));
     drawWorld(g);
     g.restore();
-    g.save();
-    g.translate(0, Y0);
-    drawHUD(g);
-    g.restore();
+    if (Game.state !== 'settings' && Game.state !== 'remap') {
+      g.save();
+      g.translate(0, Y0);
+      drawHUD(g);
+      g.restore();
+    }
 
     g.save();
     g.translate(0, Y0);
     if (Game.state === 'paused') drawPause(g);
     else if (Game.state === 'settings') drawSettings(g);
+    else if (Game.state === 'remap') drawRemap(g);
     else if (Game.state === 'stageclear') drawStageClear(g);
     else if (Game.state === 'gameover') drawGameOver(g);
     else if (Game.state === 'victory') drawVictory(g);

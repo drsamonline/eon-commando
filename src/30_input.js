@@ -14,62 +14,121 @@ var Input = {
   anyKey: false,
   anyKey: false,
 
-  /* player two on one keyboard: left hand on WASD, right hand on , . / ; ' */
-  MAP2: {
-    KeyA: 'left', KeyD: 'right', KeyW: 'up', KeyS: 'down',
-    Period: 'jump', Comma: 'fire',
-    Slash: 'dash', Semicolon: 'melee', Quote: 'grenade',
-    Digit2: 'start2'
+  /* ---- bindings: data-driven, persisted, per player -------------------- */
+  BINDINGS: null,
+  rev: {}, rev2: {},
+  listening: null,          /* { player, action } while rebinding */
+
+  DEFAULTS: {
+    p1: {
+      left: ['ArrowLeft'], right: ['ArrowRight'], up: ['ArrowUp'], down: ['ArrowDown'],
+      jump: ['Space', 'KeyX', 'KeyK'], fire: ['KeyZ', 'KeyJ', 'ControlLeft', 'ControlRight'],
+      dash: ['ShiftLeft', 'ShiftRight', 'KeyL'], melee: ['KeyV', 'KeyC'],
+      grenade: ['KeyG', 'KeyB'], pause: ['KeyP', 'Escape'], start: ['Enter', 'NumpadEnter'],
+      start2: ['Digit2'], mute: ['KeyM'], restart: ['KeyR'], fullscreen: ['KeyF'],
+      settings: ['KeyO'], daily: ['KeyD'], replay: ['KeyR']
+    },
+    p2: {
+      left: ['KeyA'], right: ['KeyD'], up: ['KeyW'], down: ['KeyS'],
+      jump: ['Period'], fire: ['Comma'], dash: ['Slash'], melee: ['Semicolon'],
+      grenade: ['Quote'], start: ['Digit2']
+    }
   },
 
-  MAP: {
-    ArrowLeft: 'left', KeyA: 'left',
-    ArrowRight: 'right', KeyD: 'right',
-    ArrowUp: 'up', KeyW: 'up',
-    ArrowDown: 'down', KeyS: 'down',
-    Space: 'jump', KeyX: 'jump', KeyK: 'jump',
-    KeyZ: 'fire', KeyJ: 'fire', ControlLeft: 'fire', ControlRight: 'fire',
-    ShiftLeft: 'dash', ShiftRight: 'dash', KeyL: 'dash',
-    KeyV: 'melee', KeyC: 'melee',
-    KeyG: 'grenade', KeyB: 'grenade',
-    KeyF: 'fullscreen',
-    Enter: 'start', NumpadEnter: 'start',
-    Digit2: 'start2',
-    KeyP: 'pause', Escape: 'pause',
-    KeyM: 'mute',
-    KeyR: 'restart',
-    KeyO: 'settings',
-    KeyD: 'daily',
-    KeyR: 'replay'
+  loadBindings: function () {
+    var saved = Store.get('bindings', null), out = {}, pl, a;
+    for (pl in this.DEFAULTS) {
+      out[pl] = {};
+      for (a in this.DEFAULTS[pl]) {
+        var v = saved && saved[pl] && saved[pl][a];
+        out[pl][a] = (Array.isArray(v) && v.length) ? v.slice() : this.DEFAULTS[pl][a].slice();
+      }
+    }
+    this.BINDINGS = out;
+    this.buildMaps();
   },
+
+  saveBindings: function () {
+    Store.set('bindings', this.BINDINGS);
+    this.buildMaps();
+  },
+
+  buildMaps: function () {
+    this.rev = {};
+    this.rev2 = {};
+    var pl, a, i;
+    for (pl in this.BINDINGS) {
+      var target = pl === 'p1' ? this.rev : this.rev2;
+      for (a in this.BINDINGS[pl]) {
+        var list = this.BINDINGS[pl][a];
+        for (i = 0; i < list.length; i++) {
+          if (!target[list[i]]) target[list[i]] = [];
+          target[list[i]].push(a);
+        }
+      }
+    }
+  },
+
+  /* bind one key to one action, clearing it from any other action for that player */
+  bind: function (player, action, code) {
+    if (!code) return;
+    var map = this.BINDINGS[player];
+    var a, i;
+    for (a in map) {
+      var idx = map[a].indexOf(code);
+      if (idx >= 0) map[a].splice(idx, 1);
+      if (!map[a].length) map[a] = this.DEFAULTS[player][a].slice(0, 1);
+    }
+    map[action] = [code];
+    this.saveBindings();
+  },
+
+  resetBindings: function (player) {
+    var a;
+    for (a in this.DEFAULTS[player]) this.BINDINGS[player][a] = this.DEFAULTS[player][a].slice();
+    this.saveBindings();
+  },
+
+  MAP: {}, MAP2: {},
 
   ACTIONS: ['left', 'right', 'up', 'down', 'jump', 'fire', 'dash', 'melee', 'grenade',
             'start', 'start2', 'pause', 'mute', 'restart', 'fullscreen', 'settings', 'daily', 'replay'],
 
   init: function () {
     var self = this;
+    this.loadBindings();
 
     window.addEventListener('keydown', function (e) {
-      var a2 = self.MAP2[e.code];
-      if (a2) {
-        self.keys2[a2] = true;
-        self.anyKey = true;
-        if (e.code === 'Period' || e.code === 'Comma') e.preventDefault();
+      Snd.resume();
+      self.anyKey = true;
+
+      /* rebinding: swallow the next key press */
+      if (self.listening) {
+        if (e.code !== 'Escape') {
+          self.bind(self.listening.player, self.listening.action, e.code);
+          self.listening = null;
+        }
+        e.preventDefault();
+        return;
       }
-      var a = self.MAP[e.code];
-      if (a) {
-        self.keys[a] = true;
-        self.anyKey = true;
+
+      var hits = self.rev[e.code];
+      if (hits) {
+        for (var i = 0; i < hits.length; i++) self.keys[hits[i]] = true;
         if (e.code === 'Space' || e.code.indexOf('Arrow') === 0 || e.code === 'Enter') e.preventDefault();
       }
-      Snd.resume();
+      var hits2 = self.rev2[e.code];
+      if (hits2) {
+        for (var j = 0; j < hits2.length; j++) self.keys2[hits2[j]] = true;
+        if (e.code === 'Period' || e.code === 'Comma') e.preventDefault();
+      }
     }, { passive: false });
 
     window.addEventListener('keyup', function (e) {
-      var a = self.MAP[e.code];
-      if (a) self.keys[a] = false;
-      var a2 = self.MAP2[e.code];
-      if (a2) self.keys2[a2] = false;
+      var hits = self.rev[e.code];
+      if (hits) for (var i = 0; i < hits.length; i++) self.keys[hits[i]] = false;
+      var hits2 = self.rev2[e.code];
+      if (hits2) for (var j = 0; j < hits2.length; j++) self.keys2[hits2[j]] = false;
     });
 
     window.addEventListener('blur', function () {

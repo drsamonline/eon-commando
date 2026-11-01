@@ -20,6 +20,9 @@ var Game = {
   hazards: [],
   hitStop: 0,
   settingsIndex: 0,
+  remapPlayer: 'p1',
+  remapIndex: 0,
+  REMAP_ACTIONS: ['left', 'right', 'up', 'down', 'jump', 'fire', 'dash', 'melee', 'grenade'],
   lastEntry: null,
   floaters: [],
   pending: [],
@@ -298,6 +301,9 @@ var Game = {
       case 'settings':
         this.updateSettings();
         break;
+      case 'remap':
+        this.updateRemap();
+        break;
       case 'stageclear':
         this.updateStageClear();
         break;
@@ -328,8 +334,32 @@ var Game = {
     }
   },
 
+  updateRemap: function () {
+    var n = this.REMAP_ACTIONS.length;
+    if (Input.listening) return;   /* a key press is being captured */
+
+    if (Input.pressed('up')) { this.remapIndex = (this.remapIndex + n - 1) % n; Snd.sfx('select'); }
+    if (Input.pressed('down')) { this.remapIndex = (this.remapIndex + 1) % n; Snd.sfx('select'); }
+    if (Input.pressed('left') || Input.pressed('right')) {
+      this.remapPlayer = this.remapPlayer === 'p1' ? 'p2' : 'p1';
+      Snd.sfx('select');
+    }
+    if (Input.pressed('start')) {
+      Input.listening = { player: this.remapPlayer, action: this.REMAP_ACTIONS[this.remapIndex] };
+      Snd.sfx('select');
+    }
+    if (Input.pressed('restart')) {
+      Input.resetBindings(this.remapPlayer);
+      Snd.sfx('coin');
+    }
+    if (Input.pressed('pause')) {
+      this.state = 'settings';
+      Snd.sfx('select');
+    }
+  },
+
   updateSettings: function () {
-    var rows = 8;
+    var rows = 9;
     if (Input.pressed('up')) { this.settingsIndex = (this.settingsIndex + rows - 1) % rows; Snd.sfx('select'); }
     if (Input.pressed('down')) { this.settingsIndex = (this.settingsIndex + 1) % rows; Snd.sfx('select'); }
     var dir = (Input.pressed('right') ? 1 : 0) - (Input.pressed('left') ? 1 : 0);
@@ -346,6 +376,12 @@ var Game = {
       saveSettings();
       Snd.applyVolumes();
       Snd.sfx('coin');
+    }
+    if (this.settingsIndex === 8 && Input.pressed('start')) {
+      this.state = 'remap';
+      this.remapIndex = 0;
+      Snd.sfx('select');
+      return;
     }
     if (Input.pressed('pause') || Input.pressed('start') || Input.pressed('settings')) {
       this.state = 'paused';

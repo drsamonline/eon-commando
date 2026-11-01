@@ -215,6 +215,7 @@ function runDemo(n) {
   }
 
   if (PARAMS.pose === 'settings') { Game.state = 'settings'; Game.settingsIndex = 0; }
+  if (PARAMS.pose === 'remap') { Game.state = 'remap'; Game.remapPlayer = 'p1'; Game.remapIndex = 3; }
   if (PARAMS.pose === 'leaderboard') { Game.score = 24500; Game.recordRun('EON SECURED'); }
   if (Game.boss) Game.boss.flash = 0;
   if (Game.player) { Game.player.dead = false; Game.player.hurtFlash = 0; Game.player.invuln = 0; }
