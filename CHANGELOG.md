@@ -2,6 +2,27 @@
 
 All notable changes to Eon Commando.
 
+## [3.1.0] — 2026-11-01
+
+Distribution release: binaries, a redesigned site, a separate demo.
+
+### Added
+- **Windows EXE and Android APK builds** via the shared
+  [`app-builder`](https://github.com/drsamonline/app-builder) kit. A consuming repo adds one
+  workflow file; the kit builds both, publishes them to a release, and inherits its own fixes.
+- **A dedicated live-demo page** at `docs/demo/` — the game in a framed viewport with a thin
+  chrome bar (back to site, bare game, source, fullscreen). `docs/play/` stays the bare game
+  and is what the EXE/APK wrap.
+- **Redesigned landing page** as an arcade flyer rather than a card grid: marquee strip,
+  outlined display type, a spec plate, colour-coded era bands, a filmstrip and a downloads
+  panel.
+
+### Audited
+- Every internal `src`/`href` across the three pages resolves; no missing screenshots.
+- No page-level console errors on load for the landing page, the demo page or the game.
+- 18-point functional audit across campaign, boss flow, co-op, endless, replays, menus,
+  settings, auto-fire, narrow viewports and persistence — all pass.
+
 ## [3.0.0] — 2026-11-01
 
 Endless mode, and a real title menu.

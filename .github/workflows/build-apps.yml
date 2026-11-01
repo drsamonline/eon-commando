@@ -1,0 +1,35 @@
+# Builds the portable Windows EXE and the Android APK, and publishes them.
+#
+# The heavy lifting lives in the shared kit so this repo inherits its fixes:
+#   https://github.com/drsamonline/app-builder
+#
+# deploy_path is deliberately empty: this repo publishes Pages from the `docs`
+# folder on the main branch (legacy Pages), and the kit's artifact deployment
+# would fight with that.
+name: Build apps
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: build-apps
+  cancel-in-progress: true
+
+jobs:
+  app:
+    uses: drsamonline/app-builder/.github/workflows/build.yml@main
+    with:
+      app_name: eon-commando
+      app_src: docs/play
+      deploy_path: ""
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
