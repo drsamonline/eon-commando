@@ -38,11 +38,13 @@ var Input = {
     KeyP: 'pause', Escape: 'pause',
     KeyM: 'mute',
     KeyR: 'restart',
-    KeyO: 'settings'
+    KeyO: 'settings',
+    KeyD: 'daily',
+    KeyR: 'replay'
   },
 
   ACTIONS: ['left', 'right', 'up', 'down', 'jump', 'fire', 'dash', 'melee', 'grenade',
-            'start', 'start2', 'pause', 'mute', 'restart', 'fullscreen', 'settings'],
+            'start', 'start2', 'pause', 'mute', 'restart', 'fullscreen', 'settings', 'daily', 'replay'],
 
   init: function () {
     var self = this;

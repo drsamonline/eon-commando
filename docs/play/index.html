@@ -309,6 +309,107 @@ var Stats = {
   }
 };
 
+/* ---- daily seed ----------------------------------------------------------
+   Same date, same run — derived from the local date, no server involved.     */
+var Daily = {
+  seed: function () {
+    var d = new Date();
+    var str = 'EON-DAILY-' + d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+    var h = 2166136261;
+    for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return (h >>> 0) || 1;
+  },
+  label: function () {
+    var d = new Date();
+    return d.getDate() + '/' + (d.getMonth() + 1);
+  }
+};
+
+/* ---- input recording -----------------------------------------------------
+   Only the inputs and the seed are stored. The simulation is deterministic,
+   so replaying them reproduces the run exactly.                              */
+var MASK_ACTIONS = ['left', 'right', 'up', 'down', 'jump', 'fire', 'dash', 'melee', 'grenade'];
+
+function maskOf(cur) {
+  var m = 0;
+  for (var i = 0; i < MASK_ACTIONS.length; i++) if (cur && cur[MASK_ACTIONS[i]]) m |= (1 << i);
+  return m;
+}
+function actionsFromMask(m) {
+  var o = {};
+  for (var i = 0; i < MASK_ACTIONS.length; i++) o[MASK_ACTIONS[i]] = !!(m & (1 << i));
+  return o;
+}
+
+var Rec = {
+  recording: false,
+  frames: [],          /* [count, mask] pairs — RLE, because input is mostly static */
+  lastMask: -1,
+  seed: 0,
+  coop: false,
+  limit: 60 * 60 * 6,  /* six minutes of frames */
+
+  start: function (seed, coop) {
+    this.recording = true;
+    this.frames = [];
+    this.lastMask = -1;
+    this.seed = seed >>> 0;
+    this.coop = !!coop;
+    this.total = 0;
+  },
+
+  capture: function () {
+    if (!this.recording) return;
+    if (this.total >= this.limit) { this.recording = false; return; }
+    this.total++;
+    var m = maskOf(Input.cur) | (maskOf(Input.cur2) << 9);
+    if (m === this.lastMask && this.frames.length) {
+      this.frames[this.frames.length - 1][0]++;
+    } else {
+      this.frames.push([1, m]);
+      this.lastMask = m;
+    }
+  },
+
+  stop: function () {
+    this.recording = false;
+    return { seed: this.seed, coop: this.coop, frames: this.frames.slice(), total: this.total };
+  },
+
+  pack: function (rec) {
+    return {
+      seed: rec.seed,
+      coop: rec.coop ? 1 : 0,
+      n: rec.total,
+      d: rec.frames.map(function (f) { return f[0].toString(36) + '.' + f[1].toString(36); }).join(',')
+    };
+  },
+
+  unpack: function (packed) {
+    if (!packed || !packed.d) return null;
+    var parts = packed.d.split(','), frames = [], i;
+    for (i = 0; i < parts.length; i++) {
+      var ab = parts[i].split('.');
+      frames.push([parseInt(ab[0], 36) || 1, parseInt(ab[1], 36) || 0]);
+    }
+    return { seed: packed.seed >>> 0, coop: !!packed.coop, frames: frames, total: packed.n || 0 };
+  },
+
+  /* expand RLE into one mask per frame */
+  expand: function (rec) {
+    var out = [], i, j;
+    for (i = 0; i < rec.frames.length; i++) {
+      var c = rec.frames[i][0], m = rec.frames[i][1];
+      for (j = 0; j < c; j++) out.push(m);
+    }
+    return out;
+  },
+
+  save: function (rec) { Store.set('lastReplay', this.pack(rec)); },
+  load: function () { return this.unpack(Store.get('lastReplay', null)); },
+  has: function () { return !!Store.get('lastReplay', null); }
+};
+
 /* ===== 20_audio.js ===== */
 /* ===========================================================================
    EON COMMANDO — 20 audio
@@ -648,11 +749,13 @@ var Input = {
     KeyP: 'pause', Escape: 'pause',
     KeyM: 'mute',
     KeyR: 'restart',
-    KeyO: 'settings'
+    KeyO: 'settings',
+    KeyD: 'daily',
+    KeyR: 'replay'
   },
 
   ACTIONS: ['left', 'right', 'up', 'down', 'jump', 'fire', 'dash', 'melee', 'grenade',
-            'start', 'start2', 'pause', 'mute', 'restart', 'fullscreen', 'settings'],
+            'start', 'start2', 'pause', 'mute', 'restart', 'fullscreen', 'settings', 'daily', 'replay'],
 
   init: function () {
     var self = this;
@@ -3029,16 +3132,19 @@ var Game = {
     this.time = 0;
   },
 
-  startGame: function (coop) {
+  startGame: function (coop, forcedSeed) {
     this.coop = !!coop;
+    this.dailyRun = false;
     var d = diff();
     this.score = 0;
     this.lives = d.lives;
     this.stageIndex = 0;
-    /* a fixed ?seed= makes a run reproducible; otherwise pick a fresh one */
-    if (PARAMS.seed) this.seed = parseInt(PARAMS.seed, 10) >>> 0;
+    /* a fixed ?seed= or a replay makes a run reproducible; otherwise pick one */
+    if (forcedSeed !== undefined && forcedSeed !== null) this.seed = forcedSeed >>> 0;
+    else if (PARAMS.seed) this.seed = parseInt(PARAMS.seed, 10) >>> 0;
     else this.seed = ((Date.now() ^ (Math.random() * 0xffffffff)) >>> 0);
     RNG.seed(this.seed);
+    if (!this.replayMode) Rec.start(this.seed, this.coop);
     Stats.bump('runs');
     this.stateTimer = 0;
     Snd.resume();
@@ -3170,6 +3276,28 @@ var Game = {
     this.recordRun('GAME OVER');
   },
 
+  /* play back a recorded run: the sim is deterministic, so only inputs replay */
+  startReplay: function (rec) {
+    if (!rec) return false;
+    this.replayMode = true;
+    this.replayMasks = Rec.expand(rec);
+    this.replayFrame = 0;
+    Rec.recording = false;
+    this.startGame(rec.coop, rec.seed);
+    this.replayMode = true;
+    this.state = 'playing';
+    Snd.sfx('start');
+    return true;
+  },
+
+  stopReplay: function () {
+    this.replayMode = false;
+    this.replayMasks = null;
+    this.state = 'title';
+    this.stateTimer = 0;
+    Snd.stopMusic();
+  },
+
   recordRun: function (result) {
     this.lastEntry = {
       score: this.score,
@@ -3178,6 +3306,10 @@ var Game = {
       date: new Date().toISOString().slice(0, 10)
     };
     Scores.add(this.lastEntry);
+    if (!this.replayMode) {
+      var rec = Rec.stop();
+      if (rec && rec.total > 30) Rec.save(rec);
+    }
     Stats.bump('best', 0);
     var st = Stats.get();
     if (this.score > (st.best || 0)) Stats.bump('best', this.score - (st.best || 0));
@@ -3217,6 +3349,16 @@ var Game = {
       Store.set('muted', Snd.muted);
     }
 
+    /* a finished replay goes back to the title on any start press */
+    if (this.replayMode && (this.state === 'gameover' || this.state === 'victory')) {
+      this.stateTimer++;
+      if (this.stateTimer > 40 && (Input.pressed('start') || Input.pressed('restart') ||
+                                   Input.pressed('pause') || Input.pressed('fire'))) {
+        this.stopReplay();
+      }
+      return;
+    }
+
     switch (this.state) {
       case 'title':
         this.updateTitle();
@@ -3254,7 +3396,13 @@ var Game = {
   updateTitle: function () {
     if (!Snd.track) Snd.playMusic(TRACKS.title);
     this.stateTimer++;
-    if (Input.pressed('start2')) {
+    if (Input.pressed('daily')) {
+      this.dailyRun = true;
+      this.startGame(false, Daily.seed());
+      this.dailyRun = true;
+    } else if (Input.pressed('replay') && Rec.has()) {
+      this.startReplay(Rec.load());
+    } else if (Input.pressed('start2')) {
       this.startGame(true);
     } else if (Input.pressed('start') || Input.pressed('jump') || Input.pressed('fire')) {
       this.startGame(false);
@@ -4204,6 +4352,14 @@ function drawHUD(g) {
     for (var t = 1; t < 10; t++) px(g, bx + (bw / 10) * t, by, 1, 6, 'rgba(0,0,0,0.4)');
   }
 
+  /* replay watermark */
+  if (Game.replayMode) {
+    var on = Math.floor(Game.time / 40) % 2 === 0;
+    g.globalAlpha = on ? 0.9 : 0.55;
+    drawText(g, 'REPLAY', W - 8, H - 16, 1, '#ff2d95', 'right', 'rgba(0,0,0,0.8)');
+    g.globalAlpha = 1;
+  }
+
   /* banner */
   if (Game.banner) {
     var bn = Game.banner;
@@ -4257,8 +4413,15 @@ function drawTitle(g) {
     drawText(g, 'ARROWS / WASD MOVE   SPACE JUMP   Z FIRE', W / 2, 190, 1, '#7f8fa6', 'center');
     drawText(g, 'SHIFT DASH   V MELEE   G GRENADE   O SETTINGS', W / 2, 202, 1, '#7f8fa6', 'center');
   }
-  drawText(g, 'DIFFICULTY ' + DIFFICULTY[clamp(SET.difficulty, 0, 2)].name, W / 2, 216, 1, '#54e0ff', 'center');
+  drawText(g, (Game.dailyRun ? 'DAILY RUN ' + Daily.label() + '  ·  ' : 'DIFFICULTY ') +
+              (Game.dailyRun ? DIFFICULTY[clamp(SET.difficulty, 0, 2)].name : DIFFICULTY[clamp(SET.difficulty, 0, 2)].name),
+           W / 2, 216, 1, '#54e0ff', 'center');
   drawText(g, 'PRESS 2 FOR TWO PLAYERS', W / 2, 176, 1, '#54ffa8', 'center');
+  if (narrow) {
+    drawText(g, 'D DAILY RUN   R REPLAY', W / 2, 166, 1, '#7f8fa6', 'center');
+  } else {
+    drawText(g, 'D DAILY RUN' + (Rec.has() ? '   R WATCH LAST RUN' : ''), W / 2, 166, 1, '#7f8fa6', 'center');
+  }
   drawText(g, 'HI SCORE ' + String(Game.hiScore).padStart(7, '0'), W / 2, 232, 1, '#ffd257', 'center');
   var runs = Scores.all().slice(0, 3);
   for (var li = 0; li < runs.length; li++) {
@@ -4537,7 +4700,18 @@ function loop(now) {
 
   var steps = 0;
   while (_acc >= STEP && steps < 5) {
-    Input.frame();
+    if (Game.replayMode && Game.replayMasks) {
+      /* replay: feed the recorded masks instead of the keyboard */
+      var rm = Game.replayMasks[Game.replayFrame] || 0;
+      Input.prev = Input.cur;
+      Input.cur = actionsFromMask(rm & 511);
+      Input.prev2 = Input.cur2;
+      Input.cur2 = actionsFromMask((rm >> 9) & 511);
+      Game.replayFrame++;
+    } else {
+      Input.frame();
+      if (Rec.recording) Rec.capture();
+    }
     if (Input.pressed('fullscreen')) toggleFullscreen();
     Game.update();
     _acc -= STEP;

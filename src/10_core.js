@@ -181,3 +181,104 @@ var Stats = {
     return s;
   }
 };
+
+/* ---- daily seed ----------------------------------------------------------
+   Same date, same run — derived from the local date, no server involved.     */
+var Daily = {
+  seed: function () {
+    var d = new Date();
+    var str = 'EON-DAILY-' + d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+    var h = 2166136261;
+    for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return (h >>> 0) || 1;
+  },
+  label: function () {
+    var d = new Date();
+    return d.getDate() + '/' + (d.getMonth() + 1);
+  }
+};
+
+/* ---- input recording -----------------------------------------------------
+   Only the inputs and the seed are stored. The simulation is deterministic,
+   so replaying them reproduces the run exactly.                              */
+var MASK_ACTIONS = ['left', 'right', 'up', 'down', 'jump', 'fire', 'dash', 'melee', 'grenade'];
+
+function maskOf(cur) {
+  var m = 0;
+  for (var i = 0; i < MASK_ACTIONS.length; i++) if (cur && cur[MASK_ACTIONS[i]]) m |= (1 << i);
+  return m;
+}
+function actionsFromMask(m) {
+  var o = {};
+  for (var i = 0; i < MASK_ACTIONS.length; i++) o[MASK_ACTIONS[i]] = !!(m & (1 << i));
+  return o;
+}
+
+var Rec = {
+  recording: false,
+  frames: [],          /* [count, mask] pairs — RLE, because input is mostly static */
+  lastMask: -1,
+  seed: 0,
+  coop: false,
+  limit: 60 * 60 * 6,  /* six minutes of frames */
+
+  start: function (seed, coop) {
+    this.recording = true;
+    this.frames = [];
+    this.lastMask = -1;
+    this.seed = seed >>> 0;
+    this.coop = !!coop;
+    this.total = 0;
+  },
+
+  capture: function () {
+    if (!this.recording) return;
+    if (this.total >= this.limit) { this.recording = false; return; }
+    this.total++;
+    var m = maskOf(Input.cur) | (maskOf(Input.cur2) << 9);
+    if (m === this.lastMask && this.frames.length) {
+      this.frames[this.frames.length - 1][0]++;
+    } else {
+      this.frames.push([1, m]);
+      this.lastMask = m;
+    }
+  },
+
+  stop: function () {
+    this.recording = false;
+    return { seed: this.seed, coop: this.coop, frames: this.frames.slice(), total: this.total };
+  },
+
+  pack: function (rec) {
+    return {
+      seed: rec.seed,
+      coop: rec.coop ? 1 : 0,
+      n: rec.total,
+      d: rec.frames.map(function (f) { return f[0].toString(36) + '.' + f[1].toString(36); }).join(',')
+    };
+  },
+
+  unpack: function (packed) {
+    if (!packed || !packed.d) return null;
+    var parts = packed.d.split(','), frames = [], i;
+    for (i = 0; i < parts.length; i++) {
+      var ab = parts[i].split('.');
+      frames.push([parseInt(ab[0], 36) || 1, parseInt(ab[1], 36) || 0]);
+    }
+    return { seed: packed.seed >>> 0, coop: !!packed.coop, frames: frames, total: packed.n || 0 };
+  },
+
+  /* expand RLE into one mask per frame */
+  expand: function (rec) {
+    var out = [], i, j;
+    for (i = 0; i < rec.frames.length; i++) {
+      var c = rec.frames[i][0], m = rec.frames[i][1];
+      for (j = 0; j < c; j++) out.push(m);
+    }
+    return out;
+  },
+
+  save: function (rec) { Store.set('lastReplay', this.pack(rec)); },
+  load: function () { return this.unpack(Store.get('lastReplay', null)); },
+  has: function () { return !!Store.get('lastReplay', null); }
+};

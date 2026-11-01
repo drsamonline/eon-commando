@@ -737,6 +737,14 @@ function drawHUD(g) {
     for (var t = 1; t < 10; t++) px(g, bx + (bw / 10) * t, by, 1, 6, 'rgba(0,0,0,0.4)');
   }
 
+  /* replay watermark */
+  if (Game.replayMode) {
+    var on = Math.floor(Game.time / 40) % 2 === 0;
+    g.globalAlpha = on ? 0.9 : 0.55;
+    drawText(g, 'REPLAY', W - 8, H - 16, 1, '#ff2d95', 'right', 'rgba(0,0,0,0.8)');
+    g.globalAlpha = 1;
+  }
+
   /* banner */
   if (Game.banner) {
     var bn = Game.banner;
@@ -790,8 +798,15 @@ function drawTitle(g) {
     drawText(g, 'ARROWS / WASD MOVE   SPACE JUMP   Z FIRE', W / 2, 190, 1, '#7f8fa6', 'center');
     drawText(g, 'SHIFT DASH   V MELEE   G GRENADE   O SETTINGS', W / 2, 202, 1, '#7f8fa6', 'center');
   }
-  drawText(g, 'DIFFICULTY ' + DIFFICULTY[clamp(SET.difficulty, 0, 2)].name, W / 2, 216, 1, '#54e0ff', 'center');
+  drawText(g, (Game.dailyRun ? 'DAILY RUN ' + Daily.label() + '  ·  ' : 'DIFFICULTY ') +
+              (Game.dailyRun ? DIFFICULTY[clamp(SET.difficulty, 0, 2)].name : DIFFICULTY[clamp(SET.difficulty, 0, 2)].name),
+           W / 2, 216, 1, '#54e0ff', 'center');
   drawText(g, 'PRESS 2 FOR TWO PLAYERS', W / 2, 176, 1, '#54ffa8', 'center');
+  if (narrow) {
+    drawText(g, 'D DAILY RUN   R REPLAY', W / 2, 166, 1, '#7f8fa6', 'center');
+  } else {
+    drawText(g, 'D DAILY RUN' + (Rec.has() ? '   R WATCH LAST RUN' : ''), W / 2, 166, 1, '#7f8fa6', 'center');
+  }
   drawText(g, 'HI SCORE ' + String(Game.hiScore).padStart(7, '0'), W / 2, 232, 1, '#ffd257', 'center');
   var runs = Scores.all().slice(0, 3);
   for (var li = 0; li < runs.length; li++) {

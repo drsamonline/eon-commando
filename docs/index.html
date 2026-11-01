@@ -388,6 +388,25 @@
   </div>
 </section>
 
+<section id="replay">
+  <div class="wrap">
+    <h2>Replays and daily runs</h2>
+    <h3 class="big">The simulation is deterministic, so a replay is 196 characters.</h3>
+    <p class="body">
+      Same seed plus same inputs produces the same run, exactly. A replay therefore stores only
+      the seed and the input stream &mdash; run-length encoded, 900 frames of play compress to
+      under 200 characters in <code>localStorage</code>. Nothing about the game state is recorded.
+    </p>
+    <p class="body">
+      <b>R</b> on the title replays your last run. <b>D</b> starts the daily run &mdash; a seed
+      derived from today's date, so everyone playing today gets the same run, with no server
+      and no clock sync.
+    </p>
+    <pre><b>recorded</b>  score 1380 · x 861 · 900 frames · 196 chars
+<b>replayed</b>  score 1380 · x 861 · identical</pre>
+  </div>
+</section>
+
 <section id="perf">
   <div class="wrap">
     <h2>Performance</h2>
@@ -434,7 +453,7 @@
 
 <footer>
   <div class="wrap">
-    <span>EON COMMANDO &middot; v2.4 &middot; PolyForm Noncommercial 1.0.0</span>
+    <span>EON COMMANDO &middot; v2.5 &middot; PolyForm Noncommercial 1.0.0</span>
     <span>
       <a href="https://github.com/drsamonline/eon-commando">GitHub</a> &middot;
       <a href="https://github.com/drsamonline/eon-commando/releases">Releases</a> &middot;

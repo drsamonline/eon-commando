@@ -2,6 +2,22 @@
 
 All notable changes to Eon Commando.
 
+## [2.5.0] — 2026-11-01
+
+Replays and daily runs.
+
+### Added
+- **Replay recording.** Every run records its seed and input stream, run-length encoded into
+  `localStorage` — 900 frames of play compress to 196 characters. Nothing is recorded from
+  the game state, because the simulation is deterministic.
+- **Replay playback** — `R` on the title screen replays the last run, with a `REPLAY`
+  watermark. Verified identical: a recorded run ending at score 1380 / x=861 reproduced
+  frame for frame on playback.
+- **Daily run** — `D` on the title starts a run seeded from today's local date, so everyone
+  gets the same run on the same day. No server involved.
+- `startGame(coop, forcedSeed)` accepts an explicit seed, which replays and daily runs use.
+- Any key exits a finished replay.
+
 ## [2.4.0] — 2026-11-01
 
 Portrait and phone layout release.

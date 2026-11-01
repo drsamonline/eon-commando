@@ -51,16 +51,19 @@ var Game = {
     this.time = 0;
   },
 
-  startGame: function (coop) {
+  startGame: function (coop, forcedSeed) {
     this.coop = !!coop;
+    this.dailyRun = false;
     var d = diff();
     this.score = 0;
     this.lives = d.lives;
     this.stageIndex = 0;
-    /* a fixed ?seed= makes a run reproducible; otherwise pick a fresh one */
-    if (PARAMS.seed) this.seed = parseInt(PARAMS.seed, 10) >>> 0;
+    /* a fixed ?seed= or a replay makes a run reproducible; otherwise pick one */
+    if (forcedSeed !== undefined && forcedSeed !== null) this.seed = forcedSeed >>> 0;
+    else if (PARAMS.seed) this.seed = parseInt(PARAMS.seed, 10) >>> 0;
     else this.seed = ((Date.now() ^ (Math.random() * 0xffffffff)) >>> 0);
     RNG.seed(this.seed);
+    if (!this.replayMode) Rec.start(this.seed, this.coop);
     Stats.bump('runs');
     this.stateTimer = 0;
     Snd.resume();
@@ -192,6 +195,28 @@ var Game = {
     this.recordRun('GAME OVER');
   },
 
+  /* play back a recorded run: the sim is deterministic, so only inputs replay */
+  startReplay: function (rec) {
+    if (!rec) return false;
+    this.replayMode = true;
+    this.replayMasks = Rec.expand(rec);
+    this.replayFrame = 0;
+    Rec.recording = false;
+    this.startGame(rec.coop, rec.seed);
+    this.replayMode = true;
+    this.state = 'playing';
+    Snd.sfx('start');
+    return true;
+  },
+
+  stopReplay: function () {
+    this.replayMode = false;
+    this.replayMasks = null;
+    this.state = 'title';
+    this.stateTimer = 0;
+    Snd.stopMusic();
+  },
+
   recordRun: function (result) {
     this.lastEntry = {
       score: this.score,
@@ -200,6 +225,10 @@ var Game = {
       date: new Date().toISOString().slice(0, 10)
     };
     Scores.add(this.lastEntry);
+    if (!this.replayMode) {
+      var rec = Rec.stop();
+      if (rec && rec.total > 30) Rec.save(rec);
+    }
     Stats.bump('best', 0);
     var st = Stats.get();
     if (this.score > (st.best || 0)) Stats.bump('best', this.score - (st.best || 0));
@@ -239,6 +268,16 @@ var Game = {
       Store.set('muted', Snd.muted);
     }
 
+    /* a finished replay goes back to the title on any start press */
+    if (this.replayMode && (this.state === 'gameover' || this.state === 'victory')) {
+      this.stateTimer++;
+      if (this.stateTimer > 40 && (Input.pressed('start') || Input.pressed('restart') ||
+                                   Input.pressed('pause') || Input.pressed('fire'))) {
+        this.stopReplay();
+      }
+      return;
+    }
+
     switch (this.state) {
       case 'title':
         this.updateTitle();
@@ -276,7 +315,13 @@ var Game = {
   updateTitle: function () {
     if (!Snd.track) Snd.playMusic(TRACKS.title);
     this.stateTimer++;
-    if (Input.pressed('start2')) {
+    if (Input.pressed('daily')) {
+      this.dailyRun = true;
+      this.startGame(false, Daily.seed());
+      this.dailyRun = true;
+    } else if (Input.pressed('replay') && Rec.has()) {
+      this.startReplay(Rec.load());
+    } else if (Input.pressed('start2')) {
       this.startGame(true);
     } else if (Input.pressed('start') || Input.pressed('jump') || Input.pressed('fire')) {
       this.startGame(false);

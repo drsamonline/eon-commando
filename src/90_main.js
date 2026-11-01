@@ -86,7 +86,18 @@ function loop(now) {
 
   var steps = 0;
   while (_acc >= STEP && steps < 5) {
-    Input.frame();
+    if (Game.replayMode && Game.replayMasks) {
+      /* replay: feed the recorded masks instead of the keyboard */
+      var rm = Game.replayMasks[Game.replayFrame] || 0;
+      Input.prev = Input.cur;
+      Input.cur = actionsFromMask(rm & 511);
+      Input.prev2 = Input.cur2;
+      Input.cur2 = actionsFromMask((rm >> 9) & 511);
+      Game.replayFrame++;
+    } else {
+      Input.frame();
+      if (Rec.recording) Rec.capture();
+    }
     if (Input.pressed('fullscreen')) toggleFullscreen();
     Game.update();
     _acc -= STEP;
