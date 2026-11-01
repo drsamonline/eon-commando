@@ -89,6 +89,7 @@ var Game = {
     this.stageIndex = i;
     this.stage = STAGES[i];
     this.bg = makeBackground(this.stage);
+    setWeather(this.stage.id);
     this.enemies = [];
     this.bullets = [];
     this.particles = [];
@@ -704,6 +705,8 @@ var Game = {
     this.stageTime++;
 
     var p = this.player;
+
+    updateWeather();
 
     /* the gauge and the combo decay */
     if (this.comboT > 0) { this.comboT--; if (this.comboT === 0) this.combo = 0; }

@@ -2,6 +2,27 @@
 
 All notable changes to Eon Commando.
 
+## [4.1.0] — 2026-11-01
+
+Weather, control cleanup, and a text-overflow audit.
+
+### Added
+- **Per-era weather**, screen-space, no assets: embers (I), snow (II), motes (III), rain with
+  occasional storm flashes (IV), wind-blown debris (V), gold ash (VI).
+- `drawFit()` — draws a heading at the largest scale that still fits the view.
+
+### Changed
+- **The d-pad no longer has a jump button.** With auto-fire on, up and `A` both jumped; the
+  d-pad now keeps left / duck / right and jump lives on `A` alone. `up` still jumps on a keyboard.
+
+### Fixed
+- **Text running off screen.** An audit instrumented `drawText`, mapped every string through the
+  live canvas transform and flagged anything outside the viewport. It found the title wordmark,
+  the era banner, "ERA CLEARED", "GAME OVER", "EON SECURED", "FINAL SCORE" and "SCORE" all
+  overflowing at 220 px logical width. All now auto-fit; the audit reports clean at 220, 320,
+  480 and 640 across every screen.
+- The victory screen still said "ALL THREE ERAS CLEARED".
+
 ## [4.0.0] — 2026-11-01
 
 Six eras, story cutscenes, power gauge and combo.

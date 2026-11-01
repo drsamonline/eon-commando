@@ -102,6 +102,7 @@ var RNG = {
   sPick: function (arr) { return arr[Math.floor(this.sim() * arr.length)]; },
   sChance: function (p) { return this.sim() < p; },
   f: function () { return this.fx(); },
+  fChance: function (p) { return this.fx() < p; },
   fr: function (a, b) { return a + this.fx() * (b - a); },
   fi: function (a, b) { return Math.floor(a + this.fx() * (b - a + 1)); }
 };

@@ -421,6 +421,94 @@ function drawParticles(g, camX) {
   g.globalAlpha = 1;
 }
 
+/* ---- weather ------------------------------------------------------------
+   Screen-space particles per era. Cheap: a handful of rects a frame, and the
+   whole thing reads as place. */
+var Weather = { parts: [], kind: null, wind: 0, flash: 0, t: 0 };
+
+var WEATHER_KINDS = {
+  1: { kind: 'ember',  n: 70,  color: '#ff9a5a', glow: '#ffd257', vy: -0.35, wind: 0.10, sway: 0.9 },
+  2: { kind: 'snow',   n: 90,  color: '#dff2ff', glow: '#ffffff', vy: 0.55,  wind: 0.14, sway: 1.1 },
+  3: { kind: 'motes',  n: 60,  color: '#c08bff', glow: '#ffd0e4', vy: -0.12, wind: 0.20, sway: 0.7 },
+  4: { kind: 'rain',   n: 110, color: '#9fe8d6', glow: '#d8fff4', vy: 5.2,   wind: 1.5,  sway: 0.15 },
+  5: { kind: 'debris', n: 55,  color: '#a9b6ff', glow: '#e6e9ff', vy: 0.9,   wind: 2.6,  sway: 0.5 },
+  6: { kind: 'ash',    n: 80,  color: '#e8c987', glow: '#fff3c4', vy: 0.30,  wind: 0.12, sway: 0.8 }
+};
+
+function setWeather(stageId) {
+  var cfg = WEATHER_KINDS[stageId] || WEATHER_KINDS[1];
+  Weather.kind = cfg.kind;
+  Weather.wind = cfg.wind;
+  Weather.parts = [];
+  Weather.flash = 0;
+  Weather.t = 0;
+  for (var i = 0; i < cfg.n; i++) {
+    Weather.parts.push({
+      x: RNG.fr(0, W + 80) - 40,
+      y: RNG.fr(0, H + 40) - 20,
+      v: cfg.vy * RNG.fr(0.6, 1.5),
+      s: cfg.kind === 'rain' ? 1 : (RNG.fr() > 0.75 ? 2 : 1),
+      ph: RNG.fr(0, Math.PI * 2),
+      a: RNG.fr(0.25, 0.85)
+    });
+  }
+  Weather.cfg = cfg;
+}
+
+function updateWeather() {
+  if (!Weather.cfg) return;
+  var cfg = Weather.cfg;
+  Weather.t++;
+  var i, p;
+  for (i = 0; i < Weather.parts.length; i++) {
+    p = Weather.parts[i];
+    p.y += p.v;
+    p.x += cfg.wind + Math.sin(Weather.t * 0.02 + p.ph) * cfg.sway * 0.4;
+    if (p.y < -12) { p.y = H + 8; p.x = RNG.fr(0, W + 80) - 40; }
+    if (p.y > H + 12) { p.y = -8; p.x = RNG.fr(0, W + 80) - 40; }
+    if (p.x < -14) p.x = W + 8;
+    if (p.x > W + 14) p.x = -8;
+  }
+  /* a rare storm flash, for the rain eras only */
+  if (Weather.kind === 'rain') {
+    if (RNG.fChance && RNG.fChance(0.0025)) { Weather.flash = 8; Snd.sfx('hit'); }
+    if (Weather.flash > 0) Weather.flash--;
+  }
+}
+
+function drawWeather(g) {
+  if (!Weather.cfg) return;
+  var cfg = Weather.cfg, i, p;
+
+  if (Weather.flash > 0) {
+    g.fillStyle = 'rgba(200,240,255,' + (Weather.flash / 8 * 0.18) + ')';
+    g.fillRect(0, 0, W, H);
+  }
+
+  if (Weather.kind === 'rain') {
+    g.strokeStyle = rgba(cfg.color, 0.55);
+    g.lineWidth = 1;
+    g.beginPath();
+    for (i = 0; i < Weather.parts.length; i++) {
+      p = Weather.parts[i];
+      g.moveTo(p.x, p.y);
+      g.lineTo(p.x - cfg.wind * 1.6, p.y - 7);
+    }
+    g.stroke();
+    return;
+  }
+
+  for (i = 0; i < Weather.parts.length; i++) {
+    p = Weather.parts[i];
+    g.globalAlpha = p.a * (Weather.kind === 'ember' ? (0.55 + Math.sin(Weather.t * 0.08 + p.ph) * 0.45) : 1);
+    g.fillStyle = cfg.color;
+    if (Weather.kind === 'debris') g.fillRect(p.x, p.y, p.s + 3, 1);
+    else if (Weather.kind === 'snow') g.fillRect(p.x, p.y, p.s, p.s);
+    else g.fillRect(p.x, p.y, p.s, p.s);
+  }
+  g.globalAlpha = 1;
+}
+
 /* ---- arena hazards ------------------------------------------------------ */
 function drawHazards(g, camX) {
   var i, hz;
@@ -635,6 +723,7 @@ function drawWorld(g) {
     if (plist[mi] && plist[mi].meleeT > 0) drawMeleeArc(g, plist[mi], camX);
   }
 
+  drawWeather(g);
   drawHazards(g, camX);
   drawBullets(g, camX);
   drawParticles(g, camX);
@@ -786,7 +875,7 @@ function drawHUD(g) {
     var life = bn.life;
     var alpha = life > 110 ? (130 - life) / 20 : clamp(life / 30, 0, 1);
     g.globalAlpha = clamp(alpha, 0, 1);
-    drawText(g, bn.text, W / 2, 96, 3, bn.color || '#ffffff', 'center', 'rgba(0,0,0,0.85)');
+    drawFit(g, bn.text, 96, 3, bn.color || '#ffffff', 'rgba(0,0,0,0.85)', W - 16);
     drawText(g, bn.sub, W / 2, 124, 1, '#cfd8e3', 'center', 'rgba(0,0,0,0.85)');
     g.globalAlpha = 1;
   }
@@ -811,11 +900,11 @@ function drawTitle(g) {
   /* title */
   var bob = Math.sin(t * 0.03) * 2;
   g.globalAlpha = 0.25;
-  drawText(g, 'EON', W / 2 + 2, 42 + bob, 5, '#ff5c3c', 'center');
-  drawText(g, 'COMMANDO', W / 2 + 2, 82 + bob, 5, '#ff5c3c', 'center');
+  drawFit(g, 'EON', 42 + bob, 5, '#ff5c3c', null, W - 14);
+  drawFit(g, 'COMMANDO', 82 + bob, 5, '#ff5c3c', null, W - 14);
   g.globalAlpha = 1;
-  drawText(g, 'EON', W / 2, 40 + bob, 5, '#ffd257', 'center', '#3a1f24');
-  drawText(g, 'COMMANDO', W / 2, 80 + bob, 5, '#ffb545', 'center', '#3a1f24');
+  drawFit(g, 'EON', 40 + bob, 5, '#ffd257', '#3a1f24', W - 14);
+  drawFit(g, 'COMMANDO', 80 + bob, 5, '#ffb545', '#3a1f24', W - 14);
 
   drawText(g, narrow ? 'THREE ERAS. NO MERCY.' : 'THREE ERAS. ONE COMMANDO. NO MERCY.',
            W / 2, 122, 1, '#9fb2c6', 'center');
@@ -853,7 +942,7 @@ function drawTitle(g) {
 
 function drawPause(g) {
   dim(g, 0.78);
-  drawText(g, 'PAUSED', W / 2, 22, 3, '#54e0ff', 'center', 'rgba(0,0,0,0.85)');
+  drawFit(g, 'PAUSED', 22, 3, '#54e0ff', 'rgba(0,0,0,0.85)', W - 16);
   var rows = Game.pauseRows();
   Game.hitRows = [];
   var narrow = W < 380;
@@ -926,7 +1015,7 @@ function drawRemap(g) {
   dim(g, 0.85);
   Game.hitRows = [];
   var narrow = W < 380;
-  drawText(g, 'CONTROLS', W / 2, 20, 3, '#54e0ff', 'center', 'rgba(0,0,0,0.85)');
+  drawFit(g, 'CONTROLS', 20, 3, '#54e0ff', 'rgba(0,0,0,0.85)', W - 16);
 
   var who = Game.remapPlayer === 'p1' ? 'PLAYER 1' : 'PLAYER 2';
   drawText(g, '< ' + who + ' >', W / 2, 44, 1, '#ffd257', 'center');
@@ -965,6 +1054,16 @@ function wrapText(str, max) {
   }
   if (cur) lines.push(cur);
   return lines;
+}
+
+/* draw a heading at the largest scale that still fits the view */
+function drawFit(g, str, y, preferred, color, shadow, maxW) {
+  str = String(str).toUpperCase();
+  var limit = maxW || (W - 16);
+  var sc = preferred || 3;
+  while (sc > 1 && textWidth(str, sc) > limit) sc--;
+  drawText(g, str, W / 2, y, sc, color, 'center', shadow);
+  return sc;
 }
 
 function drawStory(g) {
@@ -1085,7 +1184,7 @@ function drawCredits(g) {
 function drawStageClear(g) {
   dim(g, 0.6);
   var t = Game.stateTimer;
-  drawText(g, 'ERA CLEARED', W / 2, 78, 4, '#54ffa8', 'center', 'rgba(0,0,0,0.85)');
+  drawFit(g, 'ERA CLEARED', 78, 4, '#54ffa8', 'rgba(0,0,0,0.85)', W - 16);
   drawText(g, Game.stage.name, W / 2, 116, 1, '#cfd8e3', 'center');
   var r = Game.lastRun;
   if (r) {
@@ -1100,9 +1199,9 @@ function drawStageClear(g) {
 
 function drawGameOver(g) {
   dim(g, 0.72);
-  drawText(g, 'GAME OVER', W / 2, 88, 4, '#ff4d6d', 'center', 'rgba(0,0,0,0.85)');
+  drawFit(g, 'GAME OVER', 88, 4, '#ff4d6d', 'rgba(0,0,0,0.85)', W - 16);
   drawText(g, 'THE EON ENDURES WITHOUT YOU', W / 2, 126, 1, '#9fb2c6', 'center');
-  drawText(g, 'SCORE ' + String(Game.score).padStart(7, '0'), W / 2, 150, 2, '#ffffff', 'center', 'rgba(0,0,0,0.8)');
+  drawFit(g, 'SCORE ' + String(Game.score).padStart(7, '0'), 150, 2, '#ffffff', 'rgba(0,0,0,0.8)', W - 16);
   drawText(g, 'HI SCORE ' + String(Game.hiScore).padStart(7, '0'), W / 2, 176, 1, '#ffd257', 'center');
   var board = Scores.all().slice(0, 3);
   for (var bi = 0; bi < board.length; bi++) {
@@ -1117,9 +1216,9 @@ function drawGameOver(g) {
 function drawVictory(g) {
   dim(g, 0.68);
   var t = Game.stateTimer;
-  drawText(g, 'EON SECURED', W / 2, 74, 4, '#ffd257', 'center', 'rgba(0,0,0,0.85)');
-  drawText(g, 'ALL THREE ERAS CLEARED', W / 2, 112, 1, '#cfd8e3', 'center');
-  drawText(g, 'FINAL SCORE ' + String(Game.score).padStart(7, '0'), W / 2, 140, 2, '#ffffff', 'center', 'rgba(0,0,0,0.8)');
+  drawFit(g, 'EON SECURED', 74, 4, '#ffd257', 'rgba(0,0,0,0.85)', W - 16);
+  drawText(g, 'ALL SIX ERAS CLEARED', W / 2, 112, 1, '#cfd8e3', 'center');
+  drawFit(g, 'FINAL SCORE ' + String(Game.score).padStart(7, '0'), 140, 2, '#ffffff', 'rgba(0,0,0,0.8)', W - 16);
   if (Game.score >= Game.hiScore) {
     drawText(g, 'NEW HIGH SCORE', W / 2, 168, 1, '#54ffa8', 'center');
   }
