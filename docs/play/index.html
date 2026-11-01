@@ -67,6 +67,7 @@
   #padR [data-k="melee"]{grid-area:1/1}
   #padR [data-k="dash"]{grid-area:1/2}
   #padR [data-k="grenade"]{grid-area:1/3}
+  #padR [data-k="power"]{grid-area:2/2}
   #padR button.sm{font-size:12px; opacity:.82}
   .pad button{
     width:100%; height:100%; padding:0; color:#cfd8e3; font:16px ui-monospace,monospace;
@@ -96,6 +97,16 @@
   body.shot canvas{border:0;border-radius:0;box-shadow:none}
   body.shot #stage{filter:none}
   @media (max-height:520px){ #hint{display:none} }
+
+  /* ---- auto-fire touch layout -------------------------------------------
+     With the gun firing itself, up/down stop being aim controls: up becomes
+     jump, down becomes duck, and the fire button has no job. */
+  body.auto #padR [data-k="fire"]{ display:none }
+  body.auto #padL [data-k="up"]{ background:rgba(84,224,255,.18); border-color:#2f6f8f }
+  body.auto #padL [data-k="down"]{ background:rgba(255,181,69,.16); border-color:#7a5a2a }
+  #padR [data-k="power"]{ display:none; background:rgba(255,210,87,.20); border-color:#8a6a22; color:#ffd257; font-size:15px }
+  body.auto #padR [data-k="power"].ready{ display:block; animation:pulse 1.1s ease-in-out infinite }
+  @keyframes pulse{ 50%{ box-shadow:0 0 0 7px rgba(255,210,87,.16) } }
 </style>
 </head>
 <body>
@@ -113,8 +124,9 @@
     <button data-k="grenade" class="sm" aria-label="Grenade">G</button>
     <button data-k="dash" class="sm" aria-label="Dash">&#187;</button>
     <button data-k="melee" class="sm" aria-label="Melee">M</button>
-    <button data-k="fire" aria-label="Fire">B</button>
+    <button data-k="fire" id="btnFire" aria-label="Fire">B</button>
     <button data-k="jump" aria-label="Jump">A</button>
+    <button data-k="power" id="btnPower" aria-label="Unleash">&#9889;</button>
   </div>
 </div>
 <button id="btnPause" aria-label="Pause">❙❙</button>
@@ -734,7 +746,7 @@ var Input = {
       left: ['ArrowLeft'], right: ['ArrowRight'], up: ['ArrowUp'], down: ['ArrowDown'],
       jump: ['Space', 'KeyX', 'KeyK'], fire: ['KeyZ', 'KeyJ', 'ControlLeft', 'ControlRight'],
       dash: ['ShiftLeft', 'ShiftRight', 'KeyL'], melee: ['KeyV', 'KeyC'],
-      grenade: ['KeyG', 'KeyB'], pause: ['KeyP', 'Escape'], start: ['Enter', 'NumpadEnter'],
+      grenade: ['KeyG', 'KeyB'], power: ['KeyE', 'KeyQ'], pause: ['KeyP', 'Escape'], start: ['Enter', 'NumpadEnter'],
       start2: ['Digit2'], mute: ['KeyM'], restart: ['KeyR'], fullscreen: ['KeyF'],
       settings: ['KeyO'], daily: ['KeyD'], replay: ['KeyR']
     },
@@ -802,7 +814,7 @@ var Input = {
   MAP: {}, MAP2: {},
 
   ACTIONS: ['left', 'right', 'up', 'down', 'jump', 'fire', 'dash', 'melee', 'grenade',
-            'start', 'start2', 'pause', 'mute', 'restart', 'fullscreen', 'settings', 'daily', 'replay'],
+            'start', 'start2', 'pause', 'mute', 'restart', 'fullscreen', 'settings', 'daily', 'replay', 'power'],
 
   init: function () {
     var self = this;
@@ -928,6 +940,7 @@ var Input = {
       set.dash = !!((b[5] && b[5].pressed) || (b[7] && b[7].pressed));
       set.melee = !!(b[3] && b[3].pressed);
       set.grenade = !!(b[4] && b[4].pressed);
+      set.power = !!((b[6] && b[6].pressed) || (b[5] && b[5].pressed));
       set.start = !!((b[9] && b[9].pressed) || (b[8] && b[8].pressed));
       set.pause = !!(b[9] && b[9].pressed);
       seen++;
@@ -2022,6 +2035,232 @@ var STAGES = [
   }
 ];
 
+
+/* ===========================================================================
+   ERAS IV–VI — the campaign doubles. New palettes, new ground, harder mixes.
+   =========================================================================== */
+STAGES.push(
+  {
+    id: 4,
+    name: 'SUNKEN RELAY',
+    tag: 'ERA IV · THE DROWNED SIGNAL',
+    length: 3000,
+    arenaStart: 2360,
+    checkpoint: 1200,
+    checkpoints: [48, 620, 1200, 1750, 2180],
+    boss: 'wraith',
+    bossHpMul: 1.25,
+    music: 'stage2',
+    seed: 5150,
+    sky: ['#04140f', '#0b2b22', '#12503c'],
+    far: '#0d2a24',
+    mid: '#081c18',
+    near: '#04100e',
+    ground: '#1a3a30',
+    groundLit: '#3f8f74',
+    groundDark: '#0b1d18',
+    accent: '#3fe0a0',
+    fog: 'rgba(63,224,160,0.06)',
+    groundSegs: [[0, 520], [560, 360], [960, 300], [1300, 380], [1720, 300], [2060, 940]],
+    platforms: [
+      { x: 210, y: 184, w: 70 }, { x: 380, y: 146, w: 66 },
+      { x: 660, y: 176, w: 88 }, { x: 830, y: 138, w: 60 },
+      { x: 1060, y: 182, w: 78 }, { x: 1200, y: 140, w: 64 },
+      { x: 1400, y: 188, w: 84 }, { x: 1560, y: 146, w: 70 },
+      { x: 1800, y: 180, w: 76 }, { x: 1960, y: 132, w: 62 },
+      { x: 2160, y: 176, w: 88 }, { x: 2300, y: 136, w: 68 }
+    ],
+    enemies: [
+      onGround('grunt', 280), onGround('runner', 420), at('turret', 400, 146 - 14),
+      at('sniper', 700, 176 - 18), onGround('shielder', 900), at('drone', 1010, 84),
+      onGround('jumper', 1120), onGround('grunt', 1250), at('swarm', 1340, 110),
+      onGround('runner', 1450), onGround('brute', 1600), at('drone', 1700, 78),
+      at('sniper', 1820, 180 - 18), onGround('shielder', 1900), onGround('grunt', 2000),
+      at('turret', 2120, 176 - 14), onGround('brute', 2200), onGround('runner', 2280),
+      at('swarm', 1980, 96)
+    ],
+    pickups: [
+      { kind: 'weapon', w: 'spread', x: 380, y: 116 },
+      { kind: 'health', x: 830, y: 108 },
+      { kind: 'weapon', w: 'flame', x: 1200, y: 110 },
+      { kind: 'coin', x: 1560, y: 116 },
+      { kind: 'weapon', w: 'machine', x: 1960, y: 102 },
+      { kind: 'health', x: 2300, y: 106 }
+    ]
+  },
+  {
+    id: 5,
+    name: 'ORBITAL WOUND',
+    tag: 'ERA V · THE BROKEN ORBIT',
+    length: 3160,
+    arenaStart: 2520,
+    checkpoint: 1260,
+    checkpoints: [48, 580, 1260, 1800, 2260],
+    boss: 'heart',
+    bossHpMul: 1.5,
+    music: 'stage3',
+    seed: 8080,
+    sky: ['#080a18', '#141a3a', '#2a2a6b'],
+    far: '#1a1d45',
+    mid: '#0f1230',
+    near: '#080a1c',
+    ground: '#22244e',
+    groundLit: '#5b5fbd',
+    groundDark: '#101128',
+    accent: '#8a7bff',
+    fog: 'rgba(138,123,255,0.07)',
+    groundSegs: [[0, 480], [520, 340], [900, 280], [1220, 360], [1620, 300], [1960, 260], [2260, 900]],
+    platforms: [
+      { x: 180, y: 182, w: 72 }, { x: 340, y: 140, w: 60 },
+      { x: 600, y: 174, w: 80 }, { x: 760, y: 132, w: 62 },
+      { x: 980, y: 186, w: 74 }, { x: 1130, y: 142, w: 66 },
+      { x: 1300, y: 180, w: 86 }, { x: 1470, y: 136, w: 60 },
+      { x: 1700, y: 178, w: 78 }, { x: 1860, y: 130, w: 64 },
+      { x: 2060, y: 184, w: 82 }, { x: 2220, y: 138, w: 70 },
+      { x: 2400, y: 176, w: 76 }
+    ],
+    enemies: [
+      onGround('grunt', 260), at('sniper', 360, 140 - 18), onGround('runner', 440),
+      onGround('shielder', 620), at('drone', 720, 86), onGround('brute', 820),
+      at('swarm', 960, 108), onGround('jumper', 1040), at('turret', 1150, 142 - 14),
+      onGround('grunt', 1300), at('sniper', 1480, 136 - 18), onGround('runner', 1560),
+      onGround('shielder', 1700), at('drone', 1800, 74), onGround('brute', 1900),
+      at('swarm', 2040, 96), onGround('grunt', 2120), at('turret', 2240, 138 - 14),
+      onGround('jumper', 2320), onGround('runner', 2420)
+    ],
+    pickups: [
+      { kind: 'weapon', w: 'laser', x: 340, y: 110 },
+      { kind: 'health', x: 760, y: 102 },
+      { kind: 'weapon', w: 'spread', x: 1130, y: 112 },
+      { kind: 'coin', x: 1470, y: 106 },
+      { kind: 'weapon', w: 'flame', x: 1860, y: 100 },
+      { kind: 'health', x: 2220, y: 108 }
+    ]
+  },
+  {
+    id: 6,
+    name: 'THE LAST SECOND',
+    tag: 'ERA VI · WHERE TIME ENDS',
+    length: 3040,
+    arenaStart: 2400,
+    checkpoint: 1220,
+    checkpoints: [48, 600, 1220, 1760, 2200],
+    boss: 'warden',
+    bossHpMul: 1.9,
+    music: 'boss',
+    seed: 12001,
+    sky: ['#0a0a0a', '#2a2418', '#6b5320'],
+    far: '#241d12',
+    mid: '#171208',
+    near: '#0b0906',
+    ground: '#2e2414',
+    groundLit: '#b08a3a',
+    groundDark: '#140f08',
+    accent: '#ffd257',
+    fog: 'rgba(255,210,87,0.06)',
+    groundSegs: [[0, 500], [540, 320], [920, 300], [1280, 340], [1680, 300], [2040, 1000]],
+    platforms: [
+      { x: 200, y: 180, w: 68 }, { x: 360, y: 138, w: 58 },
+      { x: 620, y: 176, w: 76 }, { x: 780, y: 134, w: 60 },
+      { x: 1000, y: 184, w: 72 }, { x: 1160, y: 140, w: 62 },
+      { x: 1340, y: 178, w: 84 }, { x: 1500, y: 134, w: 58 },
+      { x: 1740, y: 176, w: 76 }, { x: 1900, y: 128, w: 62 },
+      { x: 2100, y: 182, w: 80 }, { x: 2260, y: 136, w: 66 }
+    ],
+    enemies: [
+      onGround('shielder', 260), at('sniper', 380, 138 - 18), onGround('brute', 470),
+      onGround('runner', 640), at('drone', 760, 80), at('swarm', 860, 104),
+      onGround('grunt', 1000), onGround('brute', 1120), at('turret', 1180, 140 - 14),
+      onGround('shielder', 1360), at('sniper', 1520, 134 - 18), onGround('jumper', 1600),
+      at('swarm', 1720, 92), onGround('brute', 1800), at('drone', 1900, 72),
+      onGround('shielder', 2020), onGround('grunt', 2120), at('turret', 2280, 136 - 14),
+      onGround('runner', 2340)
+    ],
+    pickups: [
+      { kind: 'weapon', w: 'machine', x: 360, y: 108 },
+      { kind: 'health', x: 780, y: 104 },
+      { kind: 'weapon', w: 'laser', x: 1160, y: 110 },
+      { kind: 'coin', x: 1500, y: 104 },
+      { kind: 'weapon', w: 'spread', x: 1900, y: 98 },
+      { kind: 'health', x: 2260, y: 106 }
+    ]
+  }
+);
+
+/* ===========================================================================
+   STORY — every mission opens and closes on a line of it.
+   =========================================================================== */
+var STORY = {
+  1: {
+    intro: [
+      { who: 'CONTROL', text: 'COMMANDO. THE EON HAS TAKEN THE FIRST ERA.' },
+      { who: 'CONTROL', text: 'ASHEN DAWN IS BURNING FROM THE INSIDE OUT.' },
+      { who: 'YOU', text: 'THEN I GO IN WHILE IT IS STILL STANDING.' }
+    ],
+    outro: [
+      { who: 'WARDEN', text: 'YOU CUT ONE THREAD. THERE ARE SIX.' },
+      { who: 'CONTROL', text: 'ERA ONE HOLDS. THE SIGNAL PULLS US DEEPER.' }
+    ]
+  },
+  2: {
+    intro: [
+      { who: 'CONTROL', text: 'GLACIER EON. EVERYTHING HERE STOPPED AT ONCE.' },
+      { who: 'CONTROL', text: 'SOMETHING IS STILL MOVING UNDER THE ICE.' }
+    ],
+    outro: [
+      { who: 'CONTROL', text: 'THE WRAITH IS DOWN. THE COLD DOES NOT LIFT.' },
+      { who: 'YOU', text: 'IT IS NOT COLD. IT IS WAITING.' }
+    ]
+  },
+  3: {
+    intro: [
+      { who: 'CONTROL', text: 'THE CORE. THIS IS WHERE THE EON KEEPS ITS HEART.' },
+      { who: 'CONTROL', text: 'IT KNOWS YOU ARE COMING. IT IS ALREADY AWAKE.' }
+    ],
+    outro: [
+      { who: 'EON HEART', text: 'YOU HAVE NOT WON. YOU HAVE ONLY COME CLOSER.' },
+      { who: 'CONTROL', text: 'THREE ERAS HELD. THE PULL GOES ON.' }
+    ]
+  },
+  4: {
+    intro: [
+      { who: 'CONTROL', text: 'ERA FOUR. A RELAY THAT DROWNED MID-SIGNAL.' },
+      { who: 'YOU', text: 'WHO WAS IT TALKING TO?' },
+      { who: 'CONTROL', text: 'US. FORTY YEARS FROM NOW.' }
+    ],
+    outro: [
+      { who: 'CONTROL', text: 'THE RELAY IS QUIET. THE MESSAGE IS NOT.' },
+      { who: 'CONTROL', text: 'IT SAYS: DO NOT LET IT REACH THE LAST SECOND.' }
+    ]
+  },
+  5: {
+    intro: [
+      { who: 'CONTROL', text: 'THE ORBIT BROKE HERE. THE SKY IS STILL FALLING.' },
+      { who: 'CONTROL', text: 'NO GROUND UNDER YOU THAT TIME AGREES ON.' }
+    ],
+    outro: [
+      { who: 'EON HEART', text: 'EVERY ERA YOU SAVE IS ONE I HAVE ALREADY SPENT.' },
+      { who: 'YOU', text: 'THEN I WILL COME AND TAKE THEM BACK.' }
+    ]
+  },
+  6: {
+    intro: [
+      { who: 'CONTROL', text: 'LAST SECOND. THE END OF THE CLOCK.' },
+      { who: 'CONTROL', text: 'WHATEVER YOU DO HERE, IT HAS ALREADY HAPPENED.' },
+      { who: 'YOU', text: 'THEN LET IT HAPPEN TO THEM.' }
+    ],
+    outro: [
+      { who: 'CONTROL', text: 'ALL SIX ERAS HELD. THE EON IS CLOSED.' },
+      { who: 'CONTROL', text: 'COMMANDO — COME HOME.' }
+    ]
+  }
+};
+
+STAGES.forEach(function (st) {
+  var s = STORY[st.id];
+  if (s) { st.storyIn = s.intro; st.storyOut = s.outro; }
+});
+
 /* ===== 60_entities.js ===== */
 /* ===========================================================================
    EON COMMANDO — 60 entities
@@ -2157,7 +2396,12 @@ function autoTarget(p) {
       var d2 = dx * dx + dy * dy;
       if (d2 > 210 * 210 || d2 > bestD) continue;
       var a = Math.atan2(dy, dx);
-      if (Math.abs(angDiff(a, p.aimAngle)) > 0.55) continue;   /* ~31 deg, matching 8-way aim */
+      if (SET.autoFire) {
+        /* no manual vertical aim: accept anything on the facing side */
+        if (dx * p.facing < -12) continue;
+      } else if (Math.abs(angDiff(a, p.aimAngle)) > 0.55) {
+        continue;   /* ~31 deg, matching 8-way aim */
+      }
       bestD = d2;
       best = { angle: a, target: e };
     }
@@ -2238,7 +2482,8 @@ function playerUpdate(p) {
 
   /* jump with coyote time + input buffering + variable height */
   if (p.onGround) p.coyote = PHYS.coyote; else if (p.coyote > 0) p.coyote--;
-  if (ctl.pressed('jump')) p.jumpBuffer = PHYS.buffer; else if (p.jumpBuffer > 0) p.jumpBuffer--;
+  if (ctl.pressed('jump') || (SET.autoFire && ctl.pressed('up'))) p.jumpBuffer = PHYS.buffer;
+  else if (p.jumpBuffer > 0) p.jumpBuffer--;
 
   if (p.jumpBuffer > 0 && p.coyote > 0) {
     p.vy = PHYS.jumpV;
@@ -2249,7 +2494,7 @@ function playerUpdate(p) {
     Snd.sfx('jump');
     puff(p.x + p.w / 2, p.y + p.h, 5, '#c8d6e2');
   }
-  if (p.jumpHeld && !ctl.held('jump') && p.vy < PHYS.jumpCut) {
+  if (p.jumpHeld && !(ctl.held('jump') || (SET.autoFire && ctl.held('up'))) && p.vy < PHYS.jumpCut) {
     p.vy = PHYS.jumpCut;
     p.jumpHeld = false;
   }
@@ -2375,7 +2620,7 @@ function playerUpdate(p) {
 function fireWeapon(p, angleOverride) {
   var w = WEAPONS[p.weapon];
   var base = (angleOverride === undefined || angleOverride === null) ? p.aimAngle : angleOverride;
-  p.cd = w.cd;
+  p.cd = Game.fury > 0 ? Math.max(2, Math.round(w.cd * 0.45)) : w.cd;
   p.muzzle = 4;
   Snd.sfx(w.sfx);
   var ox = p.x + p.w / 2 + Math.cos(base) * 9;
@@ -2630,7 +2875,10 @@ function damageEnemy(e, dmg, knock) {
   if (e.hp <= 0 && !e.dead) {
     e.dead = true;
     var def = ENEMIES[e.t];
-    var gained = Math.round(def.score * (Game.scoreMul || 1));
+    Game.combo++;
+    Game.comboT = 160;
+    Game.power = Math.min(100, Game.power + 8 + Math.min(Game.combo, 12));
+    var gained = Math.round(def.score * (Game.scoreMul || 1) * (1 + Math.min(Game.combo, 20) * 0.05));
     Game.score += gained;
     floatText(e.x, e.y - 6, '+' + gained, '#ffd257');
     explosion(e.x + e.w / 2, e.y + e.h / 2, 1);
@@ -3214,6 +3462,9 @@ var Game = {
   titleIndex: 0,
   mode: 'campaign',
   wave: 0, waveTimer: 0, waveActive: false, scoreMul: 1,
+  power: 0, combo: 0, comboT: 0, fury: 0,
+  story: null, storyAfter: null, storyIndex: 0, storyChars: 0, storyT: 0,
+  creditsY: 0, creditsT: 0,
   lastEntry: null,
   floaters: [],
   pending: [],
@@ -3265,6 +3516,7 @@ var Game = {
     Snd.sfx('start');
     this.loadStage(0);
     this.state = 'playing';
+    if (this.stage.storyIn && this.stage.storyIn.length) this.startStory(this.stage.storyIn, 'play');
   },
 
   loadStage: function (i) {
@@ -3373,8 +3625,6 @@ var Game = {
       this.banner = { text: 'WAVE CLEAR', sub: 'KEEP GOING', life: 90, color: '#54ffa8' };
       return;
     }
-    this.state = 'stageclear';
-    this.stateTimer = 0;
     var bonus = 1500 + this.player.hp * 250 + this.lives * 500;
     this.lastRun = {
       stage: this.stage.name,
@@ -3385,6 +3635,14 @@ var Game = {
     this.score += bonus;
     Snd.sfx('stageClear');
     Snd.stopMusic();
+
+    var lastStage = this.stageIndex >= STAGES.length - 1;
+    if (this.stage.storyOut && this.stage.storyOut.length) {
+      this.startStory(this.stage.storyOut, lastStage ? 'victory' : 'stageclear');
+    } else {
+      this.state = 'stageclear';
+      this.stateTimer = 0;
+    }
   },
 
   gameOver: function () {
@@ -3516,6 +3774,10 @@ var Game = {
     Stats.bump('time', Math.round(this.frames / 60));
   },
 
+  victoryToCredits: function () {
+    this.startCredits();
+  },
+
   victory: function () {
     this.state = 'victory';
     this.stateTimer = 0;
@@ -3575,6 +3837,12 @@ var Game = {
       case 'remap':
         this.updateRemap();
         break;
+      case 'story':
+        this.updateStory();
+        break;
+      case 'credits':
+        this.updateCredits();
+        break;
       case 'stageclear':
         this.updateStageClear();
         break;
@@ -3582,8 +3850,9 @@ var Game = {
       case 'victory':
         this.stateTimer++;
         this.updateParticles();
-        if (this.stateTimer > 60 && (Input.pressed('start') || Input.pressed('restart'))) {
-          this.startGame();
+        if (this.stateTimer > 60 && (Input.pressed('start') || Input.pressed('restart') ||
+                                     Input.pressed('fire') || Input.pressed('jump'))) {
+          this.startCredits();
         }
         break;
     }
@@ -3623,6 +3892,88 @@ var Game = {
     if (Input.pressed('start2')) { this.startGame(true); return; }
     if (Input.pressed('daily')) { this.startGame(this.coop, Daily.seed()); this.dailyRun = true; return; }
     if (Input.pressed('replay') && Rec.has()) { this.startReplay(Rec.load()); return; }
+  },
+
+  /* ---- the power gauge ------------------------------------------------ */
+  canUnleash: function () { return this.power >= 100 && this.fury <= 0 && !this.replayMode; },
+
+  unleash: function () {
+    if (!this.canUnleash()) return false;
+    this.power = 0;
+    this.combo = 0;
+    this.comboT = 0;
+    this.fury = 110;
+    this.flash = 1;
+    this.shake = Math.max(this.shake, 9);
+    Snd.sfx('bossWarn');
+
+    var i;
+    /* wipe enemy fire and stagger everything on screen */
+    for (i = 0; i < this.bullets.length; i++) {
+      if (!this.bullets[i].friendly) { burst(this.bullets[i].x, this.bullets[i].y, 4, scheme().hostileGlow); this.bullets[i].dead = true; }
+    }
+    for (i = 0; i < this.enemies.length; i++) {
+      var e = this.enemies[i];
+      if (!e.dead) { damageEnemy(e, 25, (e.x < (this.player.x)) ? 1 : -1); }
+    }
+    if (this.boss && !this.boss.dead) damageBoss(this.boss, 40);
+    for (i = 0; i < this.players.length; i++) this.players[i].invuln = Math.max(this.players[i].invuln, 110);
+    floatText(this.player.x + 6, this.player.y - 16, 'UNLEASHED', '#ffd257');
+    return true;
+  },
+
+  /* ---- story beats ---------------------------------------------------- */
+  startStory: function (lines, after) {
+    if (!lines || !lines.length) { this.story = null; this.state = after === 'credits' ? 'credits' : (after || 'playing'); return; }
+    this.story = lines.slice();
+    this.storyAfter = after || 'playing';
+    this.storyIndex = 0;
+    this.storyChars = 0;
+    this.storyT = 0;
+    this.state = 'story';
+  },
+
+  storyAdvance: function () {
+    var line = this.story && this.story[this.storyIndex];
+    if (!line) { this.finishStory(); return; }
+    if (this.storyChars < line.text.length) { this.storyChars = line.text.length; return; }
+    this.storyIndex++;
+    this.storyChars = 0;
+    if (this.storyIndex >= this.story.length) this.finishStory();
+  },
+
+  finishStory: function () {
+    var after = this.storyAfter;
+    this.story = null;
+    if (after === 'credits') { this.startCredits(); return; }
+    if (after === 'victory') { this.state = 'victory'; this.stateTimer = 0; return; }
+    if (after === 'stageclear') { this.state = 'stageclear'; this.stateTimer = 0; return; }
+    this.state = 'playing';
+  },
+
+  updateStory: function () {
+    this.storyT++;
+    var line = this.story && this.story[this.storyIndex];
+    if (line) this.storyChars = Math.min(line.text.length, this.storyChars + 1.1);
+    if (Input.pressed('start') || Input.pressed('jump') || Input.pressed('fire') ||
+        Input.pressed('pause') || Input.pressed('power')) {
+      this.storyAdvance();
+    }
+  },
+
+  startCredits: function () {
+    this.state = 'credits';
+    this.creditsY = 0;
+    this.creditsT = 0;
+    Snd.playMusic(TRACKS.title);
+  },
+
+  updateCredits: function () {
+    this.creditsT++;
+    this.creditsY += 0.42;
+    if (this.creditsT > 90 && (Input.pressed('start') || Input.pressed('jump') || Input.pressed('fire'))) {
+      this.state = 'title'; this.stateTimer = 0; Snd.stopMusic();
+    }
   },
 
   pauseRows: function () {
@@ -3700,6 +4051,11 @@ var Game = {
       }
       return;
     }
+    if (this.state === 'story') { this.storyAdvance(); return; }
+    if (this.state === 'credits') {
+      if (this.creditsT > 90) { this.state = 'title'; this.stateTimer = 0; Snd.stopMusic(); }
+      return;
+    }
     if (this.state === 'gameover' || this.state === 'victory') {
       this.stateTimer = 999;
       this.startGame(this.coop);
@@ -3717,7 +4073,7 @@ var Game = {
     else if (i === 4) SET.hudScale = clamp(Math.round((SET.hudScale + dir * 0.15) * 100) / 100, 0.85, 1.3);
     else if (i === 5) SET.music = clamp(Math.round((SET.music + dir * 0.2) * 100) / 100, 0, 1);
     else if (i === 6) SET.sfx = clamp(Math.round((SET.sfx + dir * 0.2) * 100) / 100, 0, 1);
-    else if (i === 7) SET.autoFire = SET.autoFire ? 0 : 1;
+    else if (i === 7) { SET.autoFire = SET.autoFire ? 0 : 1; if (typeof applyAutoLayout === 'function') applyAutoLayout(); }
     saveSettings();
     Snd.applyVolumes();
     Snd.sfx('coin');
@@ -3761,7 +4117,7 @@ var Game = {
       else if (i === 4) SET.hudScale = clamp(Math.round((SET.hudScale + dir * 0.15) * 100) / 100, 0.85, 1.3);
       else if (i === 5) SET.music = clamp(Math.round((SET.music + dir * 0.2) * 100) / 100, 0, 1);
       else if (i === 6) SET.sfx = clamp(Math.round((SET.sfx + dir * 0.2) * 100) / 100, 0, 1);
-      else if (i === 7) SET.autoFire = SET.autoFire ? 0 : 1;
+      else if (i === 7) { SET.autoFire = SET.autoFire ? 0 : 1; if (typeof applyAutoLayout === 'function') applyAutoLayout(); }
       saveSettings();
       Snd.applyVolumes();
       Snd.sfx('coin');
@@ -3782,6 +4138,11 @@ var Game = {
     this.stageTime++;
 
     var p = this.player;
+
+    /* the gauge and the combo decay */
+    if (this.comboT > 0) { this.comboT--; if (this.comboT === 0) this.combo = 0; }
+    if (this.fury > 0) this.fury--;
+    if (Input.pressed('power')) this.unleash();
 
     /* Hit-stop freezes the world for a few frames so impacts land — but the
        commando keeps running, otherwise a press during the freeze is swallowed. */
@@ -3939,8 +4300,10 @@ var Game = {
     this.updateParticles();
     if (this.stateTimer > 160) {
       if (this.stageIndex + 1 < STAGES.length) {
-        this.loadStage(this.stageIndex + 1);
+        this.stageIndex++;
+        this.loadStage(this.stageIndex);
         this.state = 'playing';
+        if (this.stage.storyIn && this.stage.storyIn.length) this.startStory(this.stage.storyIn, 'play');
       } else {
         this.victory();
       }
@@ -4702,6 +5065,27 @@ function drawHUD(g) {
     for (var t = 1; t < 10; t++) px(g, bx + (bw / 10) * t, by, 1, 6, 'rgba(0,0,0,0.4)');
   }
 
+  /* power gauge + combo */
+  if (Game.state === 'playing') {
+    g.save();
+    g.scale(k, k);
+    var gy = 52;
+    var gw = 62;
+    px(g, 7, gy, gw, 4, '#12202e');
+    var fill = Math.round(gw * clamp(Game.power, 0, 100) / 100);
+    px(g, 7, gy, fill, 4, Game.power >= 100 ? '#ffd257' : '#54e0ff');
+    px(g, 7, gy, gw, 1, 'rgba(255,255,255,0.18)');
+    if (Game.power >= 100) {
+      if (Math.floor(Game.time / 12) % 2 === 0) drawText(g, 'UNLEASH ' + (SET.autoFire ? '' : 'E'), 7, gy + 7, 1, '#ffd257');
+    } else {
+      drawText(g, 'POWER', 7, gy + 7, 1, '#3f5d6b');
+    }
+    if (Game.combo > 1) {
+      drawText(g, 'x' + Game.combo, 7 + gw + 6, gy - 1, 1, Game.comboT > 40 ? '#ffb545' : '#7f8fa6');
+    }
+    g.restore();
+  }
+
   /* endless wave readout */
   if (Game.mode === 'endless') {
     g.save();
@@ -4895,6 +5279,133 @@ function drawRemap(g) {
   drawText(g, 'LEFT/RIGHT SWITCH PLAYER   P BACK', W / 2, H - 19, 1, '#54637a', 'center');
 }
 
+/* ---- story panel -------------------------------------------------------- */
+function wrapText(str, max) {
+  var words = String(str).split(' '), lines = [], cur = '';
+  for (var i = 0; i < words.length; i++) {
+    var t = cur ? cur + ' ' + words[i] : words[i];
+    if (t.length > max) { if (cur) lines.push(cur); cur = words[i]; }
+    else cur = t;
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+function drawStory(g) {
+  var st = Game.story;
+  if (!st || !st[Game.storyIndex]) return;
+  var line = st[Game.storyIndex];
+  var narrow = W < 380;
+
+  dim(g, 0.82);
+
+  var padX = narrow ? 12 : 34;
+  var boxH = narrow ? 112 : 100;
+  var boxY = H - boxH - (narrow ? 10 : 16);
+  var boxW = W - padX * 2;
+
+  px(g, padX, boxY, boxW, boxH, 'rgba(6,9,14,0.94)');
+  g.strokeStyle = '#22344a';
+  g.lineWidth = 1;
+  g.strokeRect(padX + 0.5, boxY + 0.5, boxW - 1, boxH - 1);
+  px(g, padX, boxY, boxW, 2, line.who === 'YOU' ? '#54e0ff' : '#ff2d95');
+
+  /* portrait plate */
+  var pw = narrow ? 34 : 44;
+  px(g, padX + 8, boxY + 12, pw, pw, '#0b1220');
+  g.strokeStyle = '#1b2839';
+  g.strokeRect(padX + 8.5, boxY + 12.5, pw - 1, pw - 1);
+  if (line.who === 'YOU') {
+    var ghost = { x: padX + 8 + pw / 2 - 6, y: boxY + 14, w: 12, h: 22, facing: 1, aimAngle: 0,
+                  onGround: true, ducking: false, runPhase: 0, invuln: 0, hurtFlash: 0, vx: 0 };
+    g.save();
+    g.translate(0, 6);
+    drawPlayer(g, ghost);
+    g.restore();
+  } else {
+    g.fillStyle = line.who === 'CONTROL' ? '#54e0ff' : '#ff2d95';
+    g.beginPath();
+    var cx0 = padX + 8 + pw / 2, cy0 = boxY + 12 + pw / 2;
+    g.moveTo(cx0, cy0 - pw * 0.3);
+    g.lineTo(cx0 + pw * 0.3, cy0);
+    g.lineTo(cx0, cy0 + pw * 0.3);
+    g.lineTo(cx0 - pw * 0.3, cy0);
+    g.closePath();
+    g.fill();
+  }
+
+  var tx = padX + pw + 20;
+  drawText(g, line.who, tx, boxY + 12, 1, line.who === 'YOU' ? '#54e0ff' : '#ff2d95');
+
+  var lines = wrapText(line.text, narrow ? 26 : 44);
+  var budget = Math.floor(Game.storyChars);
+  var ty = boxY + 30;
+  for (var i = 0; i < lines.length && i < 4; i++) {
+    var l = lines[i];
+    var part = l.length <= budget ? l : l.slice(0, Math.max(0, budget));
+    budget -= l.length + 1;
+    if (part.length) drawText(g, part, tx, ty, 1, '#e6edf5');
+    ty += 12;
+  }
+
+  if (Game.storyChars >= line.text.length && Math.floor(Game.time / 20) % 2 === 0) {
+    drawText(g, narrow ? 'TAP TO CONTINUE' : 'ENTER / TAP', W - padX - 10, boxY + boxH - 14, 1, '#54637a', 'right');
+  }
+  drawText(g, (Game.storyIndex + 1) + '/' + st.length, padX + 10, boxY + boxH - 14, 1, '#38465a');
+}
+
+/* ---- credits ------------------------------------------------------------ */
+var CREDIT_LINES = [
+  'EON COMMANDO',
+  '',
+  'A RUN-AND-GUN IN ONE HTML FILE',
+  '',
+  '',
+  'DESIGN AND CODE',
+  'DR SOHIL MOMIN',
+  '',
+  'ART',
+  'DRAWN AT RUNTIME FROM PATHS',
+  'NO IMAGE FILES',
+  '',
+  'AUDIO',
+  'TWO PULSE LEADS, A TRIANGLE BASS',
+  'AND A NOISE KIT, SYNTHESISED LIVE',
+  '',
+  'ENGINEERING',
+  'FIXED 60 HZ STEP',
+  'SEEDED DETERMINISTIC SIMULATION',
+  '573 DRAW CALLS PER FRAME',
+  '',
+  'TESTING',
+  'HEADLESS CHROMIUM HARNESS',
+  'PIXEL DIFFS, REPLAY VERIFICATION',
+  '',
+  '',
+  'THANK YOU FOR PLAYING',
+  '',
+  'POLYFORM NONCOMMERCIAL 1.0.0',
+  '',
+  'DRSAMONLINE.GITHUB.IO'
+];
+
+function drawCredits(g) {
+  px(g, 0, 0, W, H, '#05070d');
+  var narrow = W < 380;
+  var y = H - Game.creditsY;
+  for (var i = 0; i < CREDIT_LINES.length; i++) {
+    var line = CREDIT_LINES[i];
+    var ly = y + i * (narrow ? 12 : 14);
+    if (ly > -12 && ly < H - 12 && line.length) {
+      var big = (i === 0);
+      drawText(g, line, W / 2, ly, big ? 3 : 1,
+               big ? '#ffb545' : (line === line.toUpperCase() && line.length > 2 && i % 2 === 0 ? '#54e0ff' : '#9fb2c6'),
+               'center');
+    }
+  }
+  drawText(g, 'ENTER TO RETURN', W / 2, H - 12, 1, '#38465a', 'center');
+}
+
 function drawStageClear(g) {
   dim(g, 0.6);
   var t = Game.stateTimer;
@@ -4986,7 +5497,7 @@ function Render(g) {
     drawWorld(g);
     g.restore();
     if (Game.state === 'playing' || Game.state === 'stageclear' ||
-        Game.state === 'gameover' || Game.state === 'victory') {
+        Game.state === 'gameover' || Game.state === 'victory' || Game.state === 'story') {
       g.save();
       g.translate(0, Y0);
       drawHUD(g);
@@ -4998,6 +5509,8 @@ function Render(g) {
     if (Game.state === 'paused') drawPause(g);
     else if (Game.state === 'settings') drawSettings(g);
     else if (Game.state === 'remap') drawRemap(g);
+    else if (Game.state === 'story') drawStory(g);
+    else if (Game.state === 'credits') drawCredits(g);
     else if (Game.state === 'stageclear') drawStageClear(g);
     else if (Game.state === 'gameover') drawGameOver(g);
     else if (Game.state === 'victory') drawVictory(g);
@@ -5042,6 +5555,12 @@ function Render(g) {
    capture the screenshots in docs/.
    =========================================================================== */
 
+/* auto-fire changes the touch layout: up becomes jump, down becomes duck,
+   and the fire button disappears */
+function applyAutoLayout() {
+  document.body.classList.toggle('auto', !!SET.autoFire);
+}
+
 var canvas, ctx;
 var _last = 0, _acc = 0;
 
@@ -5085,6 +5604,7 @@ function boot() {
 
   Snd.setMuted(!!Store.get('muted', false));
   Game.init();
+  applyAutoLayout();
 
   canvas.addEventListener('pointerdown', function (e) {
     e.preventDefault();
@@ -5156,6 +5676,9 @@ function loop(now) {
     steps++;
   }
 
+  var pw = document.getElementById('btnPower');
+  if (pw) pw.classList.toggle('ready', Game.canUnleash && Game.canUnleash());
+
   var t0 = performance.now();
   Render(ctx);
   var t1 = performance.now();
@@ -5218,6 +5741,9 @@ function runDemo(n) {
   if (PARAMS.stage) {
     var idx = clamp(parseInt(PARAMS.stage, 10) - 1, 0, STAGES.length - 1);
     Game.loadStage(idx);
+    /* screenshots want gameplay, not the intro panel */
+    Game.story = null;
+    Game.state = 'playing';
   }
   if (PARAMS.warp) {
     Game.player.x = parseFloat(PARAMS.warp);
@@ -5275,6 +5801,12 @@ function runDemo(n) {
   }
 
   if (PARAMS.pose === 'settings') { Game.state = 'settings'; Game.settingsIndex = 0; }
+  if (PARAMS.pose === 'story') {
+    Game.startGame(false, 7);
+    Game.startStory(STAGES[0].storyIn, 'play');
+    for (var sq = 0; sq < 90; sq++) { Game.storyChars += 1; }
+  }
+  if (PARAMS.pose === 'credits') { Game.startCredits(); Game.creditsY = 150; Game.creditsT = 100; }
   if (PARAMS.pose === 'pause') { Game.state = 'paused'; Game.pauseIndex = 0; }
   if (PARAMS.pose === 'remap') { Game.state = 'remap'; Game.remapPlayer = 'p1'; Game.remapIndex = 3; }
   if (PARAMS.pose === 'leaderboard') { Game.score = 24500; Game.recordRun('EON SECURED'); }

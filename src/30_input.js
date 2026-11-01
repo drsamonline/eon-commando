@@ -24,7 +24,7 @@ var Input = {
       left: ['ArrowLeft'], right: ['ArrowRight'], up: ['ArrowUp'], down: ['ArrowDown'],
       jump: ['Space', 'KeyX', 'KeyK'], fire: ['KeyZ', 'KeyJ', 'ControlLeft', 'ControlRight'],
       dash: ['ShiftLeft', 'ShiftRight', 'KeyL'], melee: ['KeyV', 'KeyC'],
-      grenade: ['KeyG', 'KeyB'], pause: ['KeyP', 'Escape'], start: ['Enter', 'NumpadEnter'],
+      grenade: ['KeyG', 'KeyB'], power: ['KeyE', 'KeyQ'], pause: ['KeyP', 'Escape'], start: ['Enter', 'NumpadEnter'],
       start2: ['Digit2'], mute: ['KeyM'], restart: ['KeyR'], fullscreen: ['KeyF'],
       settings: ['KeyO'], daily: ['KeyD'], replay: ['KeyR']
     },
@@ -92,7 +92,7 @@ var Input = {
   MAP: {}, MAP2: {},
 
   ACTIONS: ['left', 'right', 'up', 'down', 'jump', 'fire', 'dash', 'melee', 'grenade',
-            'start', 'start2', 'pause', 'mute', 'restart', 'fullscreen', 'settings', 'daily', 'replay'],
+            'start', 'start2', 'pause', 'mute', 'restart', 'fullscreen', 'settings', 'daily', 'replay', 'power'],
 
   init: function () {
     var self = this;
@@ -218,6 +218,7 @@ var Input = {
       set.dash = !!((b[5] && b[5].pressed) || (b[7] && b[7].pressed));
       set.melee = !!(b[3] && b[3].pressed);
       set.grenade = !!(b[4] && b[4].pressed);
+      set.power = !!((b[6] && b[6].pressed) || (b[5] && b[5].pressed));
       set.start = !!((b[9] && b[9].pressed) || (b[8] && b[8].pressed));
       set.pause = !!(b[9] && b[9].pressed);
       seen++;

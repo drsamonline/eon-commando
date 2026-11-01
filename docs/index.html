@@ -8,7 +8,7 @@
 <meta name="author" content="Dr. Sohil Momin">
 <meta name="theme-color" content="#0a0c11">
 <meta property="og:title" content="Eon Commando — a run-and-gun in one HTML file">
-<meta property="og:description" content="Three eras. One commando. No mercy. 178 KB, zero dependencies, works offline.">
+<meta property="og:description" content="Six eras. One commando. No mercy. 178 KB, zero dependencies, works offline.">
 <meta property="og:type" content="website">
 <meta property="og:image" content="shots/gameplay.png">
 <link rel="icon" href="icon-192.png">
@@ -186,10 +186,10 @@
 <div class="marquee" aria-hidden="true">
   <span>
     <b>ONE HTML FILE</b> &nbsp;·&nbsp; ZERO DEPENDENCIES &nbsp;·&nbsp; WORKS OFFLINE &nbsp;·&nbsp;
-    THREE ERAS &nbsp;·&nbsp; NINE ENEMIES &nbsp;·&nbsp; THREE BOSSES &nbsp;·&nbsp; ENDLESS MODE &nbsp;·&nbsp;
+    SIX ERAS &nbsp;·&nbsp; NINE ENEMIES &nbsp;·&nbsp; THREE BOSSES &nbsp;·&nbsp; ENDLESS MODE &nbsp;·&nbsp;
     LOCAL CO-OP &nbsp;·&nbsp; CHIPTUNE &nbsp;·&nbsp; <b>NO MERCY</b> &nbsp;·&nbsp;
     ONE HTML FILE &nbsp;·&nbsp; ZERO DEPENDENCIES &nbsp;·&nbsp; WORKS OFFLINE &nbsp;·&nbsp;
-    THREE ERAS &nbsp;·&nbsp; NINE ENEMIES &nbsp;·&nbsp; THREE BOSSES &nbsp;·&nbsp; ENDLESS MODE &nbsp;·&nbsp;
+    SIX ERAS &nbsp;·&nbsp; NINE ENEMIES &nbsp;·&nbsp; THREE BOSSES &nbsp;·&nbsp; ENDLESS MODE &nbsp;·&nbsp;
     LOCAL CO-OP &nbsp;·&nbsp; CHIPTUNE &nbsp;·&nbsp; <b>NO MERCY</b> &nbsp;·&nbsp;
   </span>
 </div>
@@ -206,10 +206,10 @@
     </div>
     <h1><span class="e">Eon</span><span class="c">Commando<em>.</em></span></h1>
     <p class="tagline">
-      <b>Three eras. One commando. No mercy.</b>
-      A Contra-style run-and-gun that ships as a single self-contained HTML file — five weapons,
-      nine enemy archetypes, three bosses, endless waves, local co-op, and chiptune synthesised at
-      runtime. No install. No dependencies. No network calls.
+      <b>Six eras. One commando. No mercy.</b>
+      A Contra-style run-and-gun that ships as a single self-contained HTML file — six eras, five
+      weapons, nine enemy archetypes, three bosses, a story with in-engine cutscenes, a power
+      gauge, endless waves and local co-op. No install. No dependencies. No network calls.
     </p>
     <div class="actions">
       <a class="btn" href="demo/">▶ Play the demo</a>
@@ -228,7 +228,7 @@
       <div><b>178</b><span>KB</span></div>
       <div><b>0</b><span>DEPENDENCIES</span></div>
       <div><b>9</b><span>ENEMY TYPES</span></div>
-      <div><b>3</b><span>BOSSES</span></div>
+      <div><b>6</b><span>ERAS</span></div>
       <div><b>573</b><span>DRAW OPS/FRAME</span></div>
     </div>
   </div>
@@ -236,8 +236,8 @@
   <section id="eras">
     <div class="sec-head">
       <span class="num">01</span>
-      <h2>The campaign</h2>
-      <span class="note">THREE ERAS · FIVE CHECKPOINTS EACH</span>
+      <h2>Six eras</h2>
+      <span class="note">SIX ERAS · FIVE CHECKPOINTS EACH</span>
     </div>
     <div class="eras">
       <div class="era" data-era="1">
@@ -267,10 +267,68 @@
           <div class="meta">BOSS · THE EON HEART — ROTATING BEAMS, SPIRAL VOLLEYS</div>
         </div>
       </div>
+      <div class="era" data-era="1">
+        <div class="badge">IV</div>
+        <div class="body">
+          <h3>Sunken Relay</h3>
+          <p>A relay station that drowned mid-signal. Brutes and shielders hold the flooded
+              decks, and the message it was carrying is addressed to you.</p>
+          <div class="meta">BOSS · GLACIER WRAITH — FASTER, MORE SUMMONS</div>
+        </div>
+      </div>
+      <div class="era" data-era="2">
+        <div class="badge">V</div>
+        <div class="body">
+          <h3>Orbital Wound</h3>
+          <p>The orbit broke here and the sky is still coming down. Nothing underfoot agrees
+              on which way is down.</p>
+          <div class="meta">BOSS · EON HEART — DOUBLE BEAMS FROM THE START</div>
+        </div>
+      </div>
+      <div class="era" data-era="3">
+        <div class="badge">VI</div>
+        <div class="body">
+          <h3>The Last Second</h3>
+          <p>The end of the clock, in gold and ash. Every enemy type at once, and a Warden
+              that has already watched you win.</p>
+          <div class="meta">BOSS · THE WARDEN, REINFORCED</div>
+        </div>
+      </div>
     </div>
   </section>
 
-  <section id="modes">
+  <section id="story">
+  <div class="wrap">
+    <h2>Story and cutscenes</h2>
+    <h3 class="big">Every mission opens and closes on a line of it.</h3>
+    <p class="body">
+      Six eras, each with an intro and an outro, played in-engine &mdash; no video, no images, the
+      same renderer that draws the game draws the scene. A typewriter panel, a portrait plate and
+      a speaker: <b>CONTROL</b>, <b>YOU</b>, and the things you kill. The campaign ends on a
+      credit roll.
+    </p>
+    <div class="shot" style="margin-top:24px">
+      <div class="bar"><em></em><em></em><em></em><span>cutscene &mdash; era I, first line</span></div>
+      <img src="shots/story.png" alt="An in-engine cutscene panel: CONTROL speaking over the Ashen Dawn skyline">
+    </div>
+  </div>
+</section>
+
+<section id="power">
+  <div class="wrap">
+    <h2>Power and combo</h2>
+    <h3 class="big">Kills fill a gauge. The gauge clears the room.</h3>
+    <p class="body">
+      Every kill fills the power bar and extends the combo, and the combo multiplies both your
+      score and the rate the gauge fills. When the bar is full, <b>unleash</b> (&lt;kbd&gt;E&lt;/kbd&gt;,
+      or the &#9889; button that appears on a phone): enemy fire is wiped from the screen, everything
+      visible takes damage, you are invulnerable for nearly two seconds and your weapon fires at
+      nearly double rate.
+    </p>
+  </div>
+</section>
+
+<section id="modes">
     <div class="sec-head">
       <span class="num">02</span>
       <h2>Ways to play</h2>

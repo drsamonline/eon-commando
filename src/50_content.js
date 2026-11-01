@@ -204,3 +204,229 @@ var STAGES = [
     ]
   }
 ];
+
+
+/* ===========================================================================
+   ERAS IV–VI — the campaign doubles. New palettes, new ground, harder mixes.
+   =========================================================================== */
+STAGES.push(
+  {
+    id: 4,
+    name: 'SUNKEN RELAY',
+    tag: 'ERA IV · THE DROWNED SIGNAL',
+    length: 3000,
+    arenaStart: 2360,
+    checkpoint: 1200,
+    checkpoints: [48, 620, 1200, 1750, 2180],
+    boss: 'wraith',
+    bossHpMul: 1.25,
+    music: 'stage2',
+    seed: 5150,
+    sky: ['#04140f', '#0b2b22', '#12503c'],
+    far: '#0d2a24',
+    mid: '#081c18',
+    near: '#04100e',
+    ground: '#1a3a30',
+    groundLit: '#3f8f74',
+    groundDark: '#0b1d18',
+    accent: '#3fe0a0',
+    fog: 'rgba(63,224,160,0.06)',
+    groundSegs: [[0, 520], [560, 360], [960, 300], [1300, 380], [1720, 300], [2060, 940]],
+    platforms: [
+      { x: 210, y: 184, w: 70 }, { x: 380, y: 146, w: 66 },
+      { x: 660, y: 176, w: 88 }, { x: 830, y: 138, w: 60 },
+      { x: 1060, y: 182, w: 78 }, { x: 1200, y: 140, w: 64 },
+      { x: 1400, y: 188, w: 84 }, { x: 1560, y: 146, w: 70 },
+      { x: 1800, y: 180, w: 76 }, { x: 1960, y: 132, w: 62 },
+      { x: 2160, y: 176, w: 88 }, { x: 2300, y: 136, w: 68 }
+    ],
+    enemies: [
+      onGround('grunt', 280), onGround('runner', 420), at('turret', 400, 146 - 14),
+      at('sniper', 700, 176 - 18), onGround('shielder', 900), at('drone', 1010, 84),
+      onGround('jumper', 1120), onGround('grunt', 1250), at('swarm', 1340, 110),
+      onGround('runner', 1450), onGround('brute', 1600), at('drone', 1700, 78),
+      at('sniper', 1820, 180 - 18), onGround('shielder', 1900), onGround('grunt', 2000),
+      at('turret', 2120, 176 - 14), onGround('brute', 2200), onGround('runner', 2280),
+      at('swarm', 1980, 96)
+    ],
+    pickups: [
+      { kind: 'weapon', w: 'spread', x: 380, y: 116 },
+      { kind: 'health', x: 830, y: 108 },
+      { kind: 'weapon', w: 'flame', x: 1200, y: 110 },
+      { kind: 'coin', x: 1560, y: 116 },
+      { kind: 'weapon', w: 'machine', x: 1960, y: 102 },
+      { kind: 'health', x: 2300, y: 106 }
+    ]
+  },
+  {
+    id: 5,
+    name: 'ORBITAL WOUND',
+    tag: 'ERA V · THE BROKEN ORBIT',
+    length: 3160,
+    arenaStart: 2520,
+    checkpoint: 1260,
+    checkpoints: [48, 580, 1260, 1800, 2260],
+    boss: 'heart',
+    bossHpMul: 1.5,
+    music: 'stage3',
+    seed: 8080,
+    sky: ['#080a18', '#141a3a', '#2a2a6b'],
+    far: '#1a1d45',
+    mid: '#0f1230',
+    near: '#080a1c',
+    ground: '#22244e',
+    groundLit: '#5b5fbd',
+    groundDark: '#101128',
+    accent: '#8a7bff',
+    fog: 'rgba(138,123,255,0.07)',
+    groundSegs: [[0, 480], [520, 340], [900, 280], [1220, 360], [1620, 300], [1960, 260], [2260, 900]],
+    platforms: [
+      { x: 180, y: 182, w: 72 }, { x: 340, y: 140, w: 60 },
+      { x: 600, y: 174, w: 80 }, { x: 760, y: 132, w: 62 },
+      { x: 980, y: 186, w: 74 }, { x: 1130, y: 142, w: 66 },
+      { x: 1300, y: 180, w: 86 }, { x: 1470, y: 136, w: 60 },
+      { x: 1700, y: 178, w: 78 }, { x: 1860, y: 130, w: 64 },
+      { x: 2060, y: 184, w: 82 }, { x: 2220, y: 138, w: 70 },
+      { x: 2400, y: 176, w: 76 }
+    ],
+    enemies: [
+      onGround('grunt', 260), at('sniper', 360, 140 - 18), onGround('runner', 440),
+      onGround('shielder', 620), at('drone', 720, 86), onGround('brute', 820),
+      at('swarm', 960, 108), onGround('jumper', 1040), at('turret', 1150, 142 - 14),
+      onGround('grunt', 1300), at('sniper', 1480, 136 - 18), onGround('runner', 1560),
+      onGround('shielder', 1700), at('drone', 1800, 74), onGround('brute', 1900),
+      at('swarm', 2040, 96), onGround('grunt', 2120), at('turret', 2240, 138 - 14),
+      onGround('jumper', 2320), onGround('runner', 2420)
+    ],
+    pickups: [
+      { kind: 'weapon', w: 'laser', x: 340, y: 110 },
+      { kind: 'health', x: 760, y: 102 },
+      { kind: 'weapon', w: 'spread', x: 1130, y: 112 },
+      { kind: 'coin', x: 1470, y: 106 },
+      { kind: 'weapon', w: 'flame', x: 1860, y: 100 },
+      { kind: 'health', x: 2220, y: 108 }
+    ]
+  },
+  {
+    id: 6,
+    name: 'THE LAST SECOND',
+    tag: 'ERA VI · WHERE TIME ENDS',
+    length: 3040,
+    arenaStart: 2400,
+    checkpoint: 1220,
+    checkpoints: [48, 600, 1220, 1760, 2200],
+    boss: 'warden',
+    bossHpMul: 1.9,
+    music: 'boss',
+    seed: 12001,
+    sky: ['#0a0a0a', '#2a2418', '#6b5320'],
+    far: '#241d12',
+    mid: '#171208',
+    near: '#0b0906',
+    ground: '#2e2414',
+    groundLit: '#b08a3a',
+    groundDark: '#140f08',
+    accent: '#ffd257',
+    fog: 'rgba(255,210,87,0.06)',
+    groundSegs: [[0, 500], [540, 320], [920, 300], [1280, 340], [1680, 300], [2040, 1000]],
+    platforms: [
+      { x: 200, y: 180, w: 68 }, { x: 360, y: 138, w: 58 },
+      { x: 620, y: 176, w: 76 }, { x: 780, y: 134, w: 60 },
+      { x: 1000, y: 184, w: 72 }, { x: 1160, y: 140, w: 62 },
+      { x: 1340, y: 178, w: 84 }, { x: 1500, y: 134, w: 58 },
+      { x: 1740, y: 176, w: 76 }, { x: 1900, y: 128, w: 62 },
+      { x: 2100, y: 182, w: 80 }, { x: 2260, y: 136, w: 66 }
+    ],
+    enemies: [
+      onGround('shielder', 260), at('sniper', 380, 138 - 18), onGround('brute', 470),
+      onGround('runner', 640), at('drone', 760, 80), at('swarm', 860, 104),
+      onGround('grunt', 1000), onGround('brute', 1120), at('turret', 1180, 140 - 14),
+      onGround('shielder', 1360), at('sniper', 1520, 134 - 18), onGround('jumper', 1600),
+      at('swarm', 1720, 92), onGround('brute', 1800), at('drone', 1900, 72),
+      onGround('shielder', 2020), onGround('grunt', 2120), at('turret', 2280, 136 - 14),
+      onGround('runner', 2340)
+    ],
+    pickups: [
+      { kind: 'weapon', w: 'machine', x: 360, y: 108 },
+      { kind: 'health', x: 780, y: 104 },
+      { kind: 'weapon', w: 'laser', x: 1160, y: 110 },
+      { kind: 'coin', x: 1500, y: 104 },
+      { kind: 'weapon', w: 'spread', x: 1900, y: 98 },
+      { kind: 'health', x: 2260, y: 106 }
+    ]
+  }
+);
+
+/* ===========================================================================
+   STORY — every mission opens and closes on a line of it.
+   =========================================================================== */
+var STORY = {
+  1: {
+    intro: [
+      { who: 'CONTROL', text: 'COMMANDO. THE EON HAS TAKEN THE FIRST ERA.' },
+      { who: 'CONTROL', text: 'ASHEN DAWN IS BURNING FROM THE INSIDE OUT.' },
+      { who: 'YOU', text: 'THEN I GO IN WHILE IT IS STILL STANDING.' }
+    ],
+    outro: [
+      { who: 'WARDEN', text: 'YOU CUT ONE THREAD. THERE ARE SIX.' },
+      { who: 'CONTROL', text: 'ERA ONE HOLDS. THE SIGNAL PULLS US DEEPER.' }
+    ]
+  },
+  2: {
+    intro: [
+      { who: 'CONTROL', text: 'GLACIER EON. EVERYTHING HERE STOPPED AT ONCE.' },
+      { who: 'CONTROL', text: 'SOMETHING IS STILL MOVING UNDER THE ICE.' }
+    ],
+    outro: [
+      { who: 'CONTROL', text: 'THE WRAITH IS DOWN. THE COLD DOES NOT LIFT.' },
+      { who: 'YOU', text: 'IT IS NOT COLD. IT IS WAITING.' }
+    ]
+  },
+  3: {
+    intro: [
+      { who: 'CONTROL', text: 'THE CORE. THIS IS WHERE THE EON KEEPS ITS HEART.' },
+      { who: 'CONTROL', text: 'IT KNOWS YOU ARE COMING. IT IS ALREADY AWAKE.' }
+    ],
+    outro: [
+      { who: 'EON HEART', text: 'YOU HAVE NOT WON. YOU HAVE ONLY COME CLOSER.' },
+      { who: 'CONTROL', text: 'THREE ERAS HELD. THE PULL GOES ON.' }
+    ]
+  },
+  4: {
+    intro: [
+      { who: 'CONTROL', text: 'ERA FOUR. A RELAY THAT DROWNED MID-SIGNAL.' },
+      { who: 'YOU', text: 'WHO WAS IT TALKING TO?' },
+      { who: 'CONTROL', text: 'US. FORTY YEARS FROM NOW.' }
+    ],
+    outro: [
+      { who: 'CONTROL', text: 'THE RELAY IS QUIET. THE MESSAGE IS NOT.' },
+      { who: 'CONTROL', text: 'IT SAYS: DO NOT LET IT REACH THE LAST SECOND.' }
+    ]
+  },
+  5: {
+    intro: [
+      { who: 'CONTROL', text: 'THE ORBIT BROKE HERE. THE SKY IS STILL FALLING.' },
+      { who: 'CONTROL', text: 'NO GROUND UNDER YOU THAT TIME AGREES ON.' }
+    ],
+    outro: [
+      { who: 'EON HEART', text: 'EVERY ERA YOU SAVE IS ONE I HAVE ALREADY SPENT.' },
+      { who: 'YOU', text: 'THEN I WILL COME AND TAKE THEM BACK.' }
+    ]
+  },
+  6: {
+    intro: [
+      { who: 'CONTROL', text: 'LAST SECOND. THE END OF THE CLOCK.' },
+      { who: 'CONTROL', text: 'WHATEVER YOU DO HERE, IT HAS ALREADY HAPPENED.' },
+      { who: 'YOU', text: 'THEN LET IT HAPPEN TO THEM.' }
+    ],
+    outro: [
+      { who: 'CONTROL', text: 'ALL SIX ERAS HELD. THE EON IS CLOSED.' },
+      { who: 'CONTROL', text: 'COMMANDO — COME HOME.' }
+    ]
+  }
+};
+
+STAGES.forEach(function (st) {
+  var s = STORY[st.id];
+  if (s) { st.storyIn = s.intro; st.storyOut = s.outro; }
+});

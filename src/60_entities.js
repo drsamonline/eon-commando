@@ -132,7 +132,12 @@ function autoTarget(p) {
       var d2 = dx * dx + dy * dy;
       if (d2 > 210 * 210 || d2 > bestD) continue;
       var a = Math.atan2(dy, dx);
-      if (Math.abs(angDiff(a, p.aimAngle)) > 0.55) continue;   /* ~31 deg, matching 8-way aim */
+      if (SET.autoFire) {
+        /* no manual vertical aim: accept anything on the facing side */
+        if (dx * p.facing < -12) continue;
+      } else if (Math.abs(angDiff(a, p.aimAngle)) > 0.55) {
+        continue;   /* ~31 deg, matching 8-way aim */
+      }
       bestD = d2;
       best = { angle: a, target: e };
     }
@@ -213,7 +218,8 @@ function playerUpdate(p) {
 
   /* jump with coyote time + input buffering + variable height */
   if (p.onGround) p.coyote = PHYS.coyote; else if (p.coyote > 0) p.coyote--;
-  if (ctl.pressed('jump')) p.jumpBuffer = PHYS.buffer; else if (p.jumpBuffer > 0) p.jumpBuffer--;
+  if (ctl.pressed('jump') || (SET.autoFire && ctl.pressed('up'))) p.jumpBuffer = PHYS.buffer;
+  else if (p.jumpBuffer > 0) p.jumpBuffer--;
 
   if (p.jumpBuffer > 0 && p.coyote > 0) {
     p.vy = PHYS.jumpV;
@@ -224,7 +230,7 @@ function playerUpdate(p) {
     Snd.sfx('jump');
     puff(p.x + p.w / 2, p.y + p.h, 5, '#c8d6e2');
   }
-  if (p.jumpHeld && !ctl.held('jump') && p.vy < PHYS.jumpCut) {
+  if (p.jumpHeld && !(ctl.held('jump') || (SET.autoFire && ctl.held('up'))) && p.vy < PHYS.jumpCut) {
     p.vy = PHYS.jumpCut;
     p.jumpHeld = false;
   }
@@ -350,7 +356,7 @@ function playerUpdate(p) {
 function fireWeapon(p, angleOverride) {
   var w = WEAPONS[p.weapon];
   var base = (angleOverride === undefined || angleOverride === null) ? p.aimAngle : angleOverride;
-  p.cd = w.cd;
+  p.cd = Game.fury > 0 ? Math.max(2, Math.round(w.cd * 0.45)) : w.cd;
   p.muzzle = 4;
   Snd.sfx(w.sfx);
   var ox = p.x + p.w / 2 + Math.cos(base) * 9;
@@ -605,7 +611,10 @@ function damageEnemy(e, dmg, knock) {
   if (e.hp <= 0 && !e.dead) {
     e.dead = true;
     var def = ENEMIES[e.t];
-    var gained = Math.round(def.score * (Game.scoreMul || 1));
+    Game.combo++;
+    Game.comboT = 160;
+    Game.power = Math.min(100, Game.power + 8 + Math.min(Game.combo, 12));
+    var gained = Math.round(def.score * (Game.scoreMul || 1) * (1 + Math.min(Game.combo, 20) * 0.05));
     Game.score += gained;
     floatText(e.x, e.y - 6, '+' + gained, '#ffd257');
     explosion(e.x + e.w / 2, e.y + e.h / 2, 1);

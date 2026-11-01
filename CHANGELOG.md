@@ -2,6 +2,34 @@
 
 All notable changes to Eon Commando.
 
+## [4.0.0] — 2026-11-01
+
+Six eras, story cutscenes, power gauge and combo.
+
+### Added
+- **Eras IV–VI**: Sunken Relay, Orbital Wound, The Last Second — new palettes, ground layouts,
+  platform sets and enemy mixes, with bosses at 1.25×, 1.5× and 1.9× health.
+- **Story system**: every stage has an intro and an outro, played as in-engine cutscenes —
+  a typewriter panel with a portrait plate and a speaker. No assets; the game renderer draws it.
+- **Credits roll** after the final outro, scrolling in-engine.
+- **Power gauge**: kills fill it (8 + combo, capped). At 100, **unleash** wipes enemy bullets,
+  damages every enemy on screen (25) and the boss (40), grants ~1.8 s invulnerability and
+  cuts weapon cooldown to 45%.
+- **Combo**: every kill extends it; it multiplies score by up to 2× and speeds gauge gain.
+  Decays after 160 frames without a kill.
+- Power bound to `E`/`Q`, gamepad Y/LB, and a ⚡ touch button that appears when the gauge is full.
+
+### Changed
+- **Controls rebuilt around auto-fire**: up is jump, down is duck, the fire button is removed
+  from the touch pad, and aim is fully automatic. With auto-fire off, up/down aim as before.
+- Auto-fire target search widens to the whole facing side when aiming is automatic.
+
+### Fixed
+- The touch-pad markup had drifted from the CSS; the fire button now hides correctly in
+  auto-fire mode and the power button appears only when ready.
+- Credits lines drew past the bottom edge and overlapped.
+- The screenshot harness left an intro cutscene on screen when jumping to a stage.
+
 ## [3.1.0] — 2026-11-01
 
 Distribution release: binaries, a redesigned site, a separate demo.

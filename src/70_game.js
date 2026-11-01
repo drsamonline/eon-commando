@@ -28,6 +28,9 @@ var Game = {
   titleIndex: 0,
   mode: 'campaign',
   wave: 0, waveTimer: 0, waveActive: false, scoreMul: 1,
+  power: 0, combo: 0, comboT: 0, fury: 0,
+  story: null, storyAfter: null, storyIndex: 0, storyChars: 0, storyT: 0,
+  creditsY: 0, creditsT: 0,
   lastEntry: null,
   floaters: [],
   pending: [],
@@ -79,6 +82,7 @@ var Game = {
     Snd.sfx('start');
     this.loadStage(0);
     this.state = 'playing';
+    if (this.stage.storyIn && this.stage.storyIn.length) this.startStory(this.stage.storyIn, 'play');
   },
 
   loadStage: function (i) {
@@ -187,8 +191,6 @@ var Game = {
       this.banner = { text: 'WAVE CLEAR', sub: 'KEEP GOING', life: 90, color: '#54ffa8' };
       return;
     }
-    this.state = 'stageclear';
-    this.stateTimer = 0;
     var bonus = 1500 + this.player.hp * 250 + this.lives * 500;
     this.lastRun = {
       stage: this.stage.name,
@@ -199,6 +201,14 @@ var Game = {
     this.score += bonus;
     Snd.sfx('stageClear');
     Snd.stopMusic();
+
+    var lastStage = this.stageIndex >= STAGES.length - 1;
+    if (this.stage.storyOut && this.stage.storyOut.length) {
+      this.startStory(this.stage.storyOut, lastStage ? 'victory' : 'stageclear');
+    } else {
+      this.state = 'stageclear';
+      this.stateTimer = 0;
+    }
   },
 
   gameOver: function () {
@@ -330,6 +340,10 @@ var Game = {
     Stats.bump('time', Math.round(this.frames / 60));
   },
 
+  victoryToCredits: function () {
+    this.startCredits();
+  },
+
   victory: function () {
     this.state = 'victory';
     this.stateTimer = 0;
@@ -389,6 +403,12 @@ var Game = {
       case 'remap':
         this.updateRemap();
         break;
+      case 'story':
+        this.updateStory();
+        break;
+      case 'credits':
+        this.updateCredits();
+        break;
       case 'stageclear':
         this.updateStageClear();
         break;
@@ -396,8 +416,9 @@ var Game = {
       case 'victory':
         this.stateTimer++;
         this.updateParticles();
-        if (this.stateTimer > 60 && (Input.pressed('start') || Input.pressed('restart'))) {
-          this.startGame();
+        if (this.stateTimer > 60 && (Input.pressed('start') || Input.pressed('restart') ||
+                                     Input.pressed('fire') || Input.pressed('jump'))) {
+          this.startCredits();
         }
         break;
     }
@@ -437,6 +458,88 @@ var Game = {
     if (Input.pressed('start2')) { this.startGame(true); return; }
     if (Input.pressed('daily')) { this.startGame(this.coop, Daily.seed()); this.dailyRun = true; return; }
     if (Input.pressed('replay') && Rec.has()) { this.startReplay(Rec.load()); return; }
+  },
+
+  /* ---- the power gauge ------------------------------------------------ */
+  canUnleash: function () { return this.power >= 100 && this.fury <= 0 && !this.replayMode; },
+
+  unleash: function () {
+    if (!this.canUnleash()) return false;
+    this.power = 0;
+    this.combo = 0;
+    this.comboT = 0;
+    this.fury = 110;
+    this.flash = 1;
+    this.shake = Math.max(this.shake, 9);
+    Snd.sfx('bossWarn');
+
+    var i;
+    /* wipe enemy fire and stagger everything on screen */
+    for (i = 0; i < this.bullets.length; i++) {
+      if (!this.bullets[i].friendly) { burst(this.bullets[i].x, this.bullets[i].y, 4, scheme().hostileGlow); this.bullets[i].dead = true; }
+    }
+    for (i = 0; i < this.enemies.length; i++) {
+      var e = this.enemies[i];
+      if (!e.dead) { damageEnemy(e, 25, (e.x < (this.player.x)) ? 1 : -1); }
+    }
+    if (this.boss && !this.boss.dead) damageBoss(this.boss, 40);
+    for (i = 0; i < this.players.length; i++) this.players[i].invuln = Math.max(this.players[i].invuln, 110);
+    floatText(this.player.x + 6, this.player.y - 16, 'UNLEASHED', '#ffd257');
+    return true;
+  },
+
+  /* ---- story beats ---------------------------------------------------- */
+  startStory: function (lines, after) {
+    if (!lines || !lines.length) { this.story = null; this.state = after === 'credits' ? 'credits' : (after || 'playing'); return; }
+    this.story = lines.slice();
+    this.storyAfter = after || 'playing';
+    this.storyIndex = 0;
+    this.storyChars = 0;
+    this.storyT = 0;
+    this.state = 'story';
+  },
+
+  storyAdvance: function () {
+    var line = this.story && this.story[this.storyIndex];
+    if (!line) { this.finishStory(); return; }
+    if (this.storyChars < line.text.length) { this.storyChars = line.text.length; return; }
+    this.storyIndex++;
+    this.storyChars = 0;
+    if (this.storyIndex >= this.story.length) this.finishStory();
+  },
+
+  finishStory: function () {
+    var after = this.storyAfter;
+    this.story = null;
+    if (after === 'credits') { this.startCredits(); return; }
+    if (after === 'victory') { this.state = 'victory'; this.stateTimer = 0; return; }
+    if (after === 'stageclear') { this.state = 'stageclear'; this.stateTimer = 0; return; }
+    this.state = 'playing';
+  },
+
+  updateStory: function () {
+    this.storyT++;
+    var line = this.story && this.story[this.storyIndex];
+    if (line) this.storyChars = Math.min(line.text.length, this.storyChars + 1.1);
+    if (Input.pressed('start') || Input.pressed('jump') || Input.pressed('fire') ||
+        Input.pressed('pause') || Input.pressed('power')) {
+      this.storyAdvance();
+    }
+  },
+
+  startCredits: function () {
+    this.state = 'credits';
+    this.creditsY = 0;
+    this.creditsT = 0;
+    Snd.playMusic(TRACKS.title);
+  },
+
+  updateCredits: function () {
+    this.creditsT++;
+    this.creditsY += 0.42;
+    if (this.creditsT > 90 && (Input.pressed('start') || Input.pressed('jump') || Input.pressed('fire'))) {
+      this.state = 'title'; this.stateTimer = 0; Snd.stopMusic();
+    }
   },
 
   pauseRows: function () {
@@ -514,6 +617,11 @@ var Game = {
       }
       return;
     }
+    if (this.state === 'story') { this.storyAdvance(); return; }
+    if (this.state === 'credits') {
+      if (this.creditsT > 90) { this.state = 'title'; this.stateTimer = 0; Snd.stopMusic(); }
+      return;
+    }
     if (this.state === 'gameover' || this.state === 'victory') {
       this.stateTimer = 999;
       this.startGame(this.coop);
@@ -531,7 +639,7 @@ var Game = {
     else if (i === 4) SET.hudScale = clamp(Math.round((SET.hudScale + dir * 0.15) * 100) / 100, 0.85, 1.3);
     else if (i === 5) SET.music = clamp(Math.round((SET.music + dir * 0.2) * 100) / 100, 0, 1);
     else if (i === 6) SET.sfx = clamp(Math.round((SET.sfx + dir * 0.2) * 100) / 100, 0, 1);
-    else if (i === 7) SET.autoFire = SET.autoFire ? 0 : 1;
+    else if (i === 7) { SET.autoFire = SET.autoFire ? 0 : 1; if (typeof applyAutoLayout === 'function') applyAutoLayout(); }
     saveSettings();
     Snd.applyVolumes();
     Snd.sfx('coin');
@@ -575,7 +683,7 @@ var Game = {
       else if (i === 4) SET.hudScale = clamp(Math.round((SET.hudScale + dir * 0.15) * 100) / 100, 0.85, 1.3);
       else if (i === 5) SET.music = clamp(Math.round((SET.music + dir * 0.2) * 100) / 100, 0, 1);
       else if (i === 6) SET.sfx = clamp(Math.round((SET.sfx + dir * 0.2) * 100) / 100, 0, 1);
-      else if (i === 7) SET.autoFire = SET.autoFire ? 0 : 1;
+      else if (i === 7) { SET.autoFire = SET.autoFire ? 0 : 1; if (typeof applyAutoLayout === 'function') applyAutoLayout(); }
       saveSettings();
       Snd.applyVolumes();
       Snd.sfx('coin');
@@ -596,6 +704,11 @@ var Game = {
     this.stageTime++;
 
     var p = this.player;
+
+    /* the gauge and the combo decay */
+    if (this.comboT > 0) { this.comboT--; if (this.comboT === 0) this.combo = 0; }
+    if (this.fury > 0) this.fury--;
+    if (Input.pressed('power')) this.unleash();
 
     /* Hit-stop freezes the world for a few frames so impacts land — but the
        commando keeps running, otherwise a press during the freeze is swallowed. */
@@ -753,8 +866,10 @@ var Game = {
     this.updateParticles();
     if (this.stateTimer > 160) {
       if (this.stageIndex + 1 < STAGES.length) {
-        this.loadStage(this.stageIndex + 1);
+        this.stageIndex++;
+        this.loadStage(this.stageIndex);
         this.state = 'playing';
+        if (this.stage.storyIn && this.stage.storyIn.length) this.startStory(this.stage.storyIn, 'play');
       } else {
         this.victory();
       }

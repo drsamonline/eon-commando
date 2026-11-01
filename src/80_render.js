@@ -741,6 +741,27 @@ function drawHUD(g) {
     for (var t = 1; t < 10; t++) px(g, bx + (bw / 10) * t, by, 1, 6, 'rgba(0,0,0,0.4)');
   }
 
+  /* power gauge + combo */
+  if (Game.state === 'playing') {
+    g.save();
+    g.scale(k, k);
+    var gy = 52;
+    var gw = 62;
+    px(g, 7, gy, gw, 4, '#12202e');
+    var fill = Math.round(gw * clamp(Game.power, 0, 100) / 100);
+    px(g, 7, gy, fill, 4, Game.power >= 100 ? '#ffd257' : '#54e0ff');
+    px(g, 7, gy, gw, 1, 'rgba(255,255,255,0.18)');
+    if (Game.power >= 100) {
+      if (Math.floor(Game.time / 12) % 2 === 0) drawText(g, 'UNLEASH ' + (SET.autoFire ? '' : 'E'), 7, gy + 7, 1, '#ffd257');
+    } else {
+      drawText(g, 'POWER', 7, gy + 7, 1, '#3f5d6b');
+    }
+    if (Game.combo > 1) {
+      drawText(g, 'x' + Game.combo, 7 + gw + 6, gy - 1, 1, Game.comboT > 40 ? '#ffb545' : '#7f8fa6');
+    }
+    g.restore();
+  }
+
   /* endless wave readout */
   if (Game.mode === 'endless') {
     g.save();
@@ -934,6 +955,133 @@ function drawRemap(g) {
   drawText(g, 'LEFT/RIGHT SWITCH PLAYER   P BACK', W / 2, H - 19, 1, '#54637a', 'center');
 }
 
+/* ---- story panel -------------------------------------------------------- */
+function wrapText(str, max) {
+  var words = String(str).split(' '), lines = [], cur = '';
+  for (var i = 0; i < words.length; i++) {
+    var t = cur ? cur + ' ' + words[i] : words[i];
+    if (t.length > max) { if (cur) lines.push(cur); cur = words[i]; }
+    else cur = t;
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+function drawStory(g) {
+  var st = Game.story;
+  if (!st || !st[Game.storyIndex]) return;
+  var line = st[Game.storyIndex];
+  var narrow = W < 380;
+
+  dim(g, 0.82);
+
+  var padX = narrow ? 12 : 34;
+  var boxH = narrow ? 112 : 100;
+  var boxY = H - boxH - (narrow ? 10 : 16);
+  var boxW = W - padX * 2;
+
+  px(g, padX, boxY, boxW, boxH, 'rgba(6,9,14,0.94)');
+  g.strokeStyle = '#22344a';
+  g.lineWidth = 1;
+  g.strokeRect(padX + 0.5, boxY + 0.5, boxW - 1, boxH - 1);
+  px(g, padX, boxY, boxW, 2, line.who === 'YOU' ? '#54e0ff' : '#ff2d95');
+
+  /* portrait plate */
+  var pw = narrow ? 34 : 44;
+  px(g, padX + 8, boxY + 12, pw, pw, '#0b1220');
+  g.strokeStyle = '#1b2839';
+  g.strokeRect(padX + 8.5, boxY + 12.5, pw - 1, pw - 1);
+  if (line.who === 'YOU') {
+    var ghost = { x: padX + 8 + pw / 2 - 6, y: boxY + 14, w: 12, h: 22, facing: 1, aimAngle: 0,
+                  onGround: true, ducking: false, runPhase: 0, invuln: 0, hurtFlash: 0, vx: 0 };
+    g.save();
+    g.translate(0, 6);
+    drawPlayer(g, ghost);
+    g.restore();
+  } else {
+    g.fillStyle = line.who === 'CONTROL' ? '#54e0ff' : '#ff2d95';
+    g.beginPath();
+    var cx0 = padX + 8 + pw / 2, cy0 = boxY + 12 + pw / 2;
+    g.moveTo(cx0, cy0 - pw * 0.3);
+    g.lineTo(cx0 + pw * 0.3, cy0);
+    g.lineTo(cx0, cy0 + pw * 0.3);
+    g.lineTo(cx0 - pw * 0.3, cy0);
+    g.closePath();
+    g.fill();
+  }
+
+  var tx = padX + pw + 20;
+  drawText(g, line.who, tx, boxY + 12, 1, line.who === 'YOU' ? '#54e0ff' : '#ff2d95');
+
+  var lines = wrapText(line.text, narrow ? 26 : 44);
+  var budget = Math.floor(Game.storyChars);
+  var ty = boxY + 30;
+  for (var i = 0; i < lines.length && i < 4; i++) {
+    var l = lines[i];
+    var part = l.length <= budget ? l : l.slice(0, Math.max(0, budget));
+    budget -= l.length + 1;
+    if (part.length) drawText(g, part, tx, ty, 1, '#e6edf5');
+    ty += 12;
+  }
+
+  if (Game.storyChars >= line.text.length && Math.floor(Game.time / 20) % 2 === 0) {
+    drawText(g, narrow ? 'TAP TO CONTINUE' : 'ENTER / TAP', W - padX - 10, boxY + boxH - 14, 1, '#54637a', 'right');
+  }
+  drawText(g, (Game.storyIndex + 1) + '/' + st.length, padX + 10, boxY + boxH - 14, 1, '#38465a');
+}
+
+/* ---- credits ------------------------------------------------------------ */
+var CREDIT_LINES = [
+  'EON COMMANDO',
+  '',
+  'A RUN-AND-GUN IN ONE HTML FILE',
+  '',
+  '',
+  'DESIGN AND CODE',
+  'DR SOHIL MOMIN',
+  '',
+  'ART',
+  'DRAWN AT RUNTIME FROM PATHS',
+  'NO IMAGE FILES',
+  '',
+  'AUDIO',
+  'TWO PULSE LEADS, A TRIANGLE BASS',
+  'AND A NOISE KIT, SYNTHESISED LIVE',
+  '',
+  'ENGINEERING',
+  'FIXED 60 HZ STEP',
+  'SEEDED DETERMINISTIC SIMULATION',
+  '573 DRAW CALLS PER FRAME',
+  '',
+  'TESTING',
+  'HEADLESS CHROMIUM HARNESS',
+  'PIXEL DIFFS, REPLAY VERIFICATION',
+  '',
+  '',
+  'THANK YOU FOR PLAYING',
+  '',
+  'POLYFORM NONCOMMERCIAL 1.0.0',
+  '',
+  'DRSAMONLINE.GITHUB.IO'
+];
+
+function drawCredits(g) {
+  px(g, 0, 0, W, H, '#05070d');
+  var narrow = W < 380;
+  var y = H - Game.creditsY;
+  for (var i = 0; i < CREDIT_LINES.length; i++) {
+    var line = CREDIT_LINES[i];
+    var ly = y + i * (narrow ? 12 : 14);
+    if (ly > -12 && ly < H - 12 && line.length) {
+      var big = (i === 0);
+      drawText(g, line, W / 2, ly, big ? 3 : 1,
+               big ? '#ffb545' : (line === line.toUpperCase() && line.length > 2 && i % 2 === 0 ? '#54e0ff' : '#9fb2c6'),
+               'center');
+    }
+  }
+  drawText(g, 'ENTER TO RETURN', W / 2, H - 12, 1, '#38465a', 'center');
+}
+
 function drawStageClear(g) {
   dim(g, 0.6);
   var t = Game.stateTimer;
@@ -1025,7 +1173,7 @@ function Render(g) {
     drawWorld(g);
     g.restore();
     if (Game.state === 'playing' || Game.state === 'stageclear' ||
-        Game.state === 'gameover' || Game.state === 'victory') {
+        Game.state === 'gameover' || Game.state === 'victory' || Game.state === 'story') {
       g.save();
       g.translate(0, Y0);
       drawHUD(g);
@@ -1037,6 +1185,8 @@ function Render(g) {
     if (Game.state === 'paused') drawPause(g);
     else if (Game.state === 'settings') drawSettings(g);
     else if (Game.state === 'remap') drawRemap(g);
+    else if (Game.state === 'story') drawStory(g);
+    else if (Game.state === 'credits') drawCredits(g);
     else if (Game.state === 'stageclear') drawStageClear(g);
     else if (Game.state === 'gameover') drawGameOver(g);
     else if (Game.state === 'victory') drawVictory(g);

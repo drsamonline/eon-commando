@@ -4,6 +4,12 @@
    capture the screenshots in docs/.
    =========================================================================== */
 
+/* auto-fire changes the touch layout: up becomes jump, down becomes duck,
+   and the fire button disappears */
+function applyAutoLayout() {
+  document.body.classList.toggle('auto', !!SET.autoFire);
+}
+
 var canvas, ctx;
 var _last = 0, _acc = 0;
 
@@ -47,6 +53,7 @@ function boot() {
 
   Snd.setMuted(!!Store.get('muted', false));
   Game.init();
+  applyAutoLayout();
 
   canvas.addEventListener('pointerdown', function (e) {
     e.preventDefault();
@@ -118,6 +125,9 @@ function loop(now) {
     steps++;
   }
 
+  var pw = document.getElementById('btnPower');
+  if (pw) pw.classList.toggle('ready', Game.canUnleash && Game.canUnleash());
+
   var t0 = performance.now();
   Render(ctx);
   var t1 = performance.now();
@@ -180,6 +190,9 @@ function runDemo(n) {
   if (PARAMS.stage) {
     var idx = clamp(parseInt(PARAMS.stage, 10) - 1, 0, STAGES.length - 1);
     Game.loadStage(idx);
+    /* screenshots want gameplay, not the intro panel */
+    Game.story = null;
+    Game.state = 'playing';
   }
   if (PARAMS.warp) {
     Game.player.x = parseFloat(PARAMS.warp);
@@ -237,6 +250,12 @@ function runDemo(n) {
   }
 
   if (PARAMS.pose === 'settings') { Game.state = 'settings'; Game.settingsIndex = 0; }
+  if (PARAMS.pose === 'story') {
+    Game.startGame(false, 7);
+    Game.startStory(STAGES[0].storyIn, 'play');
+    for (var sq = 0; sq < 90; sq++) { Game.storyChars += 1; }
+  }
+  if (PARAMS.pose === 'credits') { Game.startCredits(); Game.creditsY = 150; Game.creditsT = 100; }
   if (PARAMS.pose === 'pause') { Game.state = 'paused'; Game.pauseIndex = 0; }
   if (PARAMS.pose === 'remap') { Game.state = 'remap'; Game.remapPlayer = 'p1'; Game.remapIndex = 3; }
   if (PARAMS.pose === 'leaderboard') { Game.score = 24500; Game.recordRun('EON SECURED'); }

@@ -67,6 +67,7 @@
   #padR [data-k="melee"]{grid-area:1/1}
   #padR [data-k="dash"]{grid-area:1/2}
   #padR [data-k="grenade"]{grid-area:1/3}
+  #padR [data-k="power"]{grid-area:2/2}
   #padR button.sm{font-size:12px; opacity:.82}
   .pad button{
     width:100%; height:100%; padding:0; color:#cfd8e3; font:16px ui-monospace,monospace;
@@ -96,6 +97,16 @@
   body.shot canvas{border:0;border-radius:0;box-shadow:none}
   body.shot #stage{filter:none}
   @media (max-height:520px){ #hint{display:none} }
+
+  /* ---- auto-fire touch layout -------------------------------------------
+     With the gun firing itself, up/down stop being aim controls: up becomes
+     jump, down becomes duck, and the fire button has no job. */
+  body.auto #padR [data-k="fire"]{ display:none }
+  body.auto #padL [data-k="up"]{ background:rgba(84,224,255,.18); border-color:#2f6f8f }
+  body.auto #padL [data-k="down"]{ background:rgba(255,181,69,.16); border-color:#7a5a2a }
+  #padR [data-k="power"]{ display:none; background:rgba(255,210,87,.20); border-color:#8a6a22; color:#ffd257; font-size:15px }
+  body.auto #padR [data-k="power"].ready{ display:block; animation:pulse 1.1s ease-in-out infinite }
+  @keyframes pulse{ 50%{ box-shadow:0 0 0 7px rgba(255,210,87,.16) } }
 </style>
 </head>
 <body>
@@ -113,8 +124,9 @@
     <button data-k="grenade" class="sm" aria-label="Grenade">G</button>
     <button data-k="dash" class="sm" aria-label="Dash">&#187;</button>
     <button data-k="melee" class="sm" aria-label="Melee">M</button>
-    <button data-k="fire" aria-label="Fire">B</button>
+    <button data-k="fire" id="btnFire" aria-label="Fire">B</button>
     <button data-k="jump" aria-label="Jump">A</button>
+    <button data-k="power" id="btnPower" aria-label="Unleash">&#9889;</button>
   </div>
 </div>
 <button id="btnPause" aria-label="Pause">❙❙</button>
