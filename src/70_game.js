@@ -404,6 +404,9 @@ var Game = {
       case 'remap':
         this.updateRemap();
         break;
+      case 'pads':
+        if (Input.pressed('pause') || Input.pressed('start')) closePadEditor();
+        break;
       case 'story':
         this.updateStory();
         break;
@@ -597,6 +600,7 @@ var Game = {
         if (my >= r.y0 && my <= r.y1) {
           this.settingsIndex = r.i;
           if (r.i === 8) { this.state = 'remap'; this.remapIndex = 0; Snd.sfx('select'); return; }
+          if (r.i === 9) { openPadEditor(); return; }
           /* tap the right half to increase, the left half to decrease */
           var dir = (mx > W / 2) ? 1 : -1;
           this.nudgeSetting(r.i, dir);
@@ -671,7 +675,7 @@ var Game = {
   },
 
   updateSettings: function () {
-    var rows = 9;
+    var rows = 10;
     if (Input.pressed('up')) { this.settingsIndex = (this.settingsIndex + rows - 1) % rows; Snd.sfx('select'); }
     if (Input.pressed('down')) { this.settingsIndex = (this.settingsIndex + 1) % rows; Snd.sfx('select'); }
     var dir = (Input.pressed('right') ? 1 : 0) - (Input.pressed('left') ? 1 : 0);
@@ -693,6 +697,10 @@ var Game = {
       this.state = 'remap';
       this.remapIndex = 0;
       Snd.sfx('select');
+      return;
+    }
+    if (this.settingsIndex === 9 && Input.pressed('start')) {
+      openPadEditor();
       return;
     }
     if (Input.pressed('pause') || Input.pressed('start') || Input.pressed('settings')) {

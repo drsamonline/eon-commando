@@ -2,6 +2,22 @@
 
 All notable changes to Eon Commando.
 
+## [4.3.0] — 2026-11-01
+
+The pad layout editor.
+
+### Added
+- **Settings → Pads**: an editor overlay where both control clusters are outlined and draggable.
+  `−`/`+` resize them (0.7×–1.5×), `RESET` restores defaults, `DONE` saves.
+- Positions persist as **percentages of the viewport**, so they survive rotation, resize and
+  mobile browser chrome.
+- `SET.pads` ({lx, ly, rx, ry, scale}) with `applyPadLayout()`, re-applied on resize.
+
+### Fixed
+- Opening the editor on a desktop forced the touch pads visible and left them there. The editor
+  now remembers whether it added the `touch` class and removes it on close, so a mouse user's
+  screen is unchanged.
+
 ## [4.2.0] — 2026-11-01
 
 Three new bosses — eras IV–VI stop reusing the campaign fights.

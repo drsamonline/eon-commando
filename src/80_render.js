@@ -972,7 +972,8 @@ function drawSettings(g) {
     ['MUSIC', Math.round(SET.music * 100) + '%'],
     ['SOUND FX', Math.round(SET.sfx * 100) + '%'],
     ['AUTO FIRE', SET.autoFire ? 'ON' : 'OFF'],
-    ['CONTROLS', 'OPEN >']
+    ['CONTROLS', 'OPEN >'],
+    ['PADS', 'OPEN >']
   ];
   var narrow = W < 380;
   var padX = narrow ? 26 : 76;
@@ -1181,6 +1182,13 @@ function drawCredits(g) {
   drawText(g, 'ENTER TO RETURN', W / 2, H - 12, 1, '#38465a', 'center');
 }
 
+function drawPads(g) {
+  dim(g, 0.72);
+  drawFit(g, 'PAD LAYOUT', 40, 3, '#54e0ff', 'rgba(0,0,0,0.85)', W - 16);
+  drawText(g, 'DRAG EACH CLUSTER WITH YOUR THUMB', W / 2, 74, 1, '#9fb2c6', 'center');
+  drawText(g, 'THEN TAP DONE ABOVE', W / 2, 88, 1, '#54637a', 'center');
+}
+
 function drawStageClear(g) {
   dim(g, 0.6);
   var t = Game.stateTimer;
@@ -1284,6 +1292,7 @@ function Render(g) {
     if (Game.state === 'paused') drawPause(g);
     else if (Game.state === 'settings') drawSettings(g);
     else if (Game.state === 'remap') drawRemap(g);
+    else if (Game.state === 'pads') drawPads(g);
     else if (Game.state === 'story') drawStory(g);
     else if (Game.state === 'credits') drawCredits(g);
     else if (Game.state === 'stageclear') drawStageClear(g);

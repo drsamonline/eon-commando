@@ -118,7 +118,8 @@ var SETTINGS_DEFAULTS = {
   music: 1,
   sfx: 1,
   muted: 0,
-  autoFire: 0
+  autoFire: 0,
+  pads: null
 };
 
 var SET = (function () {

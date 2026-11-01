@@ -6,6 +6,124 @@
 
 /* auto-fire changes the touch layout: up becomes jump, down becomes duck,
    and the fire button disappears */
+
+/* ===========================================================================
+   Pad layout editor — the pads are DOM, so the editor is DOM too.
+   Positions are stored as percentages of the viewport so they survive rotation.
+   =========================================================================== */
+function applyPadLayout() {
+  var padL = document.getElementById('padL');
+  var padR = document.getElementById('padR');
+  if (!padL || !padR) return;
+  var p = SET.pads;
+  if (!p) {
+    padL.style.cssText = ''; padR.style.cssText = '';
+    return;
+  }
+  function place(el, x, y) {
+    el.style.left = x + '%';
+    el.style.top = y + '%';
+    el.style.right = 'auto';
+    el.style.bottom = 'auto';
+    el.style.transformOrigin = 'top left';
+    el.style.transform = 'scale(' + (p.scale || 1) + ')';
+  }
+  place(padL, p.lx, p.ly);
+  place(padR, p.rx, p.ry);
+}
+
+var padDrag = null;
+var padEditorAddedTouch = false;
+
+function initPadEditor() {
+  var editor = document.getElementById('padEditor');
+  if (!editor) return;
+
+  ['padL', 'padR'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('pointerdown', function (e) {
+      if (!document.body.classList.contains('editing')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      var r = el.getBoundingClientRect();
+      padDrag = { el: el, id: id, dx: e.clientX - r.left, dy: e.clientY - r.top };
+      el.setPointerCapture(e.pointerId);
+    });
+    el.addEventListener('pointermove', function (e) {
+      if (!padDrag || padDrag.el !== el) return;
+      e.preventDefault();
+      var vw = window.innerWidth || 1, vh = window.innerHeight || 1;
+      var x = clamp((e.clientX - padDrag.dx) / vw * 100, -6, 92);
+      var y = clamp((e.clientY - padDrag.dy) / vh * 100, 2, 92);
+      el.style.left = x + '%';
+      el.style.top = y + '%';
+      el.style.right = 'auto';
+      el.style.bottom = 'auto';
+      padDrag.x = x; padDrag.y = y;
+    });
+    el.addEventListener('pointerup', function () {
+      if (!padDrag || padDrag.el !== el) return;
+      SET.pads = SET.pads || { lx: 2, ly: 62, rx: 62, ry: 62, scale: 1 };
+      if (padDrag.id === 'padL') { SET.pads.lx = padDrag.x; SET.pads.ly = padDrag.y; }
+      else { SET.pads.rx = padDrag.x; SET.pads.ry = padDrag.y; }
+      saveSettings();
+      applyPadLayout();
+      padDrag = null;
+    });
+  });
+
+  var small = document.getElementById('peSmall');
+  var big = document.getElementById('peBig');
+  var reset = document.getElementById('peReset');
+  var done = document.getElementById('peDone');
+  if (small) small.addEventListener('click', function () { padScale(-0.1); });
+  if (big) big.addEventListener('click', function () { padScale(0.1); });
+  if (reset) reset.addEventListener('click', function () {
+    SET.pads = null; saveSettings(); applyPadLayout(); Snd.sfx('coin');
+  });
+  if (done) done.addEventListener('click', function () { closePadEditor(); });
+}
+
+function padScale(delta) {
+  SET.pads = SET.pads || { lx: 2, ly: 62, rx: 62, ry: 62, scale: 1 };
+  SET.pads.scale = clamp(Math.round((SET.pads.scale + delta) * 10) / 10, 0.7, 1.5);
+  saveSettings();
+  applyPadLayout();
+  Snd.sfx('select');
+}
+
+function openPadEditor() {
+  if (!SET.pads) {
+    /* seed from where the pads currently sit */
+    var vw = window.innerWidth || 1, vh = window.innerHeight || 1;
+    var l = document.getElementById('padL'), r = document.getElementById('padR');
+    var lr = l ? l.getBoundingClientRect() : null;
+    var rr = r ? r.getBoundingClientRect() : null;
+    SET.pads = {
+      lx: lr ? Math.round(lr.left / vw * 100) : 2,
+      ly: lr ? Math.round(lr.top / vh * 100) : 62,
+      rx: rr ? Math.round(rr.left / vw * 100) : 62,
+      ry: rr ? Math.round(rr.top / vh * 100) : 62,
+      scale: 1
+    };
+    saveSettings();
+  }
+  padEditorAddedTouch = !document.body.classList.contains('touch');
+  document.body.classList.add('editing', 'touch');
+  applyPadLayout();
+  Game.state = 'pads';
+  Snd.sfx('select');
+}
+
+function closePadEditor() {
+  document.body.classList.remove('editing');
+  if (padEditorAddedTouch) document.body.classList.remove('touch');
+  padEditorAddedTouch = false;
+  Game.state = 'settings';
+  Snd.sfx('select');
+}
+
 function applyAutoLayout() {
   document.body.classList.toggle('auto', !!SET.autoFire);
 }
@@ -32,7 +150,7 @@ function boot() {
   buildScanlines();
   Input.init();
   fitCanvas();
-  window.addEventListener('resize', fitCanvas);
+  window.addEventListener('resize', function () { fitCanvas(); applyPadLayout(); });
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', fitCanvas);
     window.visualViewport.addEventListener('scroll', fitCanvas);
@@ -54,6 +172,8 @@ function boot() {
   Snd.setMuted(!!Store.get('muted', false));
   Game.init();
   applyAutoLayout();
+  applyPadLayout();
+  initPadEditor();
 
   canvas.addEventListener('pointerdown', function (e) {
     e.preventDefault();
@@ -256,6 +376,7 @@ function runDemo(n) {
     for (var sq = 0; sq < 90; sq++) { Game.storyChars += 1; }
   }
   if (PARAMS.pose === 'credits') { Game.startCredits(); Game.creditsY = 150; Game.creditsT = 100; }
+  if (PARAMS.pose === 'pads') { Game.startGame(false, 7); Game.story = null; openPadEditor(); }
   if (PARAMS.pose === 'pause') { Game.state = 'paused'; Game.pauseIndex = 0; }
   if (PARAMS.pose === 'remap') { Game.state = 'remap'; Game.remapPlayer = 'p1'; Game.remapIndex = 3; }
   if (PARAMS.pose === 'leaderboard') { Game.score = 24500; Game.recordRun('EON SECURED'); }
