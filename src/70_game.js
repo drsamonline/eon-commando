@@ -25,6 +25,9 @@ var Game = {
   REMAP_ACTIONS: ['left', 'right', 'up', 'down', 'jump', 'fire', 'dash', 'melee', 'grenade'],
   pauseIndex: 0,
   hitRows: [],
+  titleIndex: 0,
+  mode: 'campaign',
+  wave: 0, waveTimer: 0, waveActive: false, scoreMul: 1,
   lastEntry: null,
   floaters: [],
   pending: [],
@@ -59,6 +62,7 @@ var Game = {
   startGame: function (coop, forcedSeed) {
     this.coop = !!coop;
     this.dailyRun = false;
+    if (this.mode !== 'endless') this.mode = 'campaign';
     var d = diff();
     this.score = 0;
     this.lives = d.lives;
@@ -177,6 +181,12 @@ var Game = {
   },
 
   onBossDead: function () {
+    if (this.mode === 'endless') {
+      this.waveActive = false;
+      this.waveTimer = 140;
+      this.banner = { text: 'WAVE CLEAR', sub: 'KEEP GOING', life: 90, color: '#54ffa8' };
+      return;
+    }
     this.state = 'stageclear';
     this.stateTimer = 0;
     var bonus = 1500 + this.player.hp * 250 + this.lives * 500;
@@ -201,6 +211,86 @@ var Game = {
   },
 
   /* play back a recorded run: the sim is deterministic, so only inputs replay */
+  /* ---- endless: waves in one arena, no traversal ---- */
+  startEndless: function (coop) {
+    this.mode = 'endless';
+    this.startGame(coop, undefined);
+    this.mode = 'endless';
+    this.wave = 0;
+    this.waveActive = false;
+    this.waveTimer = 150;
+    this.scoreMul = 1;
+    this.pending = [];
+    this.enemies = [];
+    this.boss = null;
+
+    /* lock the camera to the arena and shut the gate */
+    var arena = this.stage.arenaStart;
+    this.arenaLocked = true;
+    this.bossTriggered = true;
+    this.gate = { x: arena - 4, y: 0, w: 4, h: GROUND_Y + 60 };
+    this.camX = clamp(arena + ARENA_W / 2 - W / 2, 0, Math.max(0, this.stage.length - W));
+    for (var ei = 0; ei < this.players.length; ei++) {
+      this.players[ei].x = arena + ARENA_W / 2 - 40 + ei * 26;
+      this.players[ei].y = GROUND_Y - 22;
+      this.players[ei].invuln = 90;
+    }
+    this.banner = { text: 'ENDLESS', sub: 'SURVIVE THE WAVES', life: 120, color: '#ff2d95' };
+    Snd.playMusic(TRACKS.boss);
+  },
+
+  endlessSpawnWave: function () {
+    this.wave++;
+    this.waveActive = true;
+    this.scoreMul = 1 + (this.wave - 1) * 0.15;
+
+    var arena = this.stage.arenaStart;
+    var left = arena + 30, right = arena + ARENA_W - 50;
+    var count = Math.min(10, 2 + Math.floor(this.wave * 0.8));
+    var pool = ['grunt', 'runner'];
+    if (this.wave >= 2) pool.push('drone');
+    if (this.wave >= 3) pool.push('jumper', 'sniper');
+    if (this.wave >= 4) pool.push('swarm', 'shielder');
+    if (this.wave >= 6) pool.push('turret', 'brute');
+
+    var i;
+    for (i = 0; i < count; i++) {
+      var t = RNG.sPick(pool);
+      var def = ENEMIES[t];
+      var x = (i % 2 === 0) ? left + RNG.sr(0, 40) : right - RNG.sr(0, 40);
+      var y = def.gravity ? GROUND_Y - def.h : GROUND_Y - 90 - RNG.sr(0, 40);
+      spawnEnemy({ t: t, x: x, y: y });
+    }
+
+    /* a boss every fifth wave, on top of the crowd */
+    if (this.wave % 5 === 0) {
+      var kinds = ['warden', 'wraith', 'heart'];
+      this.boss = makeBoss(kinds[Math.floor(this.wave / 5 - 1) % 3]);
+      this.boss.introT = 60;
+      this.banner = { text: 'WAVE ' + this.wave, sub: this.boss.name, life: 110, color: '#ff4d6d' };
+      Snd.sfx('bossWarn');
+    } else {
+      this.banner = { text: 'WAVE ' + this.wave, sub: count + ' HOSTILES', life: 90, color: this.stage.accent };
+      Snd.sfx('bossWarn');
+    }
+  },
+
+  updateEndless: function () {
+    if (!this.waveActive) {
+      this.waveTimer--;
+      if (this.waveTimer <= 0) this.endlessSpawnWave();
+      return;
+    }
+    if (this.enemies.length === 0 && !this.boss) {
+      this.waveActive = false;
+      this.waveTimer = 130;
+      var bonus = Math.round(250 * this.wave * this.scoreMul);
+      this.score += bonus;
+      floatText(this.player.x + 6, this.player.y - 12, '+' + bonus, '#ffd257');
+      if (this.player) this.player.grenades = Math.min(this.player.maxGrenades, this.player.grenades + 1);
+    }
+  },
+
   startReplay: function (rec) {
     if (!rec) return false;
     this.replayMode = true;
@@ -313,20 +403,40 @@ var Game = {
     }
   },
 
+  titleRows: function () {
+    var rows = [
+      { id: 'campaign', label: 'CAMPAIGN' },
+      { id: 'endless', label: 'ENDLESS' },
+      { id: 'daily', label: 'DAILY RUN' }
+    ];
+    if (Rec.has()) rows.push({ id: 'replay', label: 'WATCH LAST RUN' });
+    rows.push({ id: 'coop', label: 'TWO PLAYERS: ' + (this.coop ? 'ON' : 'OFF') });
+    return rows;
+  },
+
+  activateTitleRow: function (i) {
+    var rows = this.titleRows();
+    if (!rows[i]) return;
+    var id = rows[i].id;
+    Snd.sfx('select');
+    if (id === 'campaign') this.startGame(this.coop);
+    else if (id === 'endless') this.startEndless(this.coop);
+    else if (id === 'daily') { this.startGame(this.coop, Daily.seed()); this.dailyRun = true; }
+    else if (id === 'replay') this.startReplay(Rec.load());
+    else if (id === 'coop') { this.coop = !this.coop; this.titleIndex = i; }
+  },
+
   updateTitle: function () {
     if (!Snd.track) Snd.playMusic(TRACKS.title);
     this.stateTimer++;
-    if (Input.pressed('daily')) {
-      this.dailyRun = true;
-      this.startGame(false, Daily.seed());
-      this.dailyRun = true;
-    } else if (Input.pressed('replay') && Rec.has()) {
-      this.startReplay(Rec.load());
-    } else if (Input.pressed('start2')) {
-      this.startGame(true);
-    } else if (Input.pressed('start') || Input.pressed('jump') || Input.pressed('fire')) {
-      this.startGame(false);
-    }
+    var n = this.titleRows().length;
+    if (Input.pressed('up')) { this.titleIndex = (this.titleIndex + n - 1) % n; Snd.sfx('select'); }
+    if (Input.pressed('down')) { this.titleIndex = (this.titleIndex + 1) % n; Snd.sfx('select'); }
+    if (Input.pressed('start')) { this.activateTitleRow(this.titleIndex); return; }
+    /* shortcuts that still work for muscle memory */
+    if (Input.pressed('start2')) { this.startGame(true); return; }
+    if (Input.pressed('daily')) { this.startGame(this.coop, Daily.seed()); this.dailyRun = true; return; }
+    if (Input.pressed('replay') && Rec.has()) { this.startReplay(Rec.load()); return; }
   },
 
   pauseRows: function () {
@@ -363,6 +473,13 @@ var Game = {
   /* a tap in logical canvas coordinates, dispatched by the current screen */
   tap: function (mx, my) {
     var i, r;
+    if (this.state === 'title') {
+      for (i = 0; i < this.hitRows.length; i++) {
+        r = this.hitRows[i];
+        if (my >= r.y0 && my <= r.y1) { this.titleIndex = r.i; this.activateTitleRow(r.i); return; }
+      }
+      return;
+    }
     if (this.state === 'paused') {
       for (i = 0; i < this.hitRows.length; i++) {
         r = this.hitRows[i];
@@ -559,8 +676,10 @@ var Game = {
       else if (this.boss && this.boss.dead) bossUpdate(this.boss);
     }
 
-    /* boss trigger */
-    if (!this.bossTriggered && p.x + p.w / 2 > this.stage.arenaStart + 70) {
+    if (this.mode === 'endless') {
+      this.updateEndless();
+    } else if (!this.bossTriggered && p.x + p.w / 2 > this.stage.arenaStart + 70) {
+      /* boss trigger */
       this.triggerBoss();
     }
 

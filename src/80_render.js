@@ -741,6 +741,16 @@ function drawHUD(g) {
     for (var t = 1; t < 10; t++) px(g, bx + (bw / 10) * t, by, 1, 6, 'rgba(0,0,0,0.4)');
   }
 
+  /* endless wave readout */
+  if (Game.mode === 'endless') {
+    g.save();
+    g.scale(k, k);
+    drawText(g, 'WAVE ' + Math.max(1, Game.wave) + (Game.waveActive ? '' : '  NEXT...'),
+             7, 38, 1, '#ff2d95');
+    drawText(g, 'x' + (Game.scoreMul || 1).toFixed(2), 7, 47, 1, '#ffd257');
+    g.restore();
+  }
+
   /* replay watermark */
   if (Game.replayMode) {
     var on = Math.floor(Game.time / 40) % 2 === 0;
@@ -769,6 +779,7 @@ function dim(g, a) {
 
 function drawTitle(g) {
   var t = PARAMS.shot ? 12 : Game.stateTimer;
+  Game.hitRows = [];
   /* drifting background of era one */
   Game.camX = (t * 0.35) % (STAGES[0].length - W);
   drawSky(g, STAGES[0], Game.bg, Game.camX, t);
@@ -786,34 +797,28 @@ function drawTitle(g) {
   drawText(g, 'COMMANDO', W / 2, 80 + bob, 5, '#ffb545', 'center', '#3a1f24');
 
   drawText(g, narrow ? 'THREE ERAS. NO MERCY.' : 'THREE ERAS. ONE COMMANDO. NO MERCY.',
-           W / 2, 124, 1, '#9fb2c6', 'center');
+           W / 2, 122, 1, '#9fb2c6', 'center');
+
+  /* mode menu — tappable, and arrow-key navigable */
+  var rows = Game.titleRows();
+  var step = narrow ? 19 : 17;
+  var y = narrow ? 138 : 140;
+  for (var ri = 0; ri < rows.length; ri++) {
+    var sel = ri === Game.titleIndex;
+    if (sel) px(g, W / 2 - 74, y - 5, 148, step - 3, 'rgba(84,224,255,0.14)');
+    drawText(g, (sel ? '> ' : '') + rows[ri].label, W / 2, y, 1,
+             sel ? '#ffffff' : '#9fb2c6', 'center');
+    Game.hitRows.push({ y0: y - 6, y1: y + 9, i: ri });
+    y += step;
+  }
 
   /* blinking prompt */
-  if (Math.floor(t / 30) % 2 === 0) {
-    drawText(g, narrow ? 'TAP TO START' : 'PRESS ENTER  ·  TAP TO START',
-             W / 2, 152, 2, '#54e0ff', 'center', 'rgba(0,0,0,0.8)');
-  }
-
   var narrow = W < 380;
-  if (narrow) {
-    drawText(g, 'ARROWS/WASD MOVE  SPACE JUMP  Z FIRE', W / 2, 190, 1, '#7f8fa6', 'center');
-    drawText(g, 'DASH  MELEE  GRENADE  SETTINGS', W / 2, 202, 1, '#7f8fa6', 'center');
-  } else {
-    drawText(g, 'ARROWS / WASD MOVE   SPACE JUMP   Z FIRE', W / 2, 190, 1, '#7f8fa6', 'center');
-    drawText(g, 'SHIFT DASH   V MELEE   G GRENADE   O SETTINGS', W / 2, 202, 1, '#7f8fa6', 'center');
-  }
-  if (SET.autoFire) {
-    drawText(g, 'AUTO-FIRE ON  ·  O TO CHANGE', W / 2, 166, 1, '#54ffa8', 'center');
-  }
+  if (SET.autoFire) drawText(g, 'AUTO-FIRE ON', W / 2, 116, 1, '#54ffa8', 'center');
   drawText(g, (Game.dailyRun ? 'DAILY RUN ' + Daily.label() + '  ·  ' : 'DIFFICULTY ') +
               (Game.dailyRun ? DIFFICULTY[clamp(SET.difficulty, 0, 2)].name : DIFFICULTY[clamp(SET.difficulty, 0, 2)].name),
            W / 2, 216, 1, '#54e0ff', 'center');
-  drawText(g, 'PRESS 2 FOR TWO PLAYERS', W / 2, 176, 1, '#54ffa8', 'center');
-  if (narrow) {
-    drawText(g, 'D DAILY RUN   R REPLAY', W / 2, 166, 1, '#7f8fa6', 'center');
-  } else {
-    drawText(g, 'D DAILY RUN' + (Rec.has() ? '   R WATCH LAST RUN' : ''), W / 2, 166, 1, '#7f8fa6', 'center');
-  }
+
   drawText(g, 'HI SCORE ' + String(Game.hiScore).padStart(7, '0'), W / 2, 232, 1, '#ffd257', 'center');
   var runs = Scores.all().slice(0, 3);
   for (var li = 0; li < runs.length; li++) {

@@ -168,7 +168,15 @@ function keepAwake(on) {
 
 /* ---- deterministic demo: used for screenshots and smoke tests ----------- */
 function runDemo(n) {
-  Game.startGame(PARAMS.coop === '1');
+  if (PARAMS.endless === '1') {
+    Game.startEndless(PARAMS.coop === '1');
+    if (PARAMS.wave) {
+      Game.wave = Math.max(0, parseInt(PARAMS.wave, 10) - 1);
+      Game.waveActive = false;
+      Game.waveTimer = 1;
+    }
+  }
+  else Game.startGame(PARAMS.coop === '1');
   if (PARAMS.stage) {
     var idx = clamp(parseInt(PARAMS.stage, 10) - 1, 0, STAGES.length - 1);
     Game.loadStage(idx);

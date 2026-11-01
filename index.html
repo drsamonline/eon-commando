@@ -130,7 +130,7 @@
    =========================================================================== */
 'use strict';
 
-var VERSION = '2.3.0';
+var VERSION = '3.0.0';
 var DPR = 1;                       // device pixel ratio, capped at 2
 var W = 480, H = 270;              // world view: W widens with the window
 var VIEW_H = 270;                  // logical canvas height (portrait gets taller)
@@ -2630,8 +2630,9 @@ function damageEnemy(e, dmg, knock) {
   if (e.hp <= 0 && !e.dead) {
     e.dead = true;
     var def = ENEMIES[e.t];
-    Game.score += def.score;
-    floatText(e.x, e.y - 6, '+' + def.score, '#ffd257');
+    var gained = Math.round(def.score * (Game.scoreMul || 1));
+    Game.score += gained;
+    floatText(e.x, e.y - 6, '+' + gained, '#ffd257');
     explosion(e.x + e.w / 2, e.y + e.h / 2, 1);
     Snd.sfx('explode');
     if (RNG.sChance(def.drop * diff().drop)) {
@@ -2982,8 +2983,9 @@ function damageBoss(b, dmg, hx, hy) {
     b.hp = 0;
     b.dead = true;
     b.dying = 120;
-    Game.score += b.def.score;
-    floatText(b.x + b.w / 2, b.y, '+' + b.def.score, '#ffd257');
+    var bgained = Math.round(b.def.score * (Game.scoreMul || 1));
+    Game.score += bgained;
+    floatText(b.x + b.w / 2, b.y, '+' + bgained, '#ffd257');
     Snd.sfx('bigExplode');
     Game.shake = 12;
   }
@@ -3209,6 +3211,9 @@ var Game = {
   REMAP_ACTIONS: ['left', 'right', 'up', 'down', 'jump', 'fire', 'dash', 'melee', 'grenade'],
   pauseIndex: 0,
   hitRows: [],
+  titleIndex: 0,
+  mode: 'campaign',
+  wave: 0, waveTimer: 0, waveActive: false, scoreMul: 1,
   lastEntry: null,
   floaters: [],
   pending: [],
@@ -3243,6 +3248,7 @@ var Game = {
   startGame: function (coop, forcedSeed) {
     this.coop = !!coop;
     this.dailyRun = false;
+    if (this.mode !== 'endless') this.mode = 'campaign';
     var d = diff();
     this.score = 0;
     this.lives = d.lives;
@@ -3361,6 +3367,12 @@ var Game = {
   },
 
   onBossDead: function () {
+    if (this.mode === 'endless') {
+      this.waveActive = false;
+      this.waveTimer = 140;
+      this.banner = { text: 'WAVE CLEAR', sub: 'KEEP GOING', life: 90, color: '#54ffa8' };
+      return;
+    }
     this.state = 'stageclear';
     this.stateTimer = 0;
     var bonus = 1500 + this.player.hp * 250 + this.lives * 500;
@@ -3385,6 +3397,86 @@ var Game = {
   },
 
   /* play back a recorded run: the sim is deterministic, so only inputs replay */
+  /* ---- endless: waves in one arena, no traversal ---- */
+  startEndless: function (coop) {
+    this.mode = 'endless';
+    this.startGame(coop, undefined);
+    this.mode = 'endless';
+    this.wave = 0;
+    this.waveActive = false;
+    this.waveTimer = 150;
+    this.scoreMul = 1;
+    this.pending = [];
+    this.enemies = [];
+    this.boss = null;
+
+    /* lock the camera to the arena and shut the gate */
+    var arena = this.stage.arenaStart;
+    this.arenaLocked = true;
+    this.bossTriggered = true;
+    this.gate = { x: arena - 4, y: 0, w: 4, h: GROUND_Y + 60 };
+    this.camX = clamp(arena + ARENA_W / 2 - W / 2, 0, Math.max(0, this.stage.length - W));
+    for (var ei = 0; ei < this.players.length; ei++) {
+      this.players[ei].x = arena + ARENA_W / 2 - 40 + ei * 26;
+      this.players[ei].y = GROUND_Y - 22;
+      this.players[ei].invuln = 90;
+    }
+    this.banner = { text: 'ENDLESS', sub: 'SURVIVE THE WAVES', life: 120, color: '#ff2d95' };
+    Snd.playMusic(TRACKS.boss);
+  },
+
+  endlessSpawnWave: function () {
+    this.wave++;
+    this.waveActive = true;
+    this.scoreMul = 1 + (this.wave - 1) * 0.15;
+
+    var arena = this.stage.arenaStart;
+    var left = arena + 30, right = arena + ARENA_W - 50;
+    var count = Math.min(10, 2 + Math.floor(this.wave * 0.8));
+    var pool = ['grunt', 'runner'];
+    if (this.wave >= 2) pool.push('drone');
+    if (this.wave >= 3) pool.push('jumper', 'sniper');
+    if (this.wave >= 4) pool.push('swarm', 'shielder');
+    if (this.wave >= 6) pool.push('turret', 'brute');
+
+    var i;
+    for (i = 0; i < count; i++) {
+      var t = RNG.sPick(pool);
+      var def = ENEMIES[t];
+      var x = (i % 2 === 0) ? left + RNG.sr(0, 40) : right - RNG.sr(0, 40);
+      var y = def.gravity ? GROUND_Y - def.h : GROUND_Y - 90 - RNG.sr(0, 40);
+      spawnEnemy({ t: t, x: x, y: y });
+    }
+
+    /* a boss every fifth wave, on top of the crowd */
+    if (this.wave % 5 === 0) {
+      var kinds = ['warden', 'wraith', 'heart'];
+      this.boss = makeBoss(kinds[Math.floor(this.wave / 5 - 1) % 3]);
+      this.boss.introT = 60;
+      this.banner = { text: 'WAVE ' + this.wave, sub: this.boss.name, life: 110, color: '#ff4d6d' };
+      Snd.sfx('bossWarn');
+    } else {
+      this.banner = { text: 'WAVE ' + this.wave, sub: count + ' HOSTILES', life: 90, color: this.stage.accent };
+      Snd.sfx('bossWarn');
+    }
+  },
+
+  updateEndless: function () {
+    if (!this.waveActive) {
+      this.waveTimer--;
+      if (this.waveTimer <= 0) this.endlessSpawnWave();
+      return;
+    }
+    if (this.enemies.length === 0 && !this.boss) {
+      this.waveActive = false;
+      this.waveTimer = 130;
+      var bonus = Math.round(250 * this.wave * this.scoreMul);
+      this.score += bonus;
+      floatText(this.player.x + 6, this.player.y - 12, '+' + bonus, '#ffd257');
+      if (this.player) this.player.grenades = Math.min(this.player.maxGrenades, this.player.grenades + 1);
+    }
+  },
+
   startReplay: function (rec) {
     if (!rec) return false;
     this.replayMode = true;
@@ -3497,20 +3589,40 @@ var Game = {
     }
   },
 
+  titleRows: function () {
+    var rows = [
+      { id: 'campaign', label: 'CAMPAIGN' },
+      { id: 'endless', label: 'ENDLESS' },
+      { id: 'daily', label: 'DAILY RUN' }
+    ];
+    if (Rec.has()) rows.push({ id: 'replay', label: 'WATCH LAST RUN' });
+    rows.push({ id: 'coop', label: 'TWO PLAYERS: ' + (this.coop ? 'ON' : 'OFF') });
+    return rows;
+  },
+
+  activateTitleRow: function (i) {
+    var rows = this.titleRows();
+    if (!rows[i]) return;
+    var id = rows[i].id;
+    Snd.sfx('select');
+    if (id === 'campaign') this.startGame(this.coop);
+    else if (id === 'endless') this.startEndless(this.coop);
+    else if (id === 'daily') { this.startGame(this.coop, Daily.seed()); this.dailyRun = true; }
+    else if (id === 'replay') this.startReplay(Rec.load());
+    else if (id === 'coop') { this.coop = !this.coop; this.titleIndex = i; }
+  },
+
   updateTitle: function () {
     if (!Snd.track) Snd.playMusic(TRACKS.title);
     this.stateTimer++;
-    if (Input.pressed('daily')) {
-      this.dailyRun = true;
-      this.startGame(false, Daily.seed());
-      this.dailyRun = true;
-    } else if (Input.pressed('replay') && Rec.has()) {
-      this.startReplay(Rec.load());
-    } else if (Input.pressed('start2')) {
-      this.startGame(true);
-    } else if (Input.pressed('start') || Input.pressed('jump') || Input.pressed('fire')) {
-      this.startGame(false);
-    }
+    var n = this.titleRows().length;
+    if (Input.pressed('up')) { this.titleIndex = (this.titleIndex + n - 1) % n; Snd.sfx('select'); }
+    if (Input.pressed('down')) { this.titleIndex = (this.titleIndex + 1) % n; Snd.sfx('select'); }
+    if (Input.pressed('start')) { this.activateTitleRow(this.titleIndex); return; }
+    /* shortcuts that still work for muscle memory */
+    if (Input.pressed('start2')) { this.startGame(true); return; }
+    if (Input.pressed('daily')) { this.startGame(this.coop, Daily.seed()); this.dailyRun = true; return; }
+    if (Input.pressed('replay') && Rec.has()) { this.startReplay(Rec.load()); return; }
   },
 
   pauseRows: function () {
@@ -3547,6 +3659,13 @@ var Game = {
   /* a tap in logical canvas coordinates, dispatched by the current screen */
   tap: function (mx, my) {
     var i, r;
+    if (this.state === 'title') {
+      for (i = 0; i < this.hitRows.length; i++) {
+        r = this.hitRows[i];
+        if (my >= r.y0 && my <= r.y1) { this.titleIndex = r.i; this.activateTitleRow(r.i); return; }
+      }
+      return;
+    }
     if (this.state === 'paused') {
       for (i = 0; i < this.hitRows.length; i++) {
         r = this.hitRows[i];
@@ -3743,8 +3862,10 @@ var Game = {
       else if (this.boss && this.boss.dead) bossUpdate(this.boss);
     }
 
-    /* boss trigger */
-    if (!this.bossTriggered && p.x + p.w / 2 > this.stage.arenaStart + 70) {
+    if (this.mode === 'endless') {
+      this.updateEndless();
+    } else if (!this.bossTriggered && p.x + p.w / 2 > this.stage.arenaStart + 70) {
+      /* boss trigger */
       this.triggerBoss();
     }
 
@@ -4581,6 +4702,16 @@ function drawHUD(g) {
     for (var t = 1; t < 10; t++) px(g, bx + (bw / 10) * t, by, 1, 6, 'rgba(0,0,0,0.4)');
   }
 
+  /* endless wave readout */
+  if (Game.mode === 'endless') {
+    g.save();
+    g.scale(k, k);
+    drawText(g, 'WAVE ' + Math.max(1, Game.wave) + (Game.waveActive ? '' : '  NEXT...'),
+             7, 38, 1, '#ff2d95');
+    drawText(g, 'x' + (Game.scoreMul || 1).toFixed(2), 7, 47, 1, '#ffd257');
+    g.restore();
+  }
+
   /* replay watermark */
   if (Game.replayMode) {
     var on = Math.floor(Game.time / 40) % 2 === 0;
@@ -4609,6 +4740,7 @@ function dim(g, a) {
 
 function drawTitle(g) {
   var t = PARAMS.shot ? 12 : Game.stateTimer;
+  Game.hitRows = [];
   /* drifting background of era one */
   Game.camX = (t * 0.35) % (STAGES[0].length - W);
   drawSky(g, STAGES[0], Game.bg, Game.camX, t);
@@ -4626,34 +4758,28 @@ function drawTitle(g) {
   drawText(g, 'COMMANDO', W / 2, 80 + bob, 5, '#ffb545', 'center', '#3a1f24');
 
   drawText(g, narrow ? 'THREE ERAS. NO MERCY.' : 'THREE ERAS. ONE COMMANDO. NO MERCY.',
-           W / 2, 124, 1, '#9fb2c6', 'center');
+           W / 2, 122, 1, '#9fb2c6', 'center');
+
+  /* mode menu — tappable, and arrow-key navigable */
+  var rows = Game.titleRows();
+  var step = narrow ? 19 : 17;
+  var y = narrow ? 138 : 140;
+  for (var ri = 0; ri < rows.length; ri++) {
+    var sel = ri === Game.titleIndex;
+    if (sel) px(g, W / 2 - 74, y - 5, 148, step - 3, 'rgba(84,224,255,0.14)');
+    drawText(g, (sel ? '> ' : '') + rows[ri].label, W / 2, y, 1,
+             sel ? '#ffffff' : '#9fb2c6', 'center');
+    Game.hitRows.push({ y0: y - 6, y1: y + 9, i: ri });
+    y += step;
+  }
 
   /* blinking prompt */
-  if (Math.floor(t / 30) % 2 === 0) {
-    drawText(g, narrow ? 'TAP TO START' : 'PRESS ENTER  ·  TAP TO START',
-             W / 2, 152, 2, '#54e0ff', 'center', 'rgba(0,0,0,0.8)');
-  }
-
   var narrow = W < 380;
-  if (narrow) {
-    drawText(g, 'ARROWS/WASD MOVE  SPACE JUMP  Z FIRE', W / 2, 190, 1, '#7f8fa6', 'center');
-    drawText(g, 'DASH  MELEE  GRENADE  SETTINGS', W / 2, 202, 1, '#7f8fa6', 'center');
-  } else {
-    drawText(g, 'ARROWS / WASD MOVE   SPACE JUMP   Z FIRE', W / 2, 190, 1, '#7f8fa6', 'center');
-    drawText(g, 'SHIFT DASH   V MELEE   G GRENADE   O SETTINGS', W / 2, 202, 1, '#7f8fa6', 'center');
-  }
-  if (SET.autoFire) {
-    drawText(g, 'AUTO-FIRE ON  ·  O TO CHANGE', W / 2, 166, 1, '#54ffa8', 'center');
-  }
+  if (SET.autoFire) drawText(g, 'AUTO-FIRE ON', W / 2, 116, 1, '#54ffa8', 'center');
   drawText(g, (Game.dailyRun ? 'DAILY RUN ' + Daily.label() + '  ·  ' : 'DIFFICULTY ') +
               (Game.dailyRun ? DIFFICULTY[clamp(SET.difficulty, 0, 2)].name : DIFFICULTY[clamp(SET.difficulty, 0, 2)].name),
            W / 2, 216, 1, '#54e0ff', 'center');
-  drawText(g, 'PRESS 2 FOR TWO PLAYERS', W / 2, 176, 1, '#54ffa8', 'center');
-  if (narrow) {
-    drawText(g, 'D DAILY RUN   R REPLAY', W / 2, 166, 1, '#7f8fa6', 'center');
-  } else {
-    drawText(g, 'D DAILY RUN' + (Rec.has() ? '   R WATCH LAST RUN' : ''), W / 2, 166, 1, '#7f8fa6', 'center');
-  }
+
   drawText(g, 'HI SCORE ' + String(Game.hiScore).padStart(7, '0'), W / 2, 232, 1, '#ffd257', 'center');
   var runs = Scores.all().slice(0, 3);
   for (var li = 0; li < runs.length; li++) {
@@ -5080,7 +5206,15 @@ function keepAwake(on) {
 
 /* ---- deterministic demo: used for screenshots and smoke tests ----------- */
 function runDemo(n) {
-  Game.startGame(PARAMS.coop === '1');
+  if (PARAMS.endless === '1') {
+    Game.startEndless(PARAMS.coop === '1');
+    if (PARAMS.wave) {
+      Game.wave = Math.max(0, parseInt(PARAMS.wave, 10) - 1);
+      Game.waveActive = false;
+      Game.waveTimer = 1;
+    }
+  }
+  else Game.startGame(PARAMS.coop === '1');
   if (PARAMS.stage) {
     var idx = clamp(parseInt(PARAMS.stage, 10) - 1, 0, STAGES.length - 1);
     Game.loadStage(idx);

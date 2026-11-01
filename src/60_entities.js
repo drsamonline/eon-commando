@@ -605,8 +605,9 @@ function damageEnemy(e, dmg, knock) {
   if (e.hp <= 0 && !e.dead) {
     e.dead = true;
     var def = ENEMIES[e.t];
-    Game.score += def.score;
-    floatText(e.x, e.y - 6, '+' + def.score, '#ffd257');
+    var gained = Math.round(def.score * (Game.scoreMul || 1));
+    Game.score += gained;
+    floatText(e.x, e.y - 6, '+' + gained, '#ffd257');
     explosion(e.x + e.w / 2, e.y + e.h / 2, 1);
     Snd.sfx('explode');
     if (RNG.sChance(def.drop * diff().drop)) {
@@ -957,8 +958,9 @@ function damageBoss(b, dmg, hx, hy) {
     b.hp = 0;
     b.dead = true;
     b.dying = 120;
-    Game.score += b.def.score;
-    floatText(b.x + b.w / 2, b.y, '+' + b.def.score, '#ffd257');
+    var bgained = Math.round(b.def.score * (Game.scoreMul || 1));
+    Game.score += bgained;
+    floatText(b.x + b.w / 2, b.y, '+' + bgained, '#ffd257');
     Snd.sfx('bigExplode');
     Game.shake = 12;
   }

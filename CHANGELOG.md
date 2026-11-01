@@ -2,6 +2,26 @@
 
 All notable changes to Eon Commando.
 
+## [3.0.0] — 2026-11-01
+
+Endless mode, and a real title menu.
+
+### Added
+- **Endless mode**: the camera locks to an arena, the gate shuts, and waves arrive from both
+  sides and from above. Wave count scales with the wave number (2 + wave×0.8, capped at 10),
+  and the enemy pool widens as you go — grunts and runners, then drones, jumpers, snipers,
+  swarms, shielders, turrets and brutes.
+- **A boss every fifth wave**, drawn from the three campaign bosses in rotation, on top of the
+  wave's crowd. A boss death ends the wave rather than the stage.
+- **Rising score multiplier**: +0.15 per wave, applied to kills, boss kills and wave bonuses.
+- **One grenade back per cleared wave.**
+- **Title menu**: Campaign / Endless / Daily Run / Watch Last Run / Two Players. Navigable with
+  the arrow keys and tappable, replacing the old "press enter" prompt.
+
+### Changed
+- `Game.mode` distinguishes `campaign` from `endless`; boss death and stage flow respect it.
+- The title screen drops the control hint lines — they live in Controls now.
+
 ## [2.8.0] — 2026-11-01
 
 Auto-fire.
