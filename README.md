@@ -131,6 +131,45 @@ Works identically from `file://` and from a web server. Works offline. Works on 
 
 ---
 
+## 🆕 What's new in 4.4
+
+**A perk after every era.** Eight of them, one pick from three, and the run gets shaped by
+your choices instead of just getting longer.
+
+<div align="center">
+<img src="docs/shots/perks.png" alt="Three perk cards: Overcharge, Rapid and Aegis" width="820">
+</div>
+
+| Perk | Effect |
+| :-- | :-- |
+| **Overcharge** | all weapons hit 25% harder |
+| **Rapid** | weapons cycle 20% faster |
+| **Vitality** | +1 max health, and a full heal now |
+| **Scavenger** | +1 grenade capacity, and 2 in hand |
+| **Momentum** | the power gauge fills 35% faster |
+| **Phantom** | dash recovers 35% sooner |
+| **Aegis** | take 20% less damage |
+| **Reserve** | +1 life |
+
+They stack, they are never offered twice, and they carry across every era — so a run that
+picked Overcharge three times plays differently from one that took Aegis and Vitality.
+
+## 🆕 Earlier releases
+
+- **4.3** — the touch pad layout editor: drag and resize both clusters, remembered per device.
+- **4.2** — three new bosses: The Drowned Relay, Orbit Wreck, The Last Second.
+- **4.1** — per-era weather, one jump button, every heading auto-fits the screen.
+- **4.0** — three more eras, story cutscenes with an in-engine renderer, power gauge and combo,
+  controls rebuilt around auto-fire, a credit roll.
+- **3.1** — Windows EXE and Android APK built by CI through `app-builder`, a redesigned landing
+  page, a separate demo page.
+- **3.0** — endless mode: escalating waves, a boss every fifth wave, a rising score multiplier.
+- **2.8** — auto-fire, on by default on touch, with a wider portrait view.
+- **2.7** — every menu tappable, pause as a real menu.
+- **2.6** — rebindable controls, per player, persisted.
+
+Full detail for every version is in [CHANGELOG.md](CHANGELOG.md).
+
 ## 🆕 What's new in 2.3
 
 **74% fewer draw operations per frame** — 2,210 down to 573, measured by counting canvas
