@@ -35,8 +35,17 @@
     display:block; image-rendering:pixelated; image-rendering:crisp-edges;
     background:#070a12; border:0; border-radius:0; box-shadow:none;
   }
-  /* portrait phones: band at the top, thumbs below, no dead margins */
-  body.portrait #stage{align-items:flex-start; padding-top:max(6vh,env(safe-area-inset-top))}
+  /* portrait phones: square play area at the top, thumbs below, no dead margins */
+  body.portrait #stage{align-items:flex-start; padding-top:max(3vh,env(safe-area-inset-top))}
+  body.touch.portrait canvas{border-radius:6px; box-shadow:0 10px 40px rgba(0,0,0,.6), 0 0 0 1px #1b2839}
+  /* a soft glow behind the thumb area so the lower half reads as part of the game */
+  body.touch.portrait::after{
+    content:''; position:fixed; left:0; right:0; bottom:0; height:44%;
+    background:radial-gradient(ellipse 70% 90% at 50% 110%, rgba(84,224,255,.10), transparent 70%);
+    pointer-events:none; z-index:1;
+  }
+  body.touch.portrait #rotate{top:auto; bottom:auto; top:52%; bottom:auto}
+  body.touch.portrait #rotate{top:52%}
   #rotate{
     display:none; position:fixed; left:0; right:0; bottom:36%;
     text-align:center; font-size:11px; letter-spacing:.14em; color:#3f4d61;
@@ -111,7 +120,7 @@
 </div>
 <button id="btnPause" aria-label="Pause">❙❙</button>
 <div id="hint">ARROWS / WASD move &middot; SPACE jump &middot; Z fire &middot; SHIFT dash &middot; V melee &middot; G grenade &middot; P pause</div>
-<div id="rotate">&#8635; ROTATE FOR A BIGGER VIEW</div>
+<div id="rotate">&#8635; ROTATE FOR A WIDER VIEW</div>
 
 <script>
 
@@ -124,14 +133,20 @@
 
 var VERSION = '2.3.0';
 var DPR = 1;                       // device pixel ratio, capped at 2
-var W = 480, H = 270;              // logical viewport — W widens with the window
+var W = 480, H = 270;              // world view: W widens with the window
+var VIEW_H = 270;                  // logical canvas height (portrait gets taller)
+var Y0 = 0;                        // where the world band starts inside the canvas
 var W_MIN = 480, W_MAX = 640;      // 16:9 floor, 21:9 ceiling (desktop range)
 var ARENA_W = 480;                 // boss arenas keep a fixed 16:9 footprint
 var GROUND_Y = 232;                // world y of the ground surface
 
-/* pick the logical width from the real aspect ratio, clamped to the range */
+/* Pick the logical width from the real aspect ratio.
+   Landscape keeps a 16:9 floor and widens to 21:9. Portrait switches to a
+   square view — a 16:9 band on a phone held upright is only a quarter of the
+   screen, and the sprites end up tiny. */
 function viewWidthFor(px_w, px_h) {
   var aspect = px_w / Math.max(1, px_h);
+  if (aspect < 1) return clamp(Math.round(H * aspect), 270, 360);
   return clamp(Math.round(H * aspect), W_MIN, W_MAX);
 }
 var FPS = 60, STEP = 1 / FPS;
@@ -802,20 +817,31 @@ function fitCanvas() {
   }
 
   if (PARAMS.shot) {
-    var sc0 = Math.min(vw / W, vh / H);
+    var sc0 = Math.min(vw / W, vh / VIEW_H);
     cv.style.width = Math.round(W * sc0) + 'px';
-    cv.style.height = Math.round(H * sc0) + 'px';
+    cv.style.height = Math.round(VIEW_H * sc0) + 'px';
     return;
   }
 
-  var touch = document.body.classList.contains('touch');
+  /* Portrait: give the canvas the full screen height and let the world band
+     sit in the middle, with sky above and earth below. The thumb pads overlay
+     the lower dirt, so nothing is reserved and nothing is wasted. */
+  if (portrait) {
+    /* the band sits at the top where the eyes are; the earth continues below
+       and the thumb pads overlay it, so the whole screen is used */
+    VIEW_H = clamp(Math.round(W * (vh / vw)), H, 900);
+    Y0 = 0;
+  } else {
+    VIEW_H = H;
+    Y0 = 0;
+  }
+  var wantH = Math.round(VIEW_H * DPR);
+  if (cv.height !== wantH) cv.height = wantH;
+
   var availW = vw;
   var availH = vh;
 
-  /* in portrait the thumbs need the lower third, so the band sits above them */
-  if (touch && portrait) availH = vh * 0.58;
-
-  var scale = Math.min(availW / W, availH / H);
+  var scale = Math.min(availW / W, availH / VIEW_H);
   if (scale <= 0) scale = 1;
 
   /* snap to a whole number when it costs almost nothing — crisper pixels */
@@ -823,7 +849,7 @@ function fitCanvas() {
   if (snapped >= 1 && snapped / scale > 0.88) scale = snapped;
 
   cv.style.width = Math.round(W * scale) + 'px';
-  cv.style.height = Math.round(H * scale) + 'px';
+  cv.style.height = Math.round(VIEW_H * scale) + 'px';
 }
 
 /* ===== 40_art.js ===== */
@@ -2789,8 +2815,10 @@ function bossUpdate(b) {
   }
 
   var arenaStart = Game.stage.arenaStart;
-  var leftBound = arenaStart + 20;
-  var rightBound = arenaStart + ARENA_W - b.w - 20;
+  /* the arena is 480 wide but a portrait view can be 270 — keep the boss on screen */
+  var leftBound = Math.max(arenaStart + 20, Game.camX + 30);
+  var rightBound = Math.min(arenaStart + ARENA_W - b.w - 20, Game.camX + W - b.w - 30);
+  if (rightBound < leftBound) rightBound = leftBound;
   var pcx = p.x + p.w / 2;
   var speed = b.phase === 2 ? 1.5 : 1.0;
 
@@ -3535,13 +3563,15 @@ function makeBackground(stage) {
   };
 }
 
-function drawSky(g, stage, bg, camX, time) {
-  var grad = g.createLinearGradient(0, 0, 0, GROUND_Y + 20);
-  grad.addColorStop(0, stage.sky[0]);
-  grad.addColorStop(0.55, stage.sky[1]);
-  grad.addColorStop(1, stage.sky[2]);
-  g.fillStyle = grad;
-  g.fillRect(0, 0, W, H);
+function drawSky(g, stage, bg, camX, time, noFill) {
+  if (!noFill) {
+    var grad = g.createLinearGradient(0, 0, 0, GROUND_Y + 20);
+    grad.addColorStop(0, stage.sky[0]);
+    grad.addColorStop(0.55, stage.sky[1]);
+    grad.addColorStop(1, stage.sky[2]);
+    g.fillStyle = grad;
+    g.fillRect(0, 0, W, H);
+  }
 
   /* celestial body */
   if (bg && bg.disc) {
@@ -3981,7 +4011,7 @@ function drawThreatArrows(g, camX) {
 function drawWorld(g) {
   var stage = Game.stage, camX = Game.camX;
   var bg = Game.bg;
-  drawSky(g, stage, bg, camX, Game.time);
+  drawSky(g, stage, bg, camX, Game.time, VIEW_H !== H);
   g.globalAlpha = Game.boss ? 0.82 : 1;
   drawBackground(g, stage, bg, camX, Game.time);
   g.globalAlpha = 1;
@@ -4210,15 +4240,23 @@ function drawTitle(g) {
   drawText(g, 'EON', W / 2, 40 + bob, 5, '#ffd257', 'center', '#3a1f24');
   drawText(g, 'COMMANDO', W / 2, 80 + bob, 5, '#ffb545', 'center', '#3a1f24');
 
-  drawText(g, 'THREE ERAS. ONE COMMANDO. NO MERCY.', W / 2, 124, 1, '#9fb2c6', 'center');
+  drawText(g, narrow ? 'THREE ERAS. NO MERCY.' : 'THREE ERAS. ONE COMMANDO. NO MERCY.',
+           W / 2, 124, 1, '#9fb2c6', 'center');
 
   /* blinking prompt */
   if (Math.floor(t / 30) % 2 === 0) {
-    drawText(g, 'PRESS ENTER  ·  TAP TO START', W / 2, 152, 2, '#54e0ff', 'center', 'rgba(0,0,0,0.8)');
+    drawText(g, narrow ? 'TAP TO START' : 'PRESS ENTER  ·  TAP TO START',
+             W / 2, 152, 2, '#54e0ff', 'center', 'rgba(0,0,0,0.8)');
   }
 
-  drawText(g, 'ARROWS / WASD MOVE   SPACE JUMP   Z FIRE', W / 2, 190, 1, '#7f8fa6', 'center');
-  drawText(g, 'SHIFT DASH   V MELEE   G GRENADE   O SETTINGS', W / 2, 202, 1, '#7f8fa6', 'center');
+  var narrow = W < 380;
+  if (narrow) {
+    drawText(g, 'ARROWS/WASD MOVE  SPACE JUMP  Z FIRE', W / 2, 190, 1, '#7f8fa6', 'center');
+    drawText(g, 'DASH  MELEE  GRENADE  SETTINGS', W / 2, 202, 1, '#7f8fa6', 'center');
+  } else {
+    drawText(g, 'ARROWS / WASD MOVE   SPACE JUMP   Z FIRE', W / 2, 190, 1, '#7f8fa6', 'center');
+    drawText(g, 'SHIFT DASH   V MELEE   G GRENADE   O SETTINGS', W / 2, 202, 1, '#7f8fa6', 'center');
+  }
   drawText(g, 'DIFFICULTY ' + DIFFICULTY[clamp(SET.difficulty, 0, 2)].name, W / 2, 216, 1, '#54e0ff', 'center');
   drawText(g, 'PRESS 2 FOR TWO PLAYERS', W / 2, 176, 1, '#54ffa8', 'center');
   drawText(g, 'HI SCORE ' + String(Game.hiScore).padStart(7, '0'), W / 2, 232, 1, '#ffd257', 'center');
@@ -4227,7 +4265,9 @@ function drawTitle(g) {
     drawText(g, (li + 1) + '. ' + String(runs[li].score).padStart(7, '0') + '  ' + (runs[li].result || ''),
              W / 2, 242 + li * 9, 1, '#54637a', 'center');
   }
-  drawText(g, 'V' + VERSION + '  ·  ONE HTML FILE  ·  ZERO DEPENDENCIES', W / 2, 250, 1, '#3f4d61', 'center');
+  drawText(g, narrow ? ('V' + VERSION + '  ·  ONE FILE')
+                     : ('V' + VERSION + '  ·  ONE HTML FILE  ·  ZERO DEPENDENCIES'),
+           W / 2, 250, 1, '#3f4d61', 'center');
 }
 
 function drawPause(g) {
@@ -4242,7 +4282,7 @@ function drawSettings(g) {
   drawText(g, 'SETTINGS', W / 2, 26, 3, '#54e0ff', 'center', 'rgba(0,0,0,0.85)');
   var rows = [
     ['DIFFICULTY', DIFFICULTY[clamp(SET.difficulty, 0, 2)].name],
-    ['COLOUR SCHEME', SCHEMES[clamp(SET.palette, 0, 2)].name],
+    ['COLOURS', SCHEMES[clamp(SET.palette, 0, 2)].name],
     ['REDUCE MOTION', SET.reduceMotion ? 'ON' : 'OFF'],
     ['FLASH', Math.round(SET.flash * 100) + '%'],
     ['HUD SIZE', Math.round(SET.hudScale * 100) + '%'],
@@ -4250,19 +4290,26 @@ function drawSettings(g) {
     ['SOUND FX', Math.round(SET.sfx * 100) + '%'],
     ['AUTO FIRE', SET.autoFire ? 'ON' : 'OFF']
   ];
-  var y = 64;
+  var narrow = W < 380;
+  var padX = narrow ? 26 : 76;
+  var y = narrow ? 60 : 64;
   for (var i = 0; i < rows.length; i++) {
     var sel = i === Game.settingsIndex;
     if (sel) {
-      px(g, 60, y - 4, W - 120, 14, 'rgba(84,224,255,0.14)');
-      drawText(g, '>', 64, y, 1, '#54e0ff');
+      px(g, padX - 16, y - 4, W - (padX - 16) * 2, 14, 'rgba(84,224,255,0.14)');
+      drawText(g, '>', padX - 12, y, 1, '#54e0ff');
     }
-    drawText(g, rows[i][0], 76, y, 1, sel ? '#ffffff' : '#9fb2c6');
-    drawText(g, rows[i][1], W - 76, y, 1, sel ? '#ffd257' : '#7f8fa6', 'right');
-    y += 17;
+    drawText(g, rows[i][0], padX, y, 1, sel ? '#ffffff' : '#9fb2c6');
+    drawText(g, rows[i][1], W - padX, y, 1, sel ? '#ffd257' : '#7f8fa6', 'right');
+    y += narrow ? 16 : 17;
   }
-  drawText(g, 'UP / DOWN TO CHOOSE   LEFT / RIGHT TO CHANGE', W / 2, H - 34, 1, '#54637a', 'center');
-  drawText(g, 'P OR ESC TO RESUME', W / 2, H - 22, 1, '#54637a', 'center');
+  if (narrow) {
+    drawText(g, 'UP/DOWN CHOOSE  LEFT/RIGHT SET', W / 2, H - 32, 1, '#54637a', 'center');
+    drawText(g, 'P OR ESC TO RESUME', W / 2, H - 20, 1, '#54637a', 'center');
+  } else {
+    drawText(g, 'UP / DOWN TO CHOOSE   LEFT / RIGHT TO CHANGE', W / 2, H - 34, 1, '#54637a', 'center');
+    drawText(g, 'P OR ESC TO RESUME', W / 2, H - 22, 1, '#54637a', 'center');
+  }
 }
 
 function drawStageClear(g) {
@@ -4315,10 +4362,10 @@ function drawVictory(g) {
 var Scan = { canvas: null };
 function buildScanlines() {
   var c = document.createElement('canvas');
-  c.width = W; c.height = H;
+  c.width = W; c.height = VIEW_H;
   var g = c.getContext('2d');
   g.fillStyle = 'rgba(0,0,0,0.16)';
-  for (var y = 0; y < H; y += 3) g.fillRect(0, y, W, 1);
+  for (var y = 0; y < VIEW_H; y += 3) g.fillRect(0, y, W, 1);
   Scan.canvas = c;
 }
 
@@ -4331,28 +4378,49 @@ function Render(g) {
   }
 
   g.setTransform(DPR, 0, 0, DPR, 0, 0);
-  g.clearRect(0, 0, W, H);
+  g.clearRect(0, 0, W, VIEW_H);
+
+  /* portrait: fill the whole canvas with the era sky before the band goes down */
+  if (VIEW_H !== H) {
+    var skg = g.createLinearGradient(0, 0, 0, VIEW_H);
+    var st = Game.stage;
+    skg.addColorStop(0, st.sky[0]);
+    skg.addColorStop(0.55, st.sky[1]);
+    skg.addColorStop(1, st.sky[2]);
+    g.fillStyle = skg;
+    g.fillRect(0, 0, W, VIEW_H);
+  }
 
   if (Game.state === 'title') {
+    g.save();
+    g.translate(0, Y0);
     drawTitle(g);
+    g.restore();
   } else {
     g.save();
+    g.translate(0, Y0);
     g.translate(Math.round(shakeX), Math.round(shakeY));
     drawWorld(g);
     g.restore();
+    g.save();
+    g.translate(0, Y0);
     drawHUD(g);
+    g.restore();
 
+    g.save();
+    g.translate(0, Y0);
     if (Game.state === 'paused') drawPause(g);
     else if (Game.state === 'settings') drawSettings(g);
     else if (Game.state === 'stageclear') drawStageClear(g);
     else if (Game.state === 'gameover') drawGameOver(g);
     else if (Game.state === 'victory') drawVictory(g);
+    g.restore();
   }
 
   /* hit flash, scaled by the photosensitivity setting */
   if (Game.flash > 0.01 && !SET.reduceMotion && SET.flash > 0) {
     g.fillStyle = 'rgba(255,255,255,' + (Game.flash * 0.5 * SET.flash) + ')';
-    g.fillRect(0, 0, W, H);
+    g.fillRect(0, 0, W, VIEW_H);
   }
 
   /* debug overlay */
@@ -4368,16 +4436,16 @@ function Render(g) {
   /* scanlines */
   if (Scan.canvas && !SET.reduceMotion) {
     g.globalAlpha = 0.5;
-    g.drawImage(Scan.canvas, 0, 0);
+    g.drawImage(Scan.canvas, 0, 0, W, VIEW_H);
     g.globalAlpha = 1;
   }
 
   /* vignette */
-  var vg = g.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 0.95);
+  var vg = g.createRadialGradient(W / 2, VIEW_H / 2, VIEW_H * 0.35, W / 2, VIEW_H / 2, VIEW_H * 0.95);
   vg.addColorStop(0, 'rgba(0,0,0,0)');
   vg.addColorStop(1, 'rgba(0,0,0,0.45)');
   g.fillStyle = vg;
-  g.fillRect(0, 0, W, H);
+  g.fillRect(0, 0, W, VIEW_H);
 }
 
 /* ===== 90_main.js ===== */

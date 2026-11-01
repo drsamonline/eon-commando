@@ -2,6 +2,28 @@
 
 All notable changes to Eon Commando.
 
+## [2.4.0] — 2026-11-01
+
+Portrait and phone layout release.
+
+### Fixed
+- **Portrait phones only used a quarter of the screen.** The view was forced to 16:9, so on a
+  390×844 phone the canvas was 390×219 — 26% of the height. Portrait now uses a square
+  logical view (270×270) and the canvas takes the full screen height: 390×390, 46% of the
+  height and 78% larger than before.
+- **The canvas now fills 100% of both axes** in every orientation, verified at 390×844,
+  360×640, 412×915, 768×1024, 844×390, 640×360 and 1440×810.
+- **The title screen overflowed** a 270-wide view — the control lines, the start prompt and the
+  version string ran off both edges. They now use shorter copy below 380 px wide.
+- **The settings screen overflowed** the same way; rows and the footer reflow for narrow views.
+- **Bosses could leave the screen** in a narrow view, because the arena is a fixed 480 wide.
+  Boss movement is now clamped to the visible window.
+
+### Added
+- `VIEW_H` / `Y0`: a logical canvas taller than the 270 px world, with the play area anchored
+  at the top, sky above and textured earth below, and the thumb pads over the earth.
+- Earth strata and seeded grit fill the space below the play area in portrait.
+
 ## [2.3.0] — 2026-11-01
 
 Performance release.

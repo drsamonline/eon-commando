@@ -35,8 +35,17 @@
     display:block; image-rendering:pixelated; image-rendering:crisp-edges;
     background:#070a12; border:0; border-radius:0; box-shadow:none;
   }
-  /* portrait phones: band at the top, thumbs below, no dead margins */
-  body.portrait #stage{align-items:flex-start; padding-top:max(6vh,env(safe-area-inset-top))}
+  /* portrait phones: square play area at the top, thumbs below, no dead margins */
+  body.portrait #stage{align-items:flex-start; padding-top:max(3vh,env(safe-area-inset-top))}
+  body.touch.portrait canvas{border-radius:6px; box-shadow:0 10px 40px rgba(0,0,0,.6), 0 0 0 1px #1b2839}
+  /* a soft glow behind the thumb area so the lower half reads as part of the game */
+  body.touch.portrait::after{
+    content:''; position:fixed; left:0; right:0; bottom:0; height:44%;
+    background:radial-gradient(ellipse 70% 90% at 50% 110%, rgba(84,224,255,.10), transparent 70%);
+    pointer-events:none; z-index:1;
+  }
+  body.touch.portrait #rotate{top:auto; bottom:auto; top:52%; bottom:auto}
+  body.touch.portrait #rotate{top:52%}
   #rotate{
     display:none; position:fixed; left:0; right:0; bottom:36%;
     text-align:center; font-size:11px; letter-spacing:.14em; color:#3f4d61;
@@ -111,6 +120,6 @@
 </div>
 <button id="btnPause" aria-label="Pause">❙❙</button>
 <div id="hint">ARROWS / WASD move &middot; SPACE jump &middot; Z fire &middot; SHIFT dash &middot; V melee &middot; G grenade &middot; P pause</div>
-<div id="rotate">&#8635; ROTATE FOR A BIGGER VIEW</div>
+<div id="rotate">&#8635; ROTATE FOR A WIDER VIEW</div>
 
 <script>

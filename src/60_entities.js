@@ -942,8 +942,10 @@ function bossUpdate(b) {
   }
 
   var arenaStart = Game.stage.arenaStart;
-  var leftBound = arenaStart + 20;
-  var rightBound = arenaStart + ARENA_W - b.w - 20;
+  /* the arena is 480 wide but a portrait view can be 270 — keep the boss on screen */
+  var leftBound = Math.max(arenaStart + 20, Game.camX + 30);
+  var rightBound = Math.min(arenaStart + ARENA_W - b.w - 20, Game.camX + W - b.w - 30);
+  if (rightBound < leftBound) rightBound = leftBound;
   var pcx = p.x + p.w / 2;
   var speed = b.phase === 2 ? 1.5 : 1.0;
 

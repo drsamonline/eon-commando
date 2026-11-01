@@ -96,13 +96,15 @@ function makeBackground(stage) {
   };
 }
 
-function drawSky(g, stage, bg, camX, time) {
-  var grad = g.createLinearGradient(0, 0, 0, GROUND_Y + 20);
-  grad.addColorStop(0, stage.sky[0]);
-  grad.addColorStop(0.55, stage.sky[1]);
-  grad.addColorStop(1, stage.sky[2]);
-  g.fillStyle = grad;
-  g.fillRect(0, 0, W, H);
+function drawSky(g, stage, bg, camX, time, noFill) {
+  if (!noFill) {
+    var grad = g.createLinearGradient(0, 0, 0, GROUND_Y + 20);
+    grad.addColorStop(0, stage.sky[0]);
+    grad.addColorStop(0.55, stage.sky[1]);
+    grad.addColorStop(1, stage.sky[2]);
+    g.fillStyle = grad;
+    g.fillRect(0, 0, W, H);
+  }
 
   /* celestial body */
   if (bg && bg.disc) {
@@ -542,7 +544,7 @@ function drawThreatArrows(g, camX) {
 function drawWorld(g) {
   var stage = Game.stage, camX = Game.camX;
   var bg = Game.bg;
-  drawSky(g, stage, bg, camX, Game.time);
+  drawSky(g, stage, bg, camX, Game.time, VIEW_H !== H);
   g.globalAlpha = Game.boss ? 0.82 : 1;
   drawBackground(g, stage, bg, camX, Game.time);
   g.globalAlpha = 1;
@@ -771,15 +773,23 @@ function drawTitle(g) {
   drawText(g, 'EON', W / 2, 40 + bob, 5, '#ffd257', 'center', '#3a1f24');
   drawText(g, 'COMMANDO', W / 2, 80 + bob, 5, '#ffb545', 'center', '#3a1f24');
 
-  drawText(g, 'THREE ERAS. ONE COMMANDO. NO MERCY.', W / 2, 124, 1, '#9fb2c6', 'center');
+  drawText(g, narrow ? 'THREE ERAS. NO MERCY.' : 'THREE ERAS. ONE COMMANDO. NO MERCY.',
+           W / 2, 124, 1, '#9fb2c6', 'center');
 
   /* blinking prompt */
   if (Math.floor(t / 30) % 2 === 0) {
-    drawText(g, 'PRESS ENTER  ·  TAP TO START', W / 2, 152, 2, '#54e0ff', 'center', 'rgba(0,0,0,0.8)');
+    drawText(g, narrow ? 'TAP TO START' : 'PRESS ENTER  ·  TAP TO START',
+             W / 2, 152, 2, '#54e0ff', 'center', 'rgba(0,0,0,0.8)');
   }
 
-  drawText(g, 'ARROWS / WASD MOVE   SPACE JUMP   Z FIRE', W / 2, 190, 1, '#7f8fa6', 'center');
-  drawText(g, 'SHIFT DASH   V MELEE   G GRENADE   O SETTINGS', W / 2, 202, 1, '#7f8fa6', 'center');
+  var narrow = W < 380;
+  if (narrow) {
+    drawText(g, 'ARROWS/WASD MOVE  SPACE JUMP  Z FIRE', W / 2, 190, 1, '#7f8fa6', 'center');
+    drawText(g, 'DASH  MELEE  GRENADE  SETTINGS', W / 2, 202, 1, '#7f8fa6', 'center');
+  } else {
+    drawText(g, 'ARROWS / WASD MOVE   SPACE JUMP   Z FIRE', W / 2, 190, 1, '#7f8fa6', 'center');
+    drawText(g, 'SHIFT DASH   V MELEE   G GRENADE   O SETTINGS', W / 2, 202, 1, '#7f8fa6', 'center');
+  }
   drawText(g, 'DIFFICULTY ' + DIFFICULTY[clamp(SET.difficulty, 0, 2)].name, W / 2, 216, 1, '#54e0ff', 'center');
   drawText(g, 'PRESS 2 FOR TWO PLAYERS', W / 2, 176, 1, '#54ffa8', 'center');
   drawText(g, 'HI SCORE ' + String(Game.hiScore).padStart(7, '0'), W / 2, 232, 1, '#ffd257', 'center');
@@ -788,7 +798,9 @@ function drawTitle(g) {
     drawText(g, (li + 1) + '. ' + String(runs[li].score).padStart(7, '0') + '  ' + (runs[li].result || ''),
              W / 2, 242 + li * 9, 1, '#54637a', 'center');
   }
-  drawText(g, 'V' + VERSION + '  ·  ONE HTML FILE  ·  ZERO DEPENDENCIES', W / 2, 250, 1, '#3f4d61', 'center');
+  drawText(g, narrow ? ('V' + VERSION + '  ·  ONE FILE')
+                     : ('V' + VERSION + '  ·  ONE HTML FILE  ·  ZERO DEPENDENCIES'),
+           W / 2, 250, 1, '#3f4d61', 'center');
 }
 
 function drawPause(g) {
@@ -803,7 +815,7 @@ function drawSettings(g) {
   drawText(g, 'SETTINGS', W / 2, 26, 3, '#54e0ff', 'center', 'rgba(0,0,0,0.85)');
   var rows = [
     ['DIFFICULTY', DIFFICULTY[clamp(SET.difficulty, 0, 2)].name],
-    ['COLOUR SCHEME', SCHEMES[clamp(SET.palette, 0, 2)].name],
+    ['COLOURS', SCHEMES[clamp(SET.palette, 0, 2)].name],
     ['REDUCE MOTION', SET.reduceMotion ? 'ON' : 'OFF'],
     ['FLASH', Math.round(SET.flash * 100) + '%'],
     ['HUD SIZE', Math.round(SET.hudScale * 100) + '%'],
@@ -811,19 +823,26 @@ function drawSettings(g) {
     ['SOUND FX', Math.round(SET.sfx * 100) + '%'],
     ['AUTO FIRE', SET.autoFire ? 'ON' : 'OFF']
   ];
-  var y = 64;
+  var narrow = W < 380;
+  var padX = narrow ? 26 : 76;
+  var y = narrow ? 60 : 64;
   for (var i = 0; i < rows.length; i++) {
     var sel = i === Game.settingsIndex;
     if (sel) {
-      px(g, 60, y - 4, W - 120, 14, 'rgba(84,224,255,0.14)');
-      drawText(g, '>', 64, y, 1, '#54e0ff');
+      px(g, padX - 16, y - 4, W - (padX - 16) * 2, 14, 'rgba(84,224,255,0.14)');
+      drawText(g, '>', padX - 12, y, 1, '#54e0ff');
     }
-    drawText(g, rows[i][0], 76, y, 1, sel ? '#ffffff' : '#9fb2c6');
-    drawText(g, rows[i][1], W - 76, y, 1, sel ? '#ffd257' : '#7f8fa6', 'right');
-    y += 17;
+    drawText(g, rows[i][0], padX, y, 1, sel ? '#ffffff' : '#9fb2c6');
+    drawText(g, rows[i][1], W - padX, y, 1, sel ? '#ffd257' : '#7f8fa6', 'right');
+    y += narrow ? 16 : 17;
   }
-  drawText(g, 'UP / DOWN TO CHOOSE   LEFT / RIGHT TO CHANGE', W / 2, H - 34, 1, '#54637a', 'center');
-  drawText(g, 'P OR ESC TO RESUME', W / 2, H - 22, 1, '#54637a', 'center');
+  if (narrow) {
+    drawText(g, 'UP/DOWN CHOOSE  LEFT/RIGHT SET', W / 2, H - 32, 1, '#54637a', 'center');
+    drawText(g, 'P OR ESC TO RESUME', W / 2, H - 20, 1, '#54637a', 'center');
+  } else {
+    drawText(g, 'UP / DOWN TO CHOOSE   LEFT / RIGHT TO CHANGE', W / 2, H - 34, 1, '#54637a', 'center');
+    drawText(g, 'P OR ESC TO RESUME', W / 2, H - 22, 1, '#54637a', 'center');
+  }
 }
 
 function drawStageClear(g) {
@@ -876,10 +895,10 @@ function drawVictory(g) {
 var Scan = { canvas: null };
 function buildScanlines() {
   var c = document.createElement('canvas');
-  c.width = W; c.height = H;
+  c.width = W; c.height = VIEW_H;
   var g = c.getContext('2d');
   g.fillStyle = 'rgba(0,0,0,0.16)';
-  for (var y = 0; y < H; y += 3) g.fillRect(0, y, W, 1);
+  for (var y = 0; y < VIEW_H; y += 3) g.fillRect(0, y, W, 1);
   Scan.canvas = c;
 }
 
@@ -892,28 +911,49 @@ function Render(g) {
   }
 
   g.setTransform(DPR, 0, 0, DPR, 0, 0);
-  g.clearRect(0, 0, W, H);
+  g.clearRect(0, 0, W, VIEW_H);
+
+  /* portrait: fill the whole canvas with the era sky before the band goes down */
+  if (VIEW_H !== H) {
+    var skg = g.createLinearGradient(0, 0, 0, VIEW_H);
+    var st = Game.stage;
+    skg.addColorStop(0, st.sky[0]);
+    skg.addColorStop(0.55, st.sky[1]);
+    skg.addColorStop(1, st.sky[2]);
+    g.fillStyle = skg;
+    g.fillRect(0, 0, W, VIEW_H);
+  }
 
   if (Game.state === 'title') {
+    g.save();
+    g.translate(0, Y0);
     drawTitle(g);
+    g.restore();
   } else {
     g.save();
+    g.translate(0, Y0);
     g.translate(Math.round(shakeX), Math.round(shakeY));
     drawWorld(g);
     g.restore();
+    g.save();
+    g.translate(0, Y0);
     drawHUD(g);
+    g.restore();
 
+    g.save();
+    g.translate(0, Y0);
     if (Game.state === 'paused') drawPause(g);
     else if (Game.state === 'settings') drawSettings(g);
     else if (Game.state === 'stageclear') drawStageClear(g);
     else if (Game.state === 'gameover') drawGameOver(g);
     else if (Game.state === 'victory') drawVictory(g);
+    g.restore();
   }
 
   /* hit flash, scaled by the photosensitivity setting */
   if (Game.flash > 0.01 && !SET.reduceMotion && SET.flash > 0) {
     g.fillStyle = 'rgba(255,255,255,' + (Game.flash * 0.5 * SET.flash) + ')';
-    g.fillRect(0, 0, W, H);
+    g.fillRect(0, 0, W, VIEW_H);
   }
 
   /* debug overlay */
@@ -929,14 +969,14 @@ function Render(g) {
   /* scanlines */
   if (Scan.canvas && !SET.reduceMotion) {
     g.globalAlpha = 0.5;
-    g.drawImage(Scan.canvas, 0, 0);
+    g.drawImage(Scan.canvas, 0, 0, W, VIEW_H);
     g.globalAlpha = 1;
   }
 
   /* vignette */
-  var vg = g.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 0.95);
+  var vg = g.createRadialGradient(W / 2, VIEW_H / 2, VIEW_H * 0.35, W / 2, VIEW_H / 2, VIEW_H * 0.95);
   vg.addColorStop(0, 'rgba(0,0,0,0)');
   vg.addColorStop(1, 'rgba(0,0,0,0.45)');
   g.fillStyle = vg;
-  g.fillRect(0, 0, W, H);
+  g.fillRect(0, 0, W, VIEW_H);
 }

@@ -33,13 +33,13 @@
 <br>
 
 [![Hosted on GitHub Pages](https://img.shields.io/badge/hosted%20on-GitHub%20Pages-222222?logo=githubpages&logoColor=white&style=for-the-badge&labelColor=05070d)](https://drsamonline.github.io/eon-commando/)
-[![Version](https://img.shields.io/badge/version-2.3.0-ffd257.svg?style=for-the-badge&labelColor=05070d)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.4.0-ffd257.svg?style=for-the-badge&labelColor=05070d)](CHANGELOG.md)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-54ffa8.svg?style=for-the-badge&labelColor=05070d)](#-zero-dependencies)
 [![Network calls](https://img.shields.io/badge/network%20calls-none-54ffa8.svg?style=for-the-badge&labelColor=05070d)](#-zero-dependencies)
 
 [![Single file](https://img.shields.io/badge/build-single%20HTML%20file-ffd257.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
 [![Size](https://img.shields.io/badge/minified-109%20KB-54e0ff.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
-[![Gzipped](https://img.shields.io/badge/gzipped-42%20KB-54e0ff.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
+[![Gzipped](https://img.shields.io/badge/gzipped-43%20KB-54e0ff.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
 [![Made with](https://img.shields.io/badge/made%20with-vanilla%20JS%20%2B%20canvas-ffd257.svg?style=for-the-badge&labelColor=05070d)](#-how-it-works)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge&labelColor=05070d)](#-contributing)
 
@@ -244,16 +244,24 @@ fullscreen (F) and a screen Wake Lock while you play.
 ## 📱 On a phone
 
 <div align="center">
-<img src="docs/shots/mobile.png" alt="Portrait phone layout: game band at the top, thumb controls below" width="300">
+<img src="docs/shots/mobile.png" alt="Portrait phone: square play area at the top, earth below, thumb controls over it" width="290">
 &nbsp;&nbsp;
 <img src="docs/shots/mobile-landscape.png" alt="Landscape phone: the game fills the screen edge to edge" width="560">
 </div>
 
-The canvas owns the whole viewport. In landscape the game fills the screen edge to edge; in
-portrait the play area sits at the top with the thumb controls in the lower third, and a
-rotate hint tells you the view gets bigger sideways. Scale is derived from the visual
-viewport, so mobile browser chrome is accounted for, and the layout re-fits on resize,
-rotation and address-bar collapse.
+**The canvas fills 100% of the screen in both orientations**, measured at 390×844, 360×640,
+412×915, 768×1024, 844×390, 640×360 and 1440×810.
+
+Landscape keeps the 16:9-to-21:9 view and fills the screen edge to edge. Portrait switches to
+a **square logical view (270×270)** — a 16:9 band on a phone held upright is only a quarter of
+the screen and the sprites end up tiny. The canvas then takes the full screen height, the play
+area sits at the top where your eyes are, the earth continues below it with strata and grit,
+and the thumb pads overlay that lower band so nothing is wasted. The play area is 78% larger
+than it was in 1.2 (219 px tall → 390 px on an iPhone), and the title and settings screens
+reflow for the narrow view instead of overflowing.
+
+If you want the widest possible view, rotate: landscape shows 584 world pixels of width
+against portrait's 270.
 
 ---
 

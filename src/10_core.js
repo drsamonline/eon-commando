@@ -6,14 +6,20 @@
 
 var VERSION = '2.3.0';
 var DPR = 1;                       // device pixel ratio, capped at 2
-var W = 480, H = 270;              // logical viewport — W widens with the window
+var W = 480, H = 270;              // world view: W widens with the window
+var VIEW_H = 270;                  // logical canvas height (portrait gets taller)
+var Y0 = 0;                        // where the world band starts inside the canvas
 var W_MIN = 480, W_MAX = 640;      // 16:9 floor, 21:9 ceiling (desktop range)
 var ARENA_W = 480;                 // boss arenas keep a fixed 16:9 footprint
 var GROUND_Y = 232;                // world y of the ground surface
 
-/* pick the logical width from the real aspect ratio, clamped to the range */
+/* Pick the logical width from the real aspect ratio.
+   Landscape keeps a 16:9 floor and widens to 21:9. Portrait switches to a
+   square view — a 16:9 band on a phone held upright is only a quarter of the
+   screen, and the sprites end up tiny. */
 function viewWidthFor(px_w, px_h) {
   var aspect = px_w / Math.max(1, px_h);
+  if (aspect < 1) return clamp(Math.round(H * aspect), 270, 360);
   return clamp(Math.round(H * aspect), W_MIN, W_MAX);
 }
 var FPS = 60, STEP = 1 / FPS;

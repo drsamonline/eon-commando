@@ -207,20 +207,31 @@ function fitCanvas() {
   }
 
   if (PARAMS.shot) {
-    var sc0 = Math.min(vw / W, vh / H);
+    var sc0 = Math.min(vw / W, vh / VIEW_H);
     cv.style.width = Math.round(W * sc0) + 'px';
-    cv.style.height = Math.round(H * sc0) + 'px';
+    cv.style.height = Math.round(VIEW_H * sc0) + 'px';
     return;
   }
 
-  var touch = document.body.classList.contains('touch');
+  /* Portrait: give the canvas the full screen height and let the world band
+     sit in the middle, with sky above and earth below. The thumb pads overlay
+     the lower dirt, so nothing is reserved and nothing is wasted. */
+  if (portrait) {
+    /* the band sits at the top where the eyes are; the earth continues below
+       and the thumb pads overlay it, so the whole screen is used */
+    VIEW_H = clamp(Math.round(W * (vh / vw)), H, 900);
+    Y0 = 0;
+  } else {
+    VIEW_H = H;
+    Y0 = 0;
+  }
+  var wantH = Math.round(VIEW_H * DPR);
+  if (cv.height !== wantH) cv.height = wantH;
+
   var availW = vw;
   var availH = vh;
 
-  /* in portrait the thumbs need the lower third, so the band sits above them */
-  if (touch && portrait) availH = vh * 0.58;
-
-  var scale = Math.min(availW / W, availH / H);
+  var scale = Math.min(availW / W, availH / VIEW_H);
   if (scale <= 0) scale = 1;
 
   /* snap to a whole number when it costs almost nothing — crisper pixels */
@@ -228,5 +239,5 @@ function fitCanvas() {
   if (snapped >= 1 && snapped / scale > 0.88) scale = snapped;
 
   cv.style.width = Math.round(W * scale) + 'px';
-  cv.style.height = Math.round(H * scale) + 'px';
+  cv.style.height = Math.round(VIEW_H * scale) + 'px';
 }
