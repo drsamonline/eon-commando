@@ -23,6 +23,8 @@ var Game = {
   remapPlayer: 'p1',
   remapIndex: 0,
   REMAP_ACTIONS: ['left', 'right', 'up', 'down', 'jump', 'fire', 'dash', 'melee', 'grenade'],
+  pauseIndex: 0,
+  hitRows: [],
   lastEntry: null,
   floaters: [],
   pending: [],
@@ -289,14 +291,7 @@ var Game = {
         this.updatePlaying();
         break;
       case 'paused':
-        if (Input.pressed('settings') || Input.pressed('down') && Input.held('settings')) {
-          this.state = 'settings';
-          this.settingsIndex = 0;
-          Snd.sfx('select');
-        } else if (Input.pressed('pause') || Input.pressed('start')) {
-          this.state = 'playing';
-          Snd.sfx('select');
-        }
+        this.updatePause();
         break;
       case 'settings':
         this.updateSettings();
@@ -332,6 +327,97 @@ var Game = {
     } else if (Input.pressed('start') || Input.pressed('jump') || Input.pressed('fire')) {
       this.startGame(false);
     }
+  },
+
+  pauseRows: function () {
+    return [
+      { id: 'resume', label: 'RESUME' },
+      { id: 'settings', label: 'SETTINGS' },
+      { id: 'controls', label: 'CONTROLS' },
+      { id: 'restart', label: 'RESTART RUN' },
+      { id: 'quit', label: 'QUIT TO TITLE' }
+    ];
+  },
+
+  activatePauseRow: function (i) {
+    var rows = this.pauseRows();
+    if (!rows[i]) return;
+    var id = rows[i].id;
+    Snd.sfx('select');
+    if (id === 'resume') this.state = 'playing';
+    else if (id === 'settings') { this.state = 'settings'; this.settingsIndex = 0; }
+    else if (id === 'controls') { this.state = 'remap'; this.remapIndex = 0; }
+    else if (id === 'restart') { this.startGame(this.coop); }
+    else if (id === 'quit') { this.state = 'title'; this.stateTimer = 0; Snd.stopMusic(); }
+  },
+
+  updatePause: function () {
+    var n = this.pauseRows().length;
+    if (Input.pressed('up')) { this.pauseIndex = (this.pauseIndex + n - 1) % n; Snd.sfx('select'); }
+    if (Input.pressed('down')) { this.pauseIndex = (this.pauseIndex + 1) % n; Snd.sfx('select'); }
+    if (Input.pressed('start')) { this.activatePauseRow(this.pauseIndex); return; }
+    if (Input.pressed('settings')) { this.state = 'settings'; this.settingsIndex = 0; Snd.sfx('select'); return; }
+    if (Input.pressed('pause')) { this.state = 'playing'; Snd.sfx('select'); }
+  },
+
+  /* a tap in logical canvas coordinates, dispatched by the current screen */
+  tap: function (mx, my) {
+    var i, r;
+    if (this.state === 'paused') {
+      for (i = 0; i < this.hitRows.length; i++) {
+        r = this.hitRows[i];
+        if (my >= r.y0 && my <= r.y1) { this.pauseIndex = r.i; this.activatePauseRow(r.i); return; }
+      }
+      return;
+    }
+    if (this.state === 'settings') {
+      for (i = 0; i < this.hitRows.length; i++) {
+        r = this.hitRows[i];
+        if (my >= r.y0 && my <= r.y1) {
+          this.settingsIndex = r.i;
+          if (r.i === 8) { this.state = 'remap'; this.remapIndex = 0; Snd.sfx('select'); return; }
+          /* tap the right half to increase, the left half to decrease */
+          var dir = (mx > W / 2) ? 1 : -1;
+          this.nudgeSetting(r.i, dir);
+          return;
+        }
+      }
+      return;
+    }
+    if (this.state === 'remap') {
+      for (i = 0; i < this.hitRows.length; i++) {
+        r = this.hitRows[i];
+        if (my >= r.y0 && my <= r.y1) { this.remapIndex = r.i; Snd.sfx('select'); return; }
+      }
+      if (my < this.hitRows.length ? false : false) return;
+      /* tapping the header switches player */
+      if (my > 36 && my < 52) {
+        this.remapPlayer = this.remapPlayer === 'p1' ? 'p2' : 'p1';
+        Snd.sfx('select');
+      }
+      return;
+    }
+    if (this.state === 'gameover' || this.state === 'victory') {
+      this.stateTimer = 999;
+      this.startGame(this.coop);
+      return;
+    }
+    if (this.state === 'stageclear') return;
+  },
+
+  /* shared by keyboard and tap so the two cannot drift apart */
+  nudgeSetting: function (i, dir) {
+    if (i === 0) SET.difficulty = clamp(SET.difficulty + dir, 0, 2);
+    else if (i === 1) SET.palette = clamp(SET.palette + dir, 0, 2);
+    else if (i === 2) SET.reduceMotion = SET.reduceMotion ? 0 : 1;
+    else if (i === 3) SET.flash = clamp(Math.round((SET.flash + dir * 0.25) * 100) / 100, 0, 1);
+    else if (i === 4) SET.hudScale = clamp(Math.round((SET.hudScale + dir * 0.15) * 100) / 100, 0.85, 1.3);
+    else if (i === 5) SET.music = clamp(Math.round((SET.music + dir * 0.2) * 100) / 100, 0, 1);
+    else if (i === 6) SET.sfx = clamp(Math.round((SET.sfx + dir * 0.2) * 100) / 100, 0, 1);
+    else if (i === 7) SET.autoFire = SET.autoFire ? 0 : 1;
+    saveSettings();
+    Snd.applyVolumes();
+    Snd.sfx('coin');
   },
 
   updateRemap: function () {

@@ -41,7 +41,11 @@ function boot() {
   canvas.addEventListener('pointerdown', function (e) {
     e.preventDefault();
     Snd.resume();
-    Game.pressStart();
+    if (Game.state === 'title') { Game.pressStart(); return; }
+    var rect = canvas.getBoundingClientRect();
+    var mx = (e.clientX - rect.left) / rect.width * W;
+    var my = (e.clientY - rect.top) / rect.height * VIEW_H - Y0;
+    Game.tap(mx, my);
   });
 
   window.__eon = Game;              // test hook
@@ -215,6 +219,7 @@ function runDemo(n) {
   }
 
   if (PARAMS.pose === 'settings') { Game.state = 'settings'; Game.settingsIndex = 0; }
+  if (PARAMS.pose === 'pause') { Game.state = 'paused'; Game.pauseIndex = 0; }
   if (PARAMS.pose === 'remap') { Game.state = 'remap'; Game.remapPlayer = 'p1'; Game.remapIndex = 3; }
   if (PARAMS.pose === 'leaderboard') { Game.score = 24500; Game.recordRun('EON SECURED'); }
   if (Game.boss) Game.boss.flash = 0;

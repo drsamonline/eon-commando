@@ -962,12 +962,21 @@ function fitCanvas() {
   var portrait = vh > vw;
   document.body.classList.toggle('portrait', portrait);
 
-  /* logical width follows the aspect ratio; portrait keeps the 16:9 floor */
-  var w = viewWidthFor(vw, vh);
+  /* logical width follows the aspect ratio */
+  W = viewWidthFor(vw, vh);
+
+  /* Portrait gets a taller canvas: the 270px world band sits at the top and the
+     earth continues below it, with the thumb pads over that lower band. */
+  if (portrait) {
+    VIEW_H = clamp(Math.round(W * (vh / vw)), H, 900);
+  } else {
+    VIEW_H = H;
+  }
+  Y0 = 0;
+
   DPR = clamp(window.devicePixelRatio || 1, 1, 2);
-  var wantW = Math.round(w * DPR), wantH = Math.round(H * DPR);
-  if (w !== W || cv.width !== wantW || cv.height !== wantH) {
-    W = w;
+  var wantW = Math.round(W * DPR), wantH = Math.round(VIEW_H * DPR);
+  if (cv.width !== wantW || cv.height !== wantH) {
     cv.width = wantW;
     cv.height = wantH;
     var g2 = cv.getContext('2d');
@@ -985,25 +994,7 @@ function fitCanvas() {
     return;
   }
 
-  /* Portrait: give the canvas the full screen height and let the world band
-     sit in the middle, with sky above and earth below. The thumb pads overlay
-     the lower dirt, so nothing is reserved and nothing is wasted. */
-  if (portrait) {
-    /* the band sits at the top where the eyes are; the earth continues below
-       and the thumb pads overlay it, so the whole screen is used */
-    VIEW_H = clamp(Math.round(W * (vh / vw)), H, 900);
-    Y0 = 0;
-  } else {
-    VIEW_H = H;
-    Y0 = 0;
-  }
-  var wantH = Math.round(VIEW_H * DPR);
-  if (cv.height !== wantH) cv.height = wantH;
-
-  var availW = vw;
-  var availH = vh;
-
-  var scale = Math.min(availW / W, availH / VIEW_H);
+  var scale = Math.min(vw / W, vh / VIEW_H);
   if (scale <= 0) scale = 1;
 
   /* snap to a whole number when it costs almost nothing — crisper pixels */
@@ -3163,6 +3154,8 @@ var Game = {
   remapPlayer: 'p1',
   remapIndex: 0,
   REMAP_ACTIONS: ['left', 'right', 'up', 'down', 'jump', 'fire', 'dash', 'melee', 'grenade'],
+  pauseIndex: 0,
+  hitRows: [],
   lastEntry: null,
   floaters: [],
   pending: [],
@@ -3429,14 +3422,7 @@ var Game = {
         this.updatePlaying();
         break;
       case 'paused':
-        if (Input.pressed('settings') || Input.pressed('down') && Input.held('settings')) {
-          this.state = 'settings';
-          this.settingsIndex = 0;
-          Snd.sfx('select');
-        } else if (Input.pressed('pause') || Input.pressed('start')) {
-          this.state = 'playing';
-          Snd.sfx('select');
-        }
+        this.updatePause();
         break;
       case 'settings':
         this.updateSettings();
@@ -3472,6 +3458,97 @@ var Game = {
     } else if (Input.pressed('start') || Input.pressed('jump') || Input.pressed('fire')) {
       this.startGame(false);
     }
+  },
+
+  pauseRows: function () {
+    return [
+      { id: 'resume', label: 'RESUME' },
+      { id: 'settings', label: 'SETTINGS' },
+      { id: 'controls', label: 'CONTROLS' },
+      { id: 'restart', label: 'RESTART RUN' },
+      { id: 'quit', label: 'QUIT TO TITLE' }
+    ];
+  },
+
+  activatePauseRow: function (i) {
+    var rows = this.pauseRows();
+    if (!rows[i]) return;
+    var id = rows[i].id;
+    Snd.sfx('select');
+    if (id === 'resume') this.state = 'playing';
+    else if (id === 'settings') { this.state = 'settings'; this.settingsIndex = 0; }
+    else if (id === 'controls') { this.state = 'remap'; this.remapIndex = 0; }
+    else if (id === 'restart') { this.startGame(this.coop); }
+    else if (id === 'quit') { this.state = 'title'; this.stateTimer = 0; Snd.stopMusic(); }
+  },
+
+  updatePause: function () {
+    var n = this.pauseRows().length;
+    if (Input.pressed('up')) { this.pauseIndex = (this.pauseIndex + n - 1) % n; Snd.sfx('select'); }
+    if (Input.pressed('down')) { this.pauseIndex = (this.pauseIndex + 1) % n; Snd.sfx('select'); }
+    if (Input.pressed('start')) { this.activatePauseRow(this.pauseIndex); return; }
+    if (Input.pressed('settings')) { this.state = 'settings'; this.settingsIndex = 0; Snd.sfx('select'); return; }
+    if (Input.pressed('pause')) { this.state = 'playing'; Snd.sfx('select'); }
+  },
+
+  /* a tap in logical canvas coordinates, dispatched by the current screen */
+  tap: function (mx, my) {
+    var i, r;
+    if (this.state === 'paused') {
+      for (i = 0; i < this.hitRows.length; i++) {
+        r = this.hitRows[i];
+        if (my >= r.y0 && my <= r.y1) { this.pauseIndex = r.i; this.activatePauseRow(r.i); return; }
+      }
+      return;
+    }
+    if (this.state === 'settings') {
+      for (i = 0; i < this.hitRows.length; i++) {
+        r = this.hitRows[i];
+        if (my >= r.y0 && my <= r.y1) {
+          this.settingsIndex = r.i;
+          if (r.i === 8) { this.state = 'remap'; this.remapIndex = 0; Snd.sfx('select'); return; }
+          /* tap the right half to increase, the left half to decrease */
+          var dir = (mx > W / 2) ? 1 : -1;
+          this.nudgeSetting(r.i, dir);
+          return;
+        }
+      }
+      return;
+    }
+    if (this.state === 'remap') {
+      for (i = 0; i < this.hitRows.length; i++) {
+        r = this.hitRows[i];
+        if (my >= r.y0 && my <= r.y1) { this.remapIndex = r.i; Snd.sfx('select'); return; }
+      }
+      if (my < this.hitRows.length ? false : false) return;
+      /* tapping the header switches player */
+      if (my > 36 && my < 52) {
+        this.remapPlayer = this.remapPlayer === 'p1' ? 'p2' : 'p1';
+        Snd.sfx('select');
+      }
+      return;
+    }
+    if (this.state === 'gameover' || this.state === 'victory') {
+      this.stateTimer = 999;
+      this.startGame(this.coop);
+      return;
+    }
+    if (this.state === 'stageclear') return;
+  },
+
+  /* shared by keyboard and tap so the two cannot drift apart */
+  nudgeSetting: function (i, dir) {
+    if (i === 0) SET.difficulty = clamp(SET.difficulty + dir, 0, 2);
+    else if (i === 1) SET.palette = clamp(SET.palette + dir, 0, 2);
+    else if (i === 2) SET.reduceMotion = SET.reduceMotion ? 0 : 1;
+    else if (i === 3) SET.flash = clamp(Math.round((SET.flash + dir * 0.25) * 100) / 100, 0, 1);
+    else if (i === 4) SET.hudScale = clamp(Math.round((SET.hudScale + dir * 0.15) * 100) / 100, 0.85, 1.3);
+    else if (i === 5) SET.music = clamp(Math.round((SET.music + dir * 0.2) * 100) / 100, 0, 1);
+    else if (i === 6) SET.sfx = clamp(Math.round((SET.sfx + dir * 0.2) * 100) / 100, 0, 1);
+    else if (i === 7) SET.autoFire = SET.autoFire ? 0 : 1;
+    saveSettings();
+    Snd.applyVolumes();
+    Snd.sfx('coin');
   },
 
   updateRemap: function () {
@@ -4529,14 +4606,27 @@ function drawTitle(g) {
 }
 
 function drawPause(g) {
-  dim(g, 0.62);
-  drawText(g, 'PAUSED', W / 2, 100, 4, '#54e0ff', 'center', 'rgba(0,0,0,0.8)');
-  drawText(g, 'P OR ESC TO RESUME', W / 2, 140, 1, '#cfd8e3', 'center');
-  drawText(g, 'M MUTES AUDIO', W / 2, 154, 1, '#7f8fa6', 'center');
+  dim(g, 0.78);
+  drawText(g, 'PAUSED', W / 2, 22, 3, '#54e0ff', 'center', 'rgba(0,0,0,0.85)');
+  var rows = Game.pauseRows();
+  Game.hitRows = [];
+  var narrow = W < 380;
+  var step = narrow ? 25 : 18;
+  var band = narrow ? 11 : 6;
+  var y = narrow ? 60 : 64, i;
+  for (i = 0; i < rows.length; i++) {
+    var sel = i === Game.pauseIndex;
+    if (sel) px(g, narrow ? 20 : 40, y - band, W - (narrow ? 40 : 80), band * 2, 'rgba(84,224,255,0.16)');
+    drawText(g, rows[i].label, W / 2, y, 1, sel ? '#ffffff' : '#9fb2c6', 'center');
+    Game.hitRows.push({ y0: y - band, y1: y + band, i: i });
+    y += step;
+  }
+  drawText(g, 'TAP A ROW  ·  P TO RESUME', W / 2, H - 16, 1, '#54637a', 'center');
 }
 
 function drawSettings(g) {
   dim(g, 0.82);
+  Game.hitRows = [];
   drawText(g, 'SETTINGS', W / 2, 26, 3, '#54e0ff', 'center', 'rgba(0,0,0,0.85)');
   var rows = [
     ['DIFFICULTY', DIFFICULTY[clamp(SET.difficulty, 0, 2)].name],
@@ -4560,6 +4650,7 @@ function drawSettings(g) {
     }
     drawText(g, rows[i][0], padX, y, 1, sel ? '#ffffff' : '#9fb2c6');
     drawText(g, rows[i][1], W - padX, y, 1, sel ? '#ffd257' : '#7f8fa6', 'right');
+    Game.hitRows.push({ y0: y - 7, y1: y + 10, i: i });
     y += narrow ? 16 : 17;
   }
   if (narrow) {
@@ -4587,6 +4678,7 @@ function keyLabel(code) {
 
 function drawRemap(g) {
   dim(g, 0.85);
+  Game.hitRows = [];
   var narrow = W < 380;
   drawText(g, 'CONTROLS', W / 2, 20, 3, '#54e0ff', 'center', 'rgba(0,0,0,0.85)');
 
@@ -4609,6 +4701,7 @@ function drawRemap(g) {
                     Input.listening.player === Game.remapPlayer;
     drawText(g, listening ? 'PRESS A KEY' : keyLabel(bound),
              W - padX, y, 1, listening ? '#ff4d6d' : (sel ? '#ffd257' : '#7f8fa6'), 'right');
+    Game.hitRows.push({ y0: y - 7, y1: y + 9, i: i });
     y += narrow ? 15 : 16;
   }
 
@@ -4706,7 +4799,8 @@ function Render(g) {
     g.translate(Math.round(shakeX), Math.round(shakeY));
     drawWorld(g);
     g.restore();
-    if (Game.state !== 'settings' && Game.state !== 'remap') {
+    if (Game.state === 'playing' || Game.state === 'stageclear' ||
+        Game.state === 'gameover' || Game.state === 'victory') {
       g.save();
       g.translate(0, Y0);
       drawHUD(g);
@@ -4799,7 +4893,11 @@ function boot() {
   canvas.addEventListener('pointerdown', function (e) {
     e.preventDefault();
     Snd.resume();
-    Game.pressStart();
+    if (Game.state === 'title') { Game.pressStart(); return; }
+    var rect = canvas.getBoundingClientRect();
+    var mx = (e.clientX - rect.left) / rect.width * W;
+    var my = (e.clientY - rect.top) / rect.height * VIEW_H - Y0;
+    Game.tap(mx, my);
   });
 
   window.__eon = Game;              // test hook
@@ -4973,6 +5071,7 @@ function runDemo(n) {
   }
 
   if (PARAMS.pose === 'settings') { Game.state = 'settings'; Game.settingsIndex = 0; }
+  if (PARAMS.pose === 'pause') { Game.state = 'paused'; Game.pauseIndex = 0; }
   if (PARAMS.pose === 'remap') { Game.state = 'remap'; Game.remapPlayer = 'p1'; Game.remapIndex = 3; }
   if (PARAMS.pose === 'leaderboard') { Game.score = 24500; Game.recordRun('EON SECURED'); }
   if (Game.boss) Game.boss.flash = 0;

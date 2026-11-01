@@ -819,14 +819,27 @@ function drawTitle(g) {
 }
 
 function drawPause(g) {
-  dim(g, 0.62);
-  drawText(g, 'PAUSED', W / 2, 100, 4, '#54e0ff', 'center', 'rgba(0,0,0,0.8)');
-  drawText(g, 'P OR ESC TO RESUME', W / 2, 140, 1, '#cfd8e3', 'center');
-  drawText(g, 'M MUTES AUDIO', W / 2, 154, 1, '#7f8fa6', 'center');
+  dim(g, 0.78);
+  drawText(g, 'PAUSED', W / 2, 22, 3, '#54e0ff', 'center', 'rgba(0,0,0,0.85)');
+  var rows = Game.pauseRows();
+  Game.hitRows = [];
+  var narrow = W < 380;
+  var step = narrow ? 25 : 18;
+  var band = narrow ? 11 : 6;
+  var y = narrow ? 60 : 64, i;
+  for (i = 0; i < rows.length; i++) {
+    var sel = i === Game.pauseIndex;
+    if (sel) px(g, narrow ? 20 : 40, y - band, W - (narrow ? 40 : 80), band * 2, 'rgba(84,224,255,0.16)');
+    drawText(g, rows[i].label, W / 2, y, 1, sel ? '#ffffff' : '#9fb2c6', 'center');
+    Game.hitRows.push({ y0: y - band, y1: y + band, i: i });
+    y += step;
+  }
+  drawText(g, 'TAP A ROW  ·  P TO RESUME', W / 2, H - 16, 1, '#54637a', 'center');
 }
 
 function drawSettings(g) {
   dim(g, 0.82);
+  Game.hitRows = [];
   drawText(g, 'SETTINGS', W / 2, 26, 3, '#54e0ff', 'center', 'rgba(0,0,0,0.85)');
   var rows = [
     ['DIFFICULTY', DIFFICULTY[clamp(SET.difficulty, 0, 2)].name],
@@ -850,6 +863,7 @@ function drawSettings(g) {
     }
     drawText(g, rows[i][0], padX, y, 1, sel ? '#ffffff' : '#9fb2c6');
     drawText(g, rows[i][1], W - padX, y, 1, sel ? '#ffd257' : '#7f8fa6', 'right');
+    Game.hitRows.push({ y0: y - 7, y1: y + 10, i: i });
     y += narrow ? 16 : 17;
   }
   if (narrow) {
@@ -877,6 +891,7 @@ function keyLabel(code) {
 
 function drawRemap(g) {
   dim(g, 0.85);
+  Game.hitRows = [];
   var narrow = W < 380;
   drawText(g, 'CONTROLS', W / 2, 20, 3, '#54e0ff', 'center', 'rgba(0,0,0,0.85)');
 
@@ -899,6 +914,7 @@ function drawRemap(g) {
                     Input.listening.player === Game.remapPlayer;
     drawText(g, listening ? 'PRESS A KEY' : keyLabel(bound),
              W - padX, y, 1, listening ? '#ff4d6d' : (sel ? '#ffd257' : '#7f8fa6'), 'right');
+    Game.hitRows.push({ y0: y - 7, y1: y + 9, i: i });
     y += narrow ? 15 : 16;
   }
 
@@ -996,7 +1012,8 @@ function Render(g) {
     g.translate(Math.round(shakeX), Math.round(shakeY));
     drawWorld(g);
     g.restore();
-    if (Game.state !== 'settings' && Game.state !== 'remap') {
+    if (Game.state === 'playing' || Game.state === 'stageclear' ||
+        Game.state === 'gameover' || Game.state === 'victory') {
       g.save();
       g.translate(0, Y0);
       drawHUD(g);

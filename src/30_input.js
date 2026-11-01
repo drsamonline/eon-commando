@@ -251,12 +251,21 @@ function fitCanvas() {
   var portrait = vh > vw;
   document.body.classList.toggle('portrait', portrait);
 
-  /* logical width follows the aspect ratio; portrait keeps the 16:9 floor */
-  var w = viewWidthFor(vw, vh);
+  /* logical width follows the aspect ratio */
+  W = viewWidthFor(vw, vh);
+
+  /* Portrait gets a taller canvas: the 270px world band sits at the top and the
+     earth continues below it, with the thumb pads over that lower band. */
+  if (portrait) {
+    VIEW_H = clamp(Math.round(W * (vh / vw)), H, 900);
+  } else {
+    VIEW_H = H;
+  }
+  Y0 = 0;
+
   DPR = clamp(window.devicePixelRatio || 1, 1, 2);
-  var wantW = Math.round(w * DPR), wantH = Math.round(H * DPR);
-  if (w !== W || cv.width !== wantW || cv.height !== wantH) {
-    W = w;
+  var wantW = Math.round(W * DPR), wantH = Math.round(VIEW_H * DPR);
+  if (cv.width !== wantW || cv.height !== wantH) {
     cv.width = wantW;
     cv.height = wantH;
     var g2 = cv.getContext('2d');
@@ -274,25 +283,7 @@ function fitCanvas() {
     return;
   }
 
-  /* Portrait: give the canvas the full screen height and let the world band
-     sit in the middle, with sky above and earth below. The thumb pads overlay
-     the lower dirt, so nothing is reserved and nothing is wasted. */
-  if (portrait) {
-    /* the band sits at the top where the eyes are; the earth continues below
-       and the thumb pads overlay it, so the whole screen is used */
-    VIEW_H = clamp(Math.round(W * (vh / vw)), H, 900);
-    Y0 = 0;
-  } else {
-    VIEW_H = H;
-    Y0 = 0;
-  }
-  var wantH = Math.round(VIEW_H * DPR);
-  if (cv.height !== wantH) cv.height = wantH;
-
-  var availW = vw;
-  var availH = vh;
-
-  var scale = Math.min(availW / W, availH / VIEW_H);
+  var scale = Math.min(vw / W, vh / VIEW_H);
   if (scale <= 0) scale = 1;
 
   /* snap to a whole number when it costs almost nothing — crisper pixels */
@@ -302,3 +293,4 @@ function fitCanvas() {
   cv.style.width = Math.round(W * scale) + 'px';
   cv.style.height = Math.round(VIEW_H * scale) + 'px';
 }
+

@@ -2,6 +2,25 @@
 
 All notable changes to Eon Commando.
 
+## [2.7.0] — 2026-11-01
+
+Touch-accessible menus.
+
+### Added
+- **Pause is a menu**: Resume / Settings / Controls / Restart Run / Quit to Title, reachable
+  from the ❙❙ button and navigable by tap or arrow keys.
+- **Every menu is tappable.** Pause, Settings and Controls build a hit-map as they draw, so the
+  drawn layout and the touch targets cannot drift apart. Settings rows respond to the right half
+  (increase) and left half (decrease).
+- Touch-sized targets: pause rows step 25 px in portrait (~36 px on screen) rather than 18, and
+  every menu's hit band is wider than its text.
+- `Game.nudgeSetting()` shared by keyboard and tap so the two paths cannot diverge.
+
+### Fixed
+- **`fitCanvas` computed the portrait view height after the screenshot early-return**, so
+  `?shot=1` on a phone rendered the 16:9 layout. The view height is now resolved first.
+- The HUD is hidden on the pause screen, where its era banner overlapped the menu.
+
 ## [2.6.0] — 2026-11-01
 
 Rebindable controls.
