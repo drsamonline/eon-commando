@@ -2,6 +2,35 @@
 
 All notable changes to Eon Commando.
 
+## [4.5.1] — 2026-11-01
+
+**Hotfix: the game froze on the first hit taken.**
+
+### Fixed
+- **The freeze.** `playerHurt(p, dmg)` referenced an undefined `amount` — a mistake introduced
+  with the AEGIS perk in 4.4, where the damage multiplier was written against a variable name
+  that does not exist. Reading it threw `ReferenceError` on the very first hit, and because the
+  throw happened inside the animation loop, `requestAnimationFrame` was never scheduled again:
+  the game froze on its last frame with no way back. Reported as "stucks sometimes during a boss
+  fight", which is exactly where you get hit.
+- **Endless mode opened on the campaign cutscene.** `startEndless` calls `startGame`, which began
+  playing the era's story in 4.0; the first wave therefore never spawned until the panel was
+  dismissed. Endless now starts on the field.
+- Removed a duplicate `anyKey` key in `Input`.
+
+### Changed
+- **The animation loop can no longer die.** The whole frame body — update, render, audio, DOM —
+  is wrapped, and `requestAnimationFrame` is scheduled unconditionally afterwards. Any future
+  error becomes one skipped frame and a console line instead of a permanent freeze. Verified:
+  with update and render both throwing, the next frame is still scheduled.
+
+### Audited
+- ESLint (`no-undef`, `no-dupe-keys`, `no-dupe-args`, `no-unreachable`, `no-fallthrough`,
+  `no-self-compare`, `use-isnan`) over the entire 234 KB bundle: **zero errors**.
+- 31,200 frames of randomised input across all six eras, single and co-op: no exceptions.
+- Array growth bounded over a 3,000-frame boss fight: particles peak 89, bullets 10, hazards 3,
+  enemies 4.
+
 ## [4.5.0] — 2026-11-01
 
 LAN co-op.

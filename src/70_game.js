@@ -258,6 +258,11 @@ var Game = {
       this.players[ei].y = GROUND_Y - 22;
       this.players[ei].invuln = 90;
     }
+    /* startGame opens the era's cutscene now; endless has no story beat, and
+       leaving it there meant the first wave never spawned until you tapped
+       through a panel that has nothing to do with the mode */
+    this.story = null;
+    this.state = 'playing';
     this.banner = { text: 'ENDLESS', sub: 'SURVIVE THE WAVES', life: 120, color: '#ff2d95' };
     Snd.playMusic(TRACKS.boss);
   },

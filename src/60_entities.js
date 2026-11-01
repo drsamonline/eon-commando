@@ -381,8 +381,7 @@ function fireWeapon(p, angleOverride) {
 
 function playerHurt(p, dmg) {
   if (p.invuln > 0 || p.dead || p.dashT > 0) return;
-  amount = Math.max(1, Math.round(amount * (Game.takenMul || 1)));
-  dmg = dmg * diff().dmgTaken;
+  dmg = dmg * diff().dmgTaken * (Game.takenMul || 1);
   p.hp -= dmg;
   p.hurtFlash = 24;
   p.invuln = 80;

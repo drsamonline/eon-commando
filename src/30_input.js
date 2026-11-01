@@ -12,7 +12,6 @@ var Input = {
   keys2: {}, touch2: {}, pad2: {},
   cur2: {}, prev2: {},   // player two
   anyKey: false,
-  anyKey: false,
 
   /* ---- bindings: data-driven, persisted, per player -------------------- */
   BINDINGS: null,

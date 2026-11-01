@@ -31,7 +31,7 @@ var LAN = {
   sentFrame: -1,
   started: false,
 
-  available: function () { return typeof Lan !== 'undefined' && !!Lan.client; },
+  available: function () { return typeof window !== 'undefined' && !!(window.Lan && window.Lan.client); },
 
   portFromUrl: function () {
     var m = /[?&]lanport=(\d+)/.exec(location.search || '');
@@ -46,8 +46,8 @@ var LAN = {
     this.status = role === 'host' ? 'WAITING FOR PLAYER 2' : 'CONNECTING...';
     var self = this;
     try {
-      this.conn = Lan.client({
-        url: Lan.hostUrl(this.port),
+      this.conn = window.Lan.client({
+        url: window.Lan.hostUrl(this.port),
         onOpen: function () {
           self.status = role === 'host' ? 'WAITING FOR PLAYER 2' : 'CONNECTED, ASKING TO JOIN';
           if (role === 'client') self.send({ t: 'join' });

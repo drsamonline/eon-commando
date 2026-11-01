@@ -4,7 +4,7 @@
 
 <!-- shot:start -->
 
-![Screenshot](docs/shot.png)
+![Gameplay](docs/shots/gameplay.png)
 
 <!-- shot:end -->
 
@@ -33,7 +33,7 @@
 <br>
 
 [![Hosted on GitHub Pages](https://img.shields.io/badge/hosted%20on-GitHub%20Pages-222222?logo=githubpages&logoColor=white&style=for-the-badge&labelColor=05070d)](https://drsamonline.github.io/eon-commando/)
-[![Version](https://img.shields.io/badge/version-4.5.0-ffd257.svg?style=for-the-badge&labelColor=05070d)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-4.5.1-ffd257.svg?style=for-the-badge&labelColor=05070d)](CHANGELOG.md)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-54ffa8.svg?style=for-the-badge&labelColor=05070d)](#-zero-dependencies)
 [![Network calls](https://img.shields.io/badge/network%20calls-none-54ffa8.svg?style=for-the-badge&labelColor=05070d)](#-zero-dependencies)
 
@@ -130,6 +130,19 @@ Works identically from `file://` and from a web server. Works offline. Works on 
 </div>
 
 ---
+
+## 🆕 What's new in 4.5.1
+
+**Hotfix — the game froze the first time you got hit.**
+
+`playerHurt` referenced a variable that didn't exist (a mistake from the AEGIS perk in 4.4), so
+the first hit threw, and the throw killed the animation loop: a permanent freeze on the last
+rendered frame. Fixed.
+
+Two structural changes came out of the audit: **the animation loop can no longer die** — the
+whole frame is wrapped and the next frame is always scheduled, so any future error costs one
+frame instead of the game — and **endless mode no longer opens on the campaign cutscene**, which
+had been stopping the first wave from spawning.
 
 ## 🆕 What's new in 4.5
 

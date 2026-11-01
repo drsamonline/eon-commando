@@ -219,12 +219,29 @@ function boot() {
 }
 
 function loop(now) {
+  /* Nothing in a frame is allowed to stop the next frame. An uncaught error
+     anywhere in here — update, render, audio, a stray DOM call — used to skip
+     requestAnimationFrame and freeze the game on its last image with no way
+     back. The whole body is guarded and the next frame is always scheduled. */
+  try {
+    loopBody(now);
+  } catch (err) {
+    _acc = 0;
+    if (window.__lastError !== String(err && err.message)) {
+      window.__lastError = String(err && err.message);
+      try { console.error('[eon] frame error:', err); } catch (e) {}
+    }
+  }
+  requestAnimationFrame(loop);
+}
+
+function loopBody(now) {
   var dt = (now - _last) / 1000;
   _last = now;
   if (dt > 0.25) dt = 0.25;
   _acc += dt;
 
-  if (window.__freeze) { Render(ctx); requestAnimationFrame(loop); return; }
+  if (window.__freeze || window.__loopGuard) { Render(ctx); return; }
 
   var steps = 0;
   while (_acc >= STEP && steps < 5) {
@@ -267,8 +284,6 @@ function loop(now) {
     Perf.frames = 0;
     Perf.since = now;
   }
-
-  requestAnimationFrame(loop);
 }
 
 /* ---- fullscreen + wake lock -------------------------------------------- */
@@ -304,9 +319,9 @@ function keepAwake(on) {
 function lanTestHooks() {
   /* a probe that measures the plain sim rate through the same channel, so a
      slow LAN session can be told apart from a slow machine */
-  if (PARAMS.probe) {
-    var pc = Lan.client({
-      url: Lan.hostUrl(LAN.portFromUrl()),
+  if (PARAMS.probe && window.Lan) {
+    var pc = window.Lan.client({
+      url: window.Lan.hostUrl(LAN.portFromUrl()),
       onOpen: function () {
         setInterval(function () {
           pc.send({ t: 'report', role: 'probe', frame: Game.time, score: Game.score });

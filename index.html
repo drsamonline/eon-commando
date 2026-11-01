@@ -231,7 +231,7 @@
    =========================================================================== */
 'use strict';
 
-var VERSION = '3.0.0';
+var VERSION = '4.5.1';
 var DPR = 1;                       // device pixel ratio, capped at 2
 var W = 480, H = 270;              // world view: W widens with the window
 var VIEW_H = 270;                  // logical canvas height (portrait gets taller)
@@ -824,7 +824,6 @@ var Input = {
   prev: {},          // merged actions last frame
   keys2: {}, touch2: {}, pad2: {},
   cur2: {}, prev2: {},   // player two
-  anyKey: false,
   anyKey: false,
 
   /* ---- bindings: data-driven, persisted, per player -------------------- */
@@ -2869,8 +2868,7 @@ function fireWeapon(p, angleOverride) {
 
 function playerHurt(p, dmg) {
   if (p.invuln > 0 || p.dead || p.dashT > 0) return;
-  amount = Math.max(1, Math.round(amount * (Game.takenMul || 1)));
-  dmg = dmg * diff().dmgTaken;
+  dmg = dmg * diff().dmgTaken * (Game.takenMul || 1);
   p.hp -= dmg;
   p.hurtFlash = 24;
   p.invuln = 80;
@@ -4039,6 +4037,11 @@ var Game = {
       this.players[ei].y = GROUND_Y - 22;
       this.players[ei].invuln = 90;
     }
+    /* startGame opens the era's cutscene now; endless has no story beat, and
+       leaving it there meant the first wave never spawned until you tapped
+       through a panel that has nothing to do with the mode */
+    this.story = null;
+    this.state = 'playing';
     this.banner = { text: 'ENDLESS', sub: 'SURVIVE THE WAVES', life: 120, color: '#ff2d95' };
     Snd.playMusic(TRACKS.boss);
   },
@@ -6456,12 +6459,29 @@ function boot() {
 }
 
 function loop(now) {
+  /* Nothing in a frame is allowed to stop the next frame. An uncaught error
+     anywhere in here — update, render, audio, a stray DOM call — used to skip
+     requestAnimationFrame and freeze the game on its last image with no way
+     back. The whole body is guarded and the next frame is always scheduled. */
+  try {
+    loopBody(now);
+  } catch (err) {
+    _acc = 0;
+    if (window.__lastError !== String(err && err.message)) {
+      window.__lastError = String(err && err.message);
+      try { console.error('[eon] frame error:', err); } catch (e) {}
+    }
+  }
+  requestAnimationFrame(loop);
+}
+
+function loopBody(now) {
   var dt = (now - _last) / 1000;
   _last = now;
   if (dt > 0.25) dt = 0.25;
   _acc += dt;
 
-  if (window.__freeze) { Render(ctx); requestAnimationFrame(loop); return; }
+  if (window.__freeze || window.__loopGuard) { Render(ctx); return; }
 
   var steps = 0;
   while (_acc >= STEP && steps < 5) {
@@ -6504,8 +6524,6 @@ function loop(now) {
     Perf.frames = 0;
     Perf.since = now;
   }
-
-  requestAnimationFrame(loop);
 }
 
 /* ---- fullscreen + wake lock -------------------------------------------- */
@@ -6541,9 +6559,9 @@ function keepAwake(on) {
 function lanTestHooks() {
   /* a probe that measures the plain sim rate through the same channel, so a
      slow LAN session can be told apart from a slow machine */
-  if (PARAMS.probe) {
-    var pc = Lan.client({
-      url: Lan.hostUrl(LAN.portFromUrl()),
+  if (PARAMS.probe && window.Lan) {
+    var pc = window.Lan.client({
+      url: window.Lan.hostUrl(LAN.portFromUrl()),
       onOpen: function () {
         setInterval(function () {
           pc.send({ t: 'report', role: 'probe', frame: Game.time, score: Game.score });
@@ -6700,7 +6718,7 @@ var LAN = {
   sentFrame: -1,
   started: false,
 
-  available: function () { return typeof Lan !== 'undefined' && !!Lan.client; },
+  available: function () { return typeof window !== 'undefined' && !!(window.Lan && window.Lan.client); },
 
   portFromUrl: function () {
     var m = /[?&]lanport=(\d+)/.exec(location.search || '');
@@ -6715,8 +6733,8 @@ var LAN = {
     this.status = role === 'host' ? 'WAITING FOR PLAYER 2' : 'CONNECTING...';
     var self = this;
     try {
-      this.conn = Lan.client({
-        url: Lan.hostUrl(this.port),
+      this.conn = window.Lan.client({
+        url: window.Lan.hostUrl(this.port),
         onOpen: function () {
           self.status = role === 'host' ? 'WAITING FOR PLAYER 2' : 'CONNECTED, ASKING TO JOIN';
           if (role === 'client') self.send({ t: 'join' });
