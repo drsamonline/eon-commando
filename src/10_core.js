@@ -4,6 +4,7 @@
    =========================================================================== */
 'use strict';
 
+var VERSION = '2.3.0';
 var DPR = 1;                       // device pixel ratio, capped at 2
 var W = 480, H = 270;              // logical viewport — W widens with the window
 var W_MIN = 480, W_MAX = 640;      // 16:9 floor, 21:9 ceiling (desktop range)
@@ -20,10 +21,12 @@ var FPS = 60, STEP = 1 / FPS;
 function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
 function sign(v) { return v < 0 ? -1 : (v > 0 ? 1 : 0); }
 function lerp(a, b, t) { return a + (b - a) * t; }
-function rnd(a, b) { if (b === undefined) { b = a; a = 0; } return a + Math.random() * (b - a); }
+/* cosmetic randomness routes through the seeded fx stream, so a run is
+   reproducible end to end — needed for replays, seeds and screenshot diffs */
+function rnd(a, b) { if (b === undefined) { b = a; a = 0; } return a + RNG.f() * (b - a); }
 function rndi(a, b) { return Math.floor(rnd(a, b + 1)); }
-function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-function chance(p) { return Math.random() < p; }
+function pick(arr) { return arr[Math.floor(RNG.f() * arr.length)]; }
+function chance(p) { return RNG.f() < p; }
 function approach(v, target, step) {
   if (v < target) return Math.min(v + step, target);
   if (v > target) return Math.max(v - step, target);

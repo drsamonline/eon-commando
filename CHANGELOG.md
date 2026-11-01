@@ -2,6 +2,31 @@
 
 All notable changes to Eon Commando.
 
+## [2.3.0] — 2026-11-01
+
+Performance release.
+
+### Changed
+- **Draw operations per frame: 2,210 → 573 (−74%)**, counted by instrumenting the canvas
+  context rather than by stopwatch.
+- **Ground baked into 1024 px chunks** per stage — floor gradient, strata, rim light, 1,100
+  speckles and every prop are rendered once and blitted. The old path remains behind
+  `?legacyground=1` for comparison; the two match to within 1 px on 0.24% of pixels.
+- **HUD text cached** into small offscreen canvases keyed by string, scale, colour and shadow.
+  Text was 1,400 of the 2,210 operations.
+- **Broad-phase** in bullet collision: enemies outside a 40 px band are skipped before any
+  box maths.
+
+### Added
+- `?seed=N` pins the run seed. Cosmetic randomness (`rnd`, `rndi`, `pick`, `chance`) now uses
+  the seeded `fx` stream, so a run is reproducible end to end — the groundwork for replays.
+- `?fps=1` debug overlay (fps, frame ms, entity counts) and `?bench=N` timing harness.
+- A single `VERSION` constant drives the title screen.
+
+### Fixed
+- Props taller than the ground line were clipped out of the baked chunks.
+- The chunk gradient was mapped across the wrong band, tinting the whole floor.
+
 ## [2.2.0] — 2026-11-01
 
 Boss depth release.

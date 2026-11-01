@@ -33,13 +33,13 @@
 <br>
 
 [![Hosted on GitHub Pages](https://img.shields.io/badge/hosted%20on-GitHub%20Pages-222222?logo=githubpages&logoColor=white&style=for-the-badge&labelColor=05070d)](https://drsamonline.github.io/eon-commando/)
-[![Version](https://img.shields.io/badge/version-2.2.0-ffd257.svg?style=for-the-badge&labelColor=05070d)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.3.0-ffd257.svg?style=for-the-badge&labelColor=05070d)](CHANGELOG.md)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-54ffa8.svg?style=for-the-badge&labelColor=05070d)](#-zero-dependencies)
 [![Network calls](https://img.shields.io/badge/network%20calls-none-54ffa8.svg?style=for-the-badge&labelColor=05070d)](#-zero-dependencies)
 
 [![Single file](https://img.shields.io/badge/build-single%20HTML%20file-ffd257.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
 [![Size](https://img.shields.io/badge/minified-109%20KB-54e0ff.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
-[![Gzipped](https://img.shields.io/badge/gzipped-40%20KB-54e0ff.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
+[![Gzipped](https://img.shields.io/badge/gzipped-42%20KB-54e0ff.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
 [![Made with](https://img.shields.io/badge/made%20with-vanilla%20JS%20%2B%20canvas-ffd257.svg?style=for-the-badge&labelColor=05070d)](#-how-it-works)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge&labelColor=05070d)](#-contributing)
 
@@ -128,6 +128,26 @@ Works identically from `file://` and from a web server. Works offline. Works on 
 <img src="docs/shots/widescreen.png" alt="Ultrawide 21:9 view: the level reveals more world either side" width="820">
 
 </div>
+
+---
+
+## 🆕 What's new in 2.3
+
+**74% fewer draw operations per frame** — 2,210 down to 573, measured by counting canvas
+calls rather than trusting a stopwatch. Same pixels, a quarter of the work.
+
+- **Ground is baked, not redrawn.** Each stage's floor, speckles and props are rendered once
+  into 1024 px chunks and blitted from there. The live path is still in the file behind
+  `?legacyground=1` so the two can be compared — the baked version matches it to within one
+  pixel on 0.24% of pixels (sub-pixel rounding at chunk edges).
+- **Text is cached.** Every HUD string used to be drawn as dozens of `fillRect` glyphs each
+  frame; now each unique string is rendered once into a tiny canvas and blitted. That alone
+  was 1,400 of the 2,210 operations.
+- **Broad-phase bullets** skip enemies they cannot reach before doing box maths.
+- **A seed you can pin.** `?seed=4242` makes a run reproducible end to end — cosmetic
+  randomness now routes through the seeded stream too, which is the groundwork for replays.
+- **A frame meter.** `?fps=1` overlays fps, frame ms and entity counts; `?bench=600` times
+  600 update+render pairs and prints the average into the title bar.
 
 ---
 

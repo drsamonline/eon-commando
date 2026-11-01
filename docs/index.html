@@ -179,6 +179,7 @@
       <span><b>5</b> weapons</span>
       <span><b>9</b> enemy types</span>
       <span><b>16:9&ndash;21:9</b> widescreen</span>
+      <span><b>573</b> draw calls/frame</span>
     </div>
 
     <div class="shot">
@@ -387,6 +388,23 @@
   </div>
 </section>
 
+<section id="perf">
+  <div class="wrap">
+    <h2>Performance</h2>
+    <h3 class="big">573 draw operations a frame, down from 2,210.</h3>
+    <p class="body">
+      Counted by instrumenting the canvas context, not by stopwatch &mdash; timing a browser
+      frame is noisy enough to lie to you. The floor is baked into 1024 px chunks instead of
+      being redrawn, and every HUD string is rendered once into a small canvas and blitted
+      rather than drawn as dozens of glyph rectangles per frame.
+    </p>
+    <pre><b>?fps=1</b>            <span style="color:#54637a"># fps, frame ms and entity counts on screen</span>
+<b>?bench=600</b>        <span style="color:#54637a"># time 600 update+render pairs</span>
+<b>?seed=4242</b>        <span style="color:#54637a"># pin the run seed for a reproducible run</span>
+<b>?legacyground=1</b>   <span style="color:#54637a"># draw the floor the old way, for comparison</span></pre>
+  </div>
+</section>
+
 <section id="build">
   <div class="wrap">
     <h2>How it's built</h2>
@@ -416,7 +434,7 @@
 
 <footer>
   <div class="wrap">
-    <span>EON COMMANDO &middot; v2.2 &middot; PolyForm Noncommercial 1.0.0</span>
+    <span>EON COMMANDO &middot; v2.3 &middot; PolyForm Noncommercial 1.0.0</span>
     <span>
       <a href="https://github.com/drsamonline/eon-commando">GitHub</a> &middot;
       <a href="https://github.com/drsamonline/eon-commando/releases">Releases</a> &middot;

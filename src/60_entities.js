@@ -391,6 +391,8 @@ function bulletUpdate(b) {
     for (i = 0; i < Game.enemies.length; i++) {
       var e = Game.enemies[i];
       if (e.dead) continue;
+      /* broad phase: skip anything the bullet cannot possibly touch */
+      if (e.x > b.x + 40 || e.x + e.w < b.x - 40) continue;
       if (aabb(box, e)) {
         damageEnemy(e, b.dmg, b.vx);
         b.hits++;

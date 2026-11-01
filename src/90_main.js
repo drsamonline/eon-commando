@@ -7,6 +7,9 @@
 var canvas, ctx;
 var _last = 0, _acc = 0;
 
+/* frame meter, used by the ?fps overlay and the ?bench harness */
+var Perf = { fps: 0, ms: 0, frames: 0, total: 0, since: 0 };
+
 /* surface runtime errors instead of failing silently */
 window.addEventListener('error', function (e) {
   (window.__eonErrors = window.__eonErrors || []).push(String(e.message));
@@ -50,6 +53,25 @@ function boot() {
 
   if (PARAMS.demo) runDemo(parseInt(PARAMS.demo, 10) || 240);
 
+  /* benchmark: time N update+render pairs and report the average */
+  if (PARAMS.bench) {
+    var n = parseInt(PARAMS.bench, 10) || 600;
+    var t0 = performance.now();
+    for (var bi = 0; bi < n; bi++) {
+      Input.touch.right = true;
+      Input.touch.fire = true;
+      Input.frame();
+      Game.update();
+      Render(ctx);
+    }
+    Input.touch = {};
+    var per = (performance.now() - t0) / n;
+    document.title = 'BENCH ' + per.toFixed(3) + ' ms/frame over ' + n +
+      ' frames | enemies=' + Game.enemies.length +
+      ' bullets=' + Game.bullets.length + ' particles=' + Game.particles.length;
+    return;
+  }
+
   _last = performance.now();
   requestAnimationFrame(loop);
 }
@@ -71,7 +93,22 @@ function loop(now) {
     steps++;
   }
 
+  var t0 = performance.now();
   Render(ctx);
+  var t1 = performance.now();
+
+  Perf.frames++;
+  Perf.total += (t1 - t0);
+  if (Perf.frames % 30 === 0) {
+    Perf.ms = Perf.total / 30;
+    Perf.total = 0;
+  }
+  if (now - Perf.since > 500) {
+    Perf.fps = Perf.frames * 1000 / Math.max(1, now - Perf.since);
+    Perf.frames = 0;
+    Perf.since = now;
+  }
+
   requestAnimationFrame(loop);
 }
 

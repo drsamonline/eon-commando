@@ -57,7 +57,10 @@ var Game = {
     this.score = 0;
     this.lives = d.lives;
     this.stageIndex = 0;
-    RNG.seed((Date.now() ^ (Math.random() * 0xffffffff)) >>> 0);
+    /* a fixed ?seed= makes a run reproducible; otherwise pick a fresh one */
+    if (PARAMS.seed) this.seed = parseInt(PARAMS.seed, 10) >>> 0;
+    else this.seed = ((Date.now() ^ (Math.random() * 0xffffffff)) >>> 0);
+    RNG.seed(this.seed);
     Stats.bump('runs');
     this.stateTimer = 0;
     Snd.resume();

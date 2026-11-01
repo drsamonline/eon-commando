@@ -161,25 +161,55 @@ function textWidth(str, scale) {
   return (str.length * 6 - 1) * scale;
 }
 
+/* Text is rendered once per (string, scale, colour, shadow) into a tiny
+   offscreen canvas and then blitted. Drawing glyph rects every frame costs
+   hundreds of fillRects per HUD update. */
+var TextCache = {}, TextCacheN = 0, TEXT_CACHE_MAX = 80;
+
+function textCanvas(str, scale, color, shadow) {
+  var key = str + '|' + scale + '|' + color + '|' + (shadow || '');
+  var cv = TextCache[key];
+  if (cv) return cv;
+
+  if (TextCacheN > TEXT_CACHE_MAX) { TextCache = {}; TextCacheN = 0; }
+
+  var w = textWidth(str, scale);
+  cv = document.createElement('canvas');
+  cv.width = Math.max(1, Math.ceil(w + scale));
+  cv.height = Math.max(1, 7 * scale + scale);
+  var cg = cv.getContext('2d');
+
+  function paint(ox, oy, col) {
+    cg.fillStyle = col;
+    for (var i = 0; i < str.length; i++) {
+      var glyph = FONT[str.charAt(i)] || FONT['?'];
+      var gx = ox + i * 6 * scale;
+      for (var r = 0; r < 7; r++) {
+        var row = glyph[r];
+        for (var c = 0; c < 5; c++) {
+          if (row.charAt(c) === '#') cg.fillRect(gx + c * scale, oy + r * scale, scale, scale);
+        }
+      }
+    }
+  }
+
+  if (shadow) paint(scale, scale, shadow);
+  paint(0, 0, color || '#fff');
+
+  TextCache[key] = cv;
+  TextCacheN++;
+  return cv;
+}
+
 function drawText(g, str, x, y, scale, color, align, shadow) {
   scale = scale || 1;
   str = String(str).toUpperCase();
+  if (!str.length) return;
   var w = textWidth(str, scale);
   if (align === 'center') x -= w / 2;
   else if (align === 'right') x -= w;
   x = Math.round(x); y = Math.round(y);
-  if (shadow) drawText(g, str, x + scale, y + scale, scale, shadow, 'left', null);
-  g.fillStyle = color || '#fff';
-  for (var i = 0; i < str.length; i++) {
-    var glyph = FONT[str.charAt(i)] || FONT['?'];
-    var gx = x + i * 6 * scale;
-    for (var r = 0; r < 7; r++) {
-      var row = glyph[r];
-      for (var c = 0; c < 5; c++) {
-        if (row.charAt(c) === '#') g.fillRect(gx + c * scale, y + r * scale, scale, scale);
-      }
-    }
-  }
+  g.drawImage(textCanvas(str, scale, color, shadow), x, y);
 }
 
 function mulberry32(a) {

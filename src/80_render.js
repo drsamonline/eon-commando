@@ -216,7 +216,101 @@ function drawBackground(g, stage, bg, camX, time) {
   }
 }
 
+/* Ground is static per stage: bake it into 1024px chunks once, then blit.
+   Saves ~1100 speckle rects and every prop, every frame. */
+var GroundCache = { chunks: [], stage: null, key: '' };
+
+function bakeGroundChunks(stage, bg) {
+  var key = stage.id + ':' + W;
+  if (GroundCache.key === key) return;
+  GroundCache.key = key;
+  GroundCache.stage = stage;
+  GroundCache.chunks = [];
+
+  var CHUNK = 1024;
+  var total = Math.ceil(stage.length / CHUNK);
+  var HEAD = 36;                    /* headroom for props that rise above the ground */
+  var h = H - GROUND_Y + HEAD;
+
+  for (var ci = 0; ci < total; ci++) {
+    var x0 = ci * CHUNK;
+    var cv = document.createElement('canvas');
+    cv.width = CHUNK;
+    cv.height = h;
+    var cg = cv.getContext('2d');
+
+    /* segments overlapping this chunk */
+    for (var i = 0; i < stage.groundSegs.length; i++) {
+      var seg = stage.groundSegs[i];
+      var sx = seg[0] - x0, sw = seg[1];
+      if (sx + sw < 0 || sx > CHUNK) continue;
+      /* gradient must map GROUND_Y..H, i.e. the chunk's HEAD..h band */
+      var grad = cg.createLinearGradient(0, HEAD, 0, h);
+      grad.addColorStop(0, stage.ground);
+      grad.addColorStop(1, stage.groundDark);
+      cg.fillStyle = grad;
+      cg.fillRect(sx, HEAD, sw, h - HEAD);
+      /* rim light first, exactly as the live path draws it */
+      rr(cg, sx, HEAD, sw, 4, 2, stage.groundLit);
+      rr(cg, sx, HEAD, sw, 2, 1, rgba(stage.accent, 0.5));
+      cg.fillStyle = 'rgba(0,0,0,0.18)';
+      cg.fillRect(sx, HEAD + 9, sw, 1);
+      cg.fillRect(sx, HEAD + 20, sw, 1);
+      cg.fillStyle = 'rgba(0,0,0,0.6)';
+      cg.fillRect(sx, HEAD, 2, h - HEAD);
+      cg.fillRect(sx + sw - 2, HEAD, 2, h - HEAD);
+    }
+
+    /* speckles in this chunk */
+    for (var sp2 = 0; sp2 < bg.speckles.length; sp2++) {
+      var sk = bg.speckles[sp2];
+      var px2 = sk.x - x0;
+      if (px2 < -4 || px2 > CHUNK + 4) continue;
+      cg.fillStyle = sk.d ? rgba(stage.groundLit, 0.45) : 'rgba(0,0,0,0.3)';
+      cg.fillRect(px2, sk.y - GROUND_Y + HEAD, sk.s, sk.s);
+    }
+
+    /* props standing on the ground in this chunk */
+    for (var pr = 0; pr < bg.props.length; pr++) {
+      var pp = bg.props[pr];
+      var ppx = pp.x - x0;
+      if (ppx < -14 || ppx > CHUNK + 14) continue;
+      if (pp.kind === 0) {
+        cg.fillStyle = stage.groundDark;
+        cg.fillRect(ppx, HEAD - pp.h, pp.w, pp.h);
+        cg.fillStyle = rgba(stage.accent, 0.65);
+        cg.fillRect(ppx, HEAD - pp.h, pp.w, 2);
+      } else {
+        cg.fillStyle = rgba(stage.accent, 0.85);
+        cg.beginPath();
+        cg.moveTo(ppx, HEAD + 1);
+        cg.lineTo(ppx + pp.w / 2, HEAD - pp.h);
+        cg.lineTo(ppx + pp.w, HEAD + 1);
+        cg.closePath();
+        cg.fill();
+        cg.fillStyle = rgba('#ffffff', 0.35);
+        cg.fillRect(ppx + pp.w / 2 - 1, HEAD - pp.h + 3, 1, pp.h * 0.5);
+      }
+    }
+
+    GroundCache.chunks.push(cv);
+  }
+}
+
 function drawGround(g, stage, bg, camX) {
+  if (PARAMS.legacyground) { drawGroundLegacy(g, stage, bg, camX); return; }
+  bakeGroundChunks(stage, bg);
+  var CHUNK = 1024;
+  var first = Math.max(0, Math.floor(camX / CHUNK));
+  var last = Math.min(GroundCache.chunks.length - 1, Math.floor((camX + W) / CHUNK));
+  for (var ci = first; ci <= last; ci++) {
+    var cv = GroundCache.chunks[ci];
+    if (cv) g.drawImage(cv, Math.round(ci * CHUNK - camX), GROUND_Y - 36);
+  }
+  return;
+}
+
+function drawGroundLegacy(g, stage, bg, camX) {
   var i, seg, sx, sw;
   var segs = stage.groundSegs;
   for (i = 0; i < segs.length; i++) {
@@ -566,6 +660,8 @@ function drawHeartIcon(g, x, y, full, tint) {
   px(g, x + 1, y + 1, 1, 1, c2);
 }
 
+var HUDS = { score: '', hi: '', lives: '', weapon: '' };
+
 function drawHUD(g) {
   var p = Game.player;
   var stage = Game.stage;
@@ -608,8 +704,12 @@ function drawHUD(g) {
   g.save();
   g.translate(W, 0);
   g.scale(k, k);
-  drawText(g, 'SCORE ' + String(Game.score).padStart(7, '0'), -7, 6, 1, '#ffffff', 'right', 'rgba(0,0,0,0.7)');
-  drawText(g, 'HI ' + String(Math.max(Game.hiScore, Game.score)).padStart(7, '0'), -7, 16, 1, rgba(stage.accent, 0.9), 'right', 'rgba(0,0,0,0.7)');
+  var sc = 'SCORE ' + String(Game.score).padStart(7, '0');
+  var hi = 'HI ' + String(Math.max(Game.hiScore, Game.score)).padStart(7, '0');
+  if (sc !== HUDS.score) { HUDS.score = sc; HUDS.scoreW = textWidth(sc, 1); }
+  if (hi !== HUDS.hi) { HUDS.hi = hi; }
+  drawText(g, HUDS.score, -7, 6, 1, '#ffffff', 'right', 'rgba(0,0,0,0.7)');
+  drawText(g, HUDS.hi, -7, 16, 1, rgba(stage.accent, 0.9), 'right', 'rgba(0,0,0,0.7)');
   g.restore();
 
   /* weapon chip */
@@ -688,7 +788,7 @@ function drawTitle(g) {
     drawText(g, (li + 1) + '. ' + String(runs[li].score).padStart(7, '0') + '  ' + (runs[li].result || ''),
              W / 2, 242 + li * 9, 1, '#54637a', 'center');
   }
-  drawText(g, 'V2.0  ·  ONE HTML FILE  ·  ZERO DEPENDENCIES', W / 2, 250, 1, '#3f4d61', 'center');
+  drawText(g, 'V' + VERSION + '  ·  ONE HTML FILE  ·  ZERO DEPENDENCIES', W / 2, 250, 1, '#3f4d61', 'center');
 }
 
 function drawPause(g) {
@@ -814,6 +914,16 @@ function Render(g) {
   if (Game.flash > 0.01 && !SET.reduceMotion && SET.flash > 0) {
     g.fillStyle = 'rgba(255,255,255,' + (Game.flash * 0.5 * SET.flash) + ')';
     g.fillRect(0, 0, W, H);
+  }
+
+  /* debug overlay */
+  if (PARAMS.fps) {
+    g.fillStyle = 'rgba(0,0,0,0.6)';
+    g.fillRect(0, H - 26, 118, 24);
+    drawText(g, 'FPS ' + Math.round(Perf.fps), 4, H - 23, 1, '#54ffa8');
+    drawText(g, 'MS ' + Perf.ms.toFixed(2), 4, H - 14, 1, '#9fb2c6');
+    drawText(g, 'E' + Game.enemies.length + ' B' + Game.bullets.length + ' P' + Game.particles.length, 58, H - 23, 1, '#7f8fa6');
+    drawText(g, 'H' + Game.hazards.length, 58, H - 14, 1, '#7f8fa6');
   }
 
   /* scanlines */
