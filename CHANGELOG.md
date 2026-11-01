@@ -2,6 +2,37 @@
 
 All notable changes to Eon Commando.
 
+## [4.6.0] — 2026-11-01
+
+HUD and readability pass.
+
+### Changed
+- **The HUD is one panel now.** Hearts, power gauge, grenades, lives and weapon used to be
+  scattered across three corners with the weapon chip clipped against the bottom edge; they sit
+  in a single rounded panel sized to its own content, with the score in a matching panel on the
+  right.
+- **Lives and combo can no longer be confused.** Both used to render as `X2`. Lives now carries
+  a small commando glyph and sits on its own row; the combo keeps the amber `X2`.
+- **Hearts are solid**, with a seam and highlight, instead of thin outlines that read as empty.
+- **`x` and `×`**: the 5×7 font has no multiplication sign, so `\u00D7` rendered as `?`. Now `X`.
+- **Foreground silhouettes** were 82% black and read as holes cut out of the terrain. They are
+  now a 46% tint with a rim line in the era accent, so they read as shapes in front.
+- The boss bar is capped at the view width — it was a fixed 250 px and overflowed the 220 px
+  portrait view.
+
+### Added
+- **Weapon icons**, drawn from primitives and used on pickups and in the HUD chip: a rifle
+  silhouette, a diverging fan for spread, three stacked rounds for machine, a sparked beam for
+  laser, a teardrop for flame. Pickup boxes also take the weapon's own colour, so the box says
+  which gun it is before you read anything.
+- `drawWeaponIcon()`.
+
+### Fixed
+- Pickups carried no weapon identity to the renderer: `spawnPickup` rebuilds the object and was
+  dropping the extra field. It reads the existing `w` instead.
+- The AUTO label is dropped below 380 px, where it crowded the weapon name against the panel
+  edge and the fire button it refers to is hidden anyway.
+
 ## [4.5.1] — 2026-11-01
 
 **Hotfix: the game froze on the first hit taken.**

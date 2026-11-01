@@ -4,7 +4,7 @@
    =========================================================================== */
 'use strict';
 
-var VERSION = '4.5.1';
+var VERSION = '4.6.0';
 var DPR = 1;                       // device pixel ratio, capped at 2
 var W = 480, H = 270;              // world view: W widens with the window
 var VIEW_H = 270;                  // logical canvas height (portrait gets taller)

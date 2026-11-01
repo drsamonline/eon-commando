@@ -535,21 +535,23 @@ function drawCapsule(g, c) {
   var x = Math.round(c.x), y = Math.round(c.y);
   var bob = Math.sin(c.age * 0.1) * 2;
   y += bob;
-  var col = c.kind === 'health' ? '#54ffa8' : (c.kind === 'coin' ? '#ffd257' : '#54e0ff');
+  var col = c.kind === 'health' ? '#54ffa8'
+          : (c.kind === 'coin' ? '#ffd257'
+          : (WEAPONS[c.w] ? WEAPONS[c.w].color : '#54e0ff'));
 
-  glow(g, x + 7, y + 7, 15, col, 0.22);
-  rr(g, x - 0.5, y - 0.5, 15, 15, 5, 'rgba(8,14,22,0.85)');
-  rr(g, x + 0.5, y + 0.5, 13, 13, 4.4, col);
-  rr(g, x + 2, y + 2, 10, 3.4, 1.6, 'rgba(255,255,255,0.75)');
+  glow(g, x + 8, y + 8, 17, col, 0.22);
+  rr(g, x - 1, y - 1, 18, 18, 5.5, 'rgba(8,14,22,0.9)');
+  rr(g, x + 0.5, y + 0.5, 15, 15, 5, col);
+  rr(g, x + 2, y + 2, 12, 2.6, 1.3, 'rgba(255,255,255,0.55)');
 
   if (c.kind === 'health') {
-    rr(g, x + 6, y + 4, 2.4, 6.4, 1, '#08301c');
-    rr(g, x + 4, y + 6, 6.4, 2.4, 1, '#08301c');
+    rr(g, x + 6.6, y + 3.4, 2.8, 9.2, 1.2, '#08301c');
+    rr(g, x + 3.4, y + 6.6, 9.2, 2.8, 1.2, '#08301c');
   } else if (c.kind === 'coin') {
-    circ(g, x + 7, y + 7, 3.2, '#7a5400');
-    circ(g, x + 7, y + 7, 2.2, '#fff0b8');
+    circ(g, x + 8, y + 8, 4, '#7a5400');
+    circ(g, x + 8, y + 8, 2.8, '#fff0b8');
   } else {
-    drawText(g, c.label || 'W', x + 4.4, y + 3.6, 1, '#062231');
+    drawWeaponIcon(g, c.w || 'rifle', x + 8, y + 9, 10, '#062231');
   }
 }
 
@@ -905,4 +907,55 @@ function drawClock(g, b) {
   limb(g, cx, cy, cx + Math.cos(b.angle) * (r - 10), cy + Math.sin(b.angle) * (r - 10), 3, hand);
   limb(g, cx, cy, cx + Math.cos(b.angle2) * (r - 20), cy + Math.sin(b.angle2) * (r - 20), 2, hand);
   el(g, cx, cy, 4, 4, hand);
+}
+
+
+/* ===========================================================================
+   WEAPON ICONS — pickups and the HUD chip show what a thing does, not its
+   initial. Each glyph is drawn at (cx, cy) and fits inside `sz`.
+   =========================================================================== */
+function drawWeaponIcon(g, kind, cx, cy, sz, col) {
+  var c = col || (WEAPONS[kind] ? WEAPONS[kind].color : '#54e0ff');
+  sz = sz || 10;
+  var h = sz / 2;
+
+  if (kind === 'rifle') {
+    /* a side-on rifle: barrel, stock, grip. A vertical bar reads as a zero. */
+    rr(g, cx - h, cy - 1.6, sz, 2.6, 1.2, c);          /* barrel */
+    rr(g, cx - h, cy - 2.4, 2.6, 4.2, 1, c);           /* stock */
+    rr(g, cx - 0.6, cy + 0.9, 2.2, 3, 0.9, c);         /* grip */
+  } else if (kind === 'spread') {
+    var a;
+    for (var i = -1; i <= 1; i++) {
+      a = i * 0.55;
+      limb(g, cx - 2.2, cy, cx - 2.2 + Math.cos(a) * (sz - 1.5), cy + Math.sin(a) * (sz - 1.5), 1.8, c);
+    }
+    circ(g, cx - 2.6, cy, 1.5, c);
+  } else if (kind === 'machine') {
+    /* three tight rounds, so it never reads as a single bar */
+    var bw2 = sz - 2;
+    rr(g, cx - h + 1, cy - 3.4, bw2, 1.4, 0.6, c);
+    rr(g, cx - h + 1, cy - 1.0, bw2, 1.4, 0.6, c);
+    rr(g, cx - h + 1, cy + 1.4, bw2, 1.4, 0.6, c);
+  } else if (kind === 'laser') {
+    /* one hot beam with sparks at both ends — distinct from the machine stack */
+    rr(g, cx - h + 0.5, cy - 1.1, sz - 1, 2.2, 1, c);
+    px(g, cx - h + 1.5, cy - 0.3, sz - 3, 0.8, 'rgba(255,255,255,0.9)');
+    circ(g, cx - h + 0.2, cy, 1.1, c);
+    circ(g, cx + h - 0.2, cy, 1.1, c);
+  } else if (kind === 'flame') {
+    /* at ten pixels a smooth flame collapses to a dot: use a hard teardrop */
+    g.beginPath();
+    g.moveTo(cx, cy - h);
+    g.lineTo(cx + h * 0.8, cy + h * 0.35);
+    g.lineTo(cx + h * 0.35, cy + h);
+    g.lineTo(cx - h * 0.35, cy + h);
+    g.lineTo(cx - h * 0.8, cy + h * 0.35);
+    g.closePath();
+    g.fillStyle = c;
+    g.fill();
+    circ(g, cx, cy + h * 0.45, h * 0.3, 'rgba(255,255,255,0.85)');
+  } else {
+    circ(g, cx, cy, h * 0.7, c);
+  }
 }

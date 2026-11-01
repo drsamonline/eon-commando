@@ -372,7 +372,8 @@ function drawGroundLegacy(g, stage, bg, camX) {
 
 /* silhouettes drawn in front of the action for depth */
 function drawForeground(g, stage, bg, camX) {
-  g.fillStyle = 'rgba(0,0,0,0.82)';
+  /* These sit in front of the ground. At 82% black they read as holes cut out
+     of the terrain; a lighter tint plus a rim line reads as a shape in front. */
   for (var i = 0; i < bg.fore.length; i++) {
     var o = bg.fore[i];
     var sx = o.x - camX * 1.22;
@@ -385,10 +386,14 @@ function drawForeground(g, stage, bg, camX) {
     g.lineTo(sx + o.w * 0.66, H - o.h * 0.9);
     g.lineTo(sx + o.w, base);
     g.closePath();
+    g.fillStyle = 'rgba(0,0,0,0.46)';
     g.fill();
+    g.strokeStyle = rgba(stage.accent, 0.16);
+    g.lineWidth = 1;
+    g.stroke();
   }
   /* rubble along the bottom edge */
-  g.fillStyle = 'rgba(0,0,0,0.55)';
+  g.fillStyle = 'rgba(0,0,0,0.34)';
   for (var j = 0; j < bg.props.length; j++) {
     var p = bg.props[j];
     var px2 = p.x * 1.05 - camX * 1.35;
@@ -741,14 +746,21 @@ function drawWorld(g) {
 
 /* ---- HUD ---------------------------------------------------------------- */
 function drawHeartIcon(g, x, y, full, tint) {
-  var c = full ? (tint || '#ff4d6d') : '#31161f';
-  var c2 = full ? (tint ? '#d8f8ff' : '#ffd0d8') : '#20101a';
+  /* an empty heart is a hollow outline, not a dark blob: you should be able to
+     count what you have lost at a glance */
+  var c = full ? (tint || '#ff5470') : 'rgba(255,84,112,0.18)';
+  var c2 = full ? (tint ? '#d8f8ff' : '#ffd6de') : 'rgba(255,84,112,0.28)';
+  var edge = full ? (tint ? '#0b3b4a' : '#5c1220') : 'rgba(255,84,112,0.30)';
+
+  /* solid silhouette first, then a one-pixel dark seat so it reads as a shape
+     rather than an outline */
   px(g, x + 1, y, 2, 1, c); px(g, x + 4, y, 2, 1, c);
   px(g, x, y + 1, 7, 2, c);
   px(g, x + 1, y + 3, 5, 1, c);
   px(g, x + 2, y + 4, 3, 1, c);
   px(g, x + 3, y + 5, 1, 1, c);
-  px(g, x + 1, y + 1, 1, 1, c2);
+  px(g, x + 1, y + 2, 5, 1, edge);   /* seam between the lobes */
+  if (full) px(g, x + 1, y + 1, 1, 1, c2);
 }
 
 var HUDS = { score: '', hi: '', lives: '', weapon: '' };
@@ -757,70 +769,96 @@ function drawHUD(g) {
   var p = Game.player;
   var stage = Game.stage;
   var k = clamp(SET.hudScale || 1, 0.85, 1.3);
-
-  /* top bar */
-  var grad = g.createLinearGradient(0, 0, 0, 26 * k);
-  grad.addColorStop(0, 'rgba(3,5,10,0.82)');
-  grad.addColorStop(1, 'rgba(3,5,10,0)');
-  g.fillStyle = grad;
-  g.fillRect(0, 0, W, 26 * k);
-
   var i;
-  /* left cluster */
+
   g.save();
   g.scale(k, k);
-  for (i = 0; i < p.maxHp; i++) drawHeartIcon(g, 7 + i * 10, 6, i < p.hp);
-  drawText(g, 'X' + Math.max(0, Game.lives), 7, 16, 1, '#9fb2c6');
-  px(g, 21, 15, 7, 2, '#0b0f18');
-  px(g, 22, 15, 5, 4, '#3f6b8c');
-  px(g, 23, 17, 3, 1, '#ffb545');
-  px(g, 21, 19, 7, 2, '#2c4a63');
-  /* grenade pips */
-  for (i = 0; i < p.maxGrenades; i++) {
-    px(g, 34 + i * 6, 16, 4, 4, i < p.grenades ? '#9ef0ff' : '#20303f');
-  }
-  g.restore();
 
-  /* player two's hearts, tinted, under player one's */
+  /* ---- the left cluster lives in one panel, sized to its content ---- */
+  var livesTxt = 'X' + Math.max(0, Game.lives);
+  var wpn = WEAPONS[p.weapon];
+  var row1w = (p.maxHp * 9 - 2) + 22;                    /* hearts + reserved combo slot */
+  var row2w = 44 + 5 + p.maxGrenades * 6;                /* gauge + grenades */
+  /* AUTO is redundant on a phone, where the fire button is hidden anyway */
+  var showAuto = SET.autoFire && W >= 380;
+  var row3w = 8 + textWidth(livesTxt, 1) + 8 + 10 + 4 + textWidth(wpn.name, 1) +
+              (showAuto ? 3 + textWidth('AUTO', 1) : 0);
+  var panelW = Math.max(row1w, row2w, row3w) + 10;
+  var panelH = 40;
+
+  rr(g, 4, 4, panelW, panelH, 4, 'rgba(4,8,14,0.62)');
+  rr(g, 4, 4, panelW, panelH, 4, 'rgba(255,255,255,0.05)');
+  px(g, 5, 4.5, panelW - 2, 1, 'rgba(255,255,255,0.10)');
+
+  /* row 1 — hearts, and the combo in the reserved slot on the right */
+  for (i = 0; i < p.maxHp; i++) drawHeartIcon(g, 9 + i * 9, 8, i < p.hp);
+  if (Game.combo > 1) {
+    drawText(g, 'X' + Game.combo, 4 + panelW - 6, 8, 1,
+             Game.comboT > 40 ? '#ffb545' : '#7f8fa6', 'right');
+  }
+
+  /* row 2 — power gauge, then grenades */
+  var gw = 44, gy = 18;
+  px(g, 9, gy, gw, 3, '#0d1622');
+  var fill = Math.round(gw * clamp(Game.power, 0, 100) / 100);
+  if (fill > 0) px(g, 9, gy, fill, 3, Game.power >= 100 ? '#ffd257' : '#54e0ff');
+  px(g, 9, gy, gw, 1, 'rgba(255,255,255,0.14)');
+  if (Game.power >= 100 && Math.floor(Game.time / 12) % 2 === 0) {
+    px(g, 8, gy - 1, gw + 2, 5, 'rgba(255,210,87,0.22)');
+  }
+  for (i = 0; i < p.maxGrenades; i++) {
+    var gx = 58 + i * 6;
+    var live = i < p.grenades;
+    rr(g, gx, 17.5, 4, 4.5, 1.4, live ? '#8fe3f5' : '#1b2836');
+    if (live) px(g, gx + 1.5, 16.5, 1, 1.4, '#c9f4ff');
+  }
+
+  /* row 3 — lives, weapon icon, weapon name */
+  /* a tiny commando bust marks the life count, so it is never confused with
+     the combo counter on the row above */
+  px(g, 10, 26, 4, 3, '#9fb2c6');
+  px(g, 9, 29, 6, 5, '#9fb2c6');
+  px(g, 11, 27, 1, 1, '#0a0e16');
+  drawText(g, livesTxt, 17, 27, 1, '#9fb2c6');
+  var ix = 17 + textWidth(livesTxt, 1) + 8;
+  drawWeaponIcon(g, p.weapon, ix + 4.5, 31, 10, wpn.color);
+  drawText(g, wpn.name, ix + 14, 27, 1, wpn.color);
+  if (showAuto) {
+    drawText(g, 'AUTO', ix + 14 + textWidth(wpn.name, 1) + 3, 27, 1,
+             p.autoAiming ? '#54ffa8' : '#3f5d6b');
+  }
+
+  /* player two's hearts, in their own panel */
   if (Game.coop && Game.players[1]) {
     var p2h = Game.players[1];
-    g.save();
-    g.scale(k, k);
-    for (i = 0; i < p2h.maxHp; i++) drawHeartIcon(g, 7 + i * 10, 27, i < p2h.hp, '#54e0ff');
-    drawText(g, 'P2', 7 + p2h.maxHp * 10 + 3, 28, 1, p2h.downed ? '#ff4d6d' : '#54e0ff');
-    g.restore();
+    var py = 46;
+    var p2w = Math.max(52, p2h.maxHp * 9 + 8);
+    rr(g, 4, py, p2w, 16, 4, 'rgba(4,8,14,0.62)');
+    rr(g, 4, py, p2w, 16, 4, 'rgba(84,224,255,0.10)');
+    for (i = 0; i < p2h.maxHp; i++) drawHeartIcon(g, 9 + i * 9, py + 4, i < p2h.hp, '#54e0ff');
+    drawText(g, p2h.downed ? 'DOWN' : 'P2', p2w + 8, py + 5, 1,
+             p2h.downed ? '#ff4d6d' : '#54e0ff');
   }
 
-  /* right cluster, anchored to the far edge */
+  g.restore();
+
+  /* ---- score, right aligned, in its own panel ---- */
   g.save();
   g.translate(W, 0);
   g.scale(k, k);
   var sc = 'SCORE ' + String(Game.score).padStart(7, '0');
   var hi = 'HI ' + String(Math.max(Game.hiScore, Game.score)).padStart(7, '0');
-  if (sc !== HUDS.score) { HUDS.score = sc; HUDS.scoreW = textWidth(sc, 1); }
-  if (hi !== HUDS.hi) { HUDS.hi = hi; }
-  drawText(g, HUDS.score, -7, 6, 1, '#ffffff', 'right', 'rgba(0,0,0,0.7)');
-  drawText(g, HUDS.hi, -7, 16, 1, rgba(stage.accent, 0.9), 'right', 'rgba(0,0,0,0.7)');
+  var sw = Math.max(textWidth(sc, 1), textWidth(hi, 1)) + 12;
+  rr(g, -sw - 4, 4, sw, 24, 4, 'rgba(4,8,14,0.62)');
+  rr(g, -sw - 4, 4, sw, 24, 4, 'rgba(255,255,255,0.05)');
+  drawText(g, sc, -10, 9, 1, '#ffffff', 'right');
+  drawText(g, hi, -10, 18, 1, rgba(stage.accent, 0.9), 'right');
   g.restore();
 
-  /* weapon chip */
-  var w = WEAPONS[p.weapon];
-  g.save();
-  g.scale(k, k);
-  var chipW = textWidth(w.name, 1) + 14;
-  px(g, 6, H / k - 18, chipW, 12, 'rgba(3,5,10,0.7)');
-  px(g, 6, H / k - 18, 2, 12, w.color);
-  drawText(g, w.name, 12, H / k - 15, 1, w.color);
-  if (SET.autoFire) {
-    var ax = 12 + textWidth(w.name, 1) + 4;
-    drawText(g, 'AUTO', ax, H / k - 15, 1, p.autoAiming ? '#54ffa8' : '#3f5d6b');
-  }
-  g.restore();
-
-  /* boss bar */
+  /* ---- boss bar: never wider than the view ---- */
   var b = Game.boss;
   if (b && !b.dead) {
-    var bw = 250, bx = (W - bw) / 2, by = 30;
+    var bw = Math.min(250, W - 30), bx = (W - bw) / 2, by = 32;
     drawText(g, b.name, W / 2, by - 9, 1, '#ff4d6d', 'center', 'rgba(0,0,0,0.8)');
     px(g, bx - 1, by - 1, bw + 2, 8, 'rgba(0,0,0,0.7)');
     px(g, bx, by, bw, 6, '#2a0d16');
@@ -828,27 +866,6 @@ function drawHUD(g) {
     px(g, bx, by, bw * frac, 6, b.phase === 2 ? '#ff5c3c' : '#ff2d95');
     px(g, bx, by, bw * frac, 2, '#ffd0e4');
     for (var t = 1; t < 10; t++) px(g, bx + (bw / 10) * t, by, 1, 6, 'rgba(0,0,0,0.4)');
-  }
-
-  /* power gauge + combo */
-  if (Game.state === 'playing') {
-    g.save();
-    g.scale(k, k);
-    var gy = 52;
-    var gw = 62;
-    px(g, 7, gy, gw, 4, '#12202e');
-    var fill = Math.round(gw * clamp(Game.power, 0, 100) / 100);
-    px(g, 7, gy, fill, 4, Game.power >= 100 ? '#ffd257' : '#54e0ff');
-    px(g, 7, gy, gw, 1, 'rgba(255,255,255,0.18)');
-    if (Game.power >= 100) {
-      if (Math.floor(Game.time / 12) % 2 === 0) drawText(g, 'UNLEASH ' + (SET.autoFire ? '' : 'E'), 7, gy + 7, 1, '#ffd257');
-    } else {
-      drawText(g, 'POWER', 7, gy + 7, 1, '#3f5d6b');
-    }
-    if (Game.combo > 1) {
-      drawText(g, 'x' + Game.combo, 7 + gw + 6, gy - 1, 1, Game.comboT > 40 ? '#ffb545' : '#7f8fa6');
-    }
-    g.restore();
   }
 
   /* endless wave readout */

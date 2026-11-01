@@ -4,7 +4,7 @@
 
 <!-- shot:start -->
 
-![Screenshot](docs/shot.png)
+![Gameplay](docs/shots/gameplay.png)
 
 <!-- shot:end -->
 
@@ -33,7 +33,7 @@
 <br>
 
 [![Hosted on GitHub Pages](https://img.shields.io/badge/hosted%20on-GitHub%20Pages-222222?logo=githubpages&logoColor=white&style=for-the-badge&labelColor=05070d)](https://drsamonline.github.io/eon-commando/)
-[![Version](https://img.shields.io/badge/version-4.5.1-ffd257.svg?style=for-the-badge&labelColor=05070d)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-4.6.0-ffd257.svg?style=for-the-badge&labelColor=05070d)](CHANGELOG.md)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-54ffa8.svg?style=for-the-badge&labelColor=05070d)](#-zero-dependencies)
 [![Network calls](https://img.shields.io/badge/network%20calls-none-54ffa8.svg?style=for-the-badge&labelColor=05070d)](#-zero-dependencies)
 
@@ -130,6 +130,21 @@ Works identically from `file://` and from a web server. Works offline. Works on 
 </div>
 
 ---
+
+## 🆕 What's new in 4.6
+
+**A HUD that reads, and pickups that show what they are.**
+
+- The HUD is **one panel**, sized to its own content: hearts, power gauge, grenades, lives and
+  the weapon, instead of five things scattered across three corners — with the weapon chip no
+  longer clipped against the bottom edge.
+- **Lives and combo used to both render as `X2`.** Lives now has its own glyph and row.
+- **Pickups have icons**: a rifle silhouette, a diverging fan for spread, three stacked rounds
+  for machine, a sparked beam for laser, a teardrop for flame — and each box takes the weapon's
+  colour, so it says which gun before you read anything.
+- Hearts are solid rather than thin outlines; foreground silhouettes are a tint with a rim
+  instead of 82% black shapes that read as holes in the ground; the boss bar no longer overflows
+  the portrait view.
 
 ## 🆕 What's new in 4.5.1
 
