@@ -147,7 +147,7 @@ function autoTarget(p) {
 
 /* ---- the commando ------------------------------------------------------- */
 function makePlayer(x, y) {
-  return {
+  var pl = {
     x: x, y: y, w: 12, h: 22,
     vx: 0, vy: 0, facing: 1,
     onGround: false, ducking: false, runPhase: 0,
@@ -163,6 +163,8 @@ function makePlayer(x, y) {
     dead: false, deadTimer: 0,
     spawnX: x, spawnY: y
   };
+
+  return pl;
 }
 
 function setDuck(p, want) {
@@ -240,7 +242,7 @@ function playerUpdate(p) {
   if (p.dashCd > 0) p.dashCd--;
   if (ctl.pressed('dash') && p.dashCd <= 0 && !p.ducking) {
     p.dashT = 10;
-    p.dashCd = 42;
+    p.dashCd = Math.round(42 * (Game.dashMul || 1));
     p.dashDir = p.facing;
     p.vy = 0;
     Snd.sfx('dash');
@@ -356,7 +358,8 @@ function playerUpdate(p) {
 function fireWeapon(p, angleOverride) {
   var w = WEAPONS[p.weapon];
   var base = (angleOverride === undefined || angleOverride === null) ? p.aimAngle : angleOverride;
-  p.cd = Game.fury > 0 ? Math.max(2, Math.round(w.cd * 0.45)) : w.cd;
+  var cdBase = w.cd * (Game.cdMul || 1);
+  p.cd = Game.fury > 0 ? Math.max(2, Math.round(cdBase * 0.45)) : Math.round(cdBase);
   p.muzzle = 4;
   Snd.sfx(w.sfx);
   var ox = p.x + p.w / 2 + Math.cos(base) * 9;
@@ -368,7 +371,7 @@ function fireWeapon(p, angleOverride) {
     a += RNG.sr(-w.jitter, w.jitter);
     spawnBullet({
       x: ox, y: oy, vx: Math.cos(a) * w.speed, vy: Math.sin(a) * w.speed,
-      dmg: w.dmg, friendly: true, color: w.color, glow: w.glow,
+      dmg: Math.max(1, Math.round(w.dmg * (Game.dmgMul || 1))), friendly: true, color: w.color, glow: w.glow,
       w: w.w, h: w.h, pierce: w.pierce, life: w.life, angle: a
     });
   }
@@ -378,6 +381,7 @@ function fireWeapon(p, angleOverride) {
 
 function playerHurt(p, dmg) {
   if (p.invuln > 0 || p.dead || p.dashT > 0) return;
+  amount = Math.max(1, Math.round(amount * (Game.takenMul || 1)));
   dmg = dmg * diff().dmgTaken;
   p.hp -= dmg;
   p.hurtFlash = 24;
@@ -613,7 +617,7 @@ function damageEnemy(e, dmg, knock) {
     var def = ENEMIES[e.t];
     Game.combo++;
     Game.comboT = 160;
-    Game.power = Math.min(100, Game.power + 8 + Math.min(Game.combo, 12));
+    Game.power = Math.min(100, Game.power + Math.round((8 + Math.min(Game.combo, 12)) * (Game.powerMul || 1)));
     var gained = Math.round(def.score * (Game.scoreMul || 1) * (1 + Math.min(Game.combo, 20) * 0.05));
     Game.score += gained;
     floatText(e.x, e.y - 6, '+' + gained, '#ffd257');

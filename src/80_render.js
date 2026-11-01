@@ -1182,6 +1182,60 @@ function drawCredits(g) {
   drawText(g, 'ENTER TO RETURN', W / 2, H - 12, 1, '#38465a', 'center');
 }
 
+function drawPerk(g) {
+  dim(g, 0.84);
+  Game.hitRows = [];
+  var narrow = W < 380;
+
+  drawFit(g, 'CHOOSE A PERK', narrow ? 26 : 30, 3, '#ffd257', 'rgba(0,0,0,0.85)', W - 16);
+  drawText(g, 'THE ERA IS HELD. TAKE ONE THING WITH YOU.', W / 2, narrow ? 50 : 56, 1, '#9fb2c6', 'center');
+
+  var picks = Game.perkChoices;
+  var n = picks.length;
+  if (!n) return;
+
+  var gap = narrow ? 6 : 10;
+  var cardW = narrow ? (W - 24 - gap * (n - 1)) / n : Math.min(132, (W - 60 - gap * (n - 1)) / n);
+  var cardH = narrow ? 150 : 120;
+  var totalW = cardW * n + gap * (n - 1);
+  var x0 = (W - totalW) / 2;
+  var y0 = narrow ? 66 : 74;
+
+  for (var i = 0; i < n; i++) {
+    var pk = picks[i];
+    var sel = i === Game.perkIndex;
+    var cx = x0 + i * (cardW + gap);
+
+    px(g, cx, y0, cardW, cardH, sel ? 'rgba(30,44,60,0.96)' : 'rgba(12,18,26,0.92)');
+    g.strokeStyle = sel ? pk.color : '#22344a';
+    g.lineWidth = sel ? 2 : 1;
+    g.strokeRect(cx + 0.5, y0 + 0.5, cardW - 1, cardH - 1);
+    px(g, cx, y0, cardW, 2, pk.color);
+
+    drawText(g, pk.tag, cx + 6, y0 + 8, 1, pk.color);
+    var nameLines = wrapText(pk.name, narrow ? 8 : 11);
+    var ny = y0 + 24;
+    for (var nl = 0; nl < nameLines.length && nl < 2; nl++) {
+      drawText(g, nameLines[nl], cx + 6, ny, 1, '#ffffff');
+      ny += 10;
+    }
+
+    var descLines = wrapText(pk.desc, narrow ? 11 : 16);
+    var dy = ny + 8;
+    for (var dl = 0; dl < descLines.length && dl < 7; dl++) {
+      drawText(g, descLines[dl], cx + 6, dy, 1, '#9fb2c6');
+      dy += 9;
+    }
+
+    if (sel) {
+      px(g, cx + cardW / 2 - 10, y0 + cardH - 12, 20, 2, pk.color);
+    }
+    Game.hitRows.push({ x0: cx, x1: cx + cardW, y0: y0, y1: y0 + cardH, i: i });
+  }
+
+  drawText(g, narrow ? 'TAP A CARD' : '\u25C0 \u25B6  CHOOSE     ENTER  TAKE', W / 2, y0 + cardH + 12, 1, '#54637a', 'center');
+}
+
 function drawPads(g) {
   dim(g, 0.72);
   drawFit(g, 'PAD LAYOUT', 40, 3, '#54e0ff', 'rgba(0,0,0,0.85)', W - 16);
@@ -1293,6 +1347,7 @@ function Render(g) {
     else if (Game.state === 'settings') drawSettings(g);
     else if (Game.state === 'remap') drawRemap(g);
     else if (Game.state === 'pads') drawPads(g);
+    else if (Game.state === 'perk') drawPerk(g);
     else if (Game.state === 'story') drawStory(g);
     else if (Game.state === 'credits') drawCredits(g);
     else if (Game.state === 'stageclear') drawStageClear(g);

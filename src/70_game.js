@@ -29,6 +29,8 @@ var Game = {
   mode: 'campaign',
   wave: 0, waveTimer: 0, waveActive: false, scoreMul: 1,
   power: 0, combo: 0, comboT: 0, fury: 0,
+  perks: [], perkChoices: [], perkIndex: 0,
+  dmgMul: 1, cdMul: 1, powerMul: 1, dashMul: 1, takenMul: 1,
   story: null, storyAfter: null, storyIndex: 0, storyChars: 0, storyT: 0,
   creditsY: 0, creditsT: 0,
   lastEntry: null,
@@ -65,6 +67,8 @@ var Game = {
   startGame: function (coop, forcedSeed) {
     this.coop = !!coop;
     this.dailyRun = false;
+    this.perks = [];
+    this.recalcPerks();
     if (this.mode !== 'endless') this.mode = 'campaign';
     var d = diff();
     this.score = 0;
@@ -124,20 +128,28 @@ var Game = {
 
   spawnPlayers: function () {
     var d = diff();
-    var p1 = makePlayer(48, GROUND_Y - 22);
-    p1.invuln = 60;
-    p1.maxHp = d.hp;
-    p1.hp = d.hp;
-    p1.grenades = 3;
-    p1.maxGrenades = 3;
+
+    /* Perks are applied here, not in makePlayer: this function overwrites
+       maxHp and grenades from the difficulty table, so anything set earlier
+       would be clobbered. */
+    function withPerks(p) {
+      p.invuln = 60;
+      p.maxHp = d.hp;
+      p.hp = d.hp;
+      p.grenades = 3;
+      p.maxGrenades = 3;
+      if (Game.perkHas('vitality')) { p.maxHp += 1; p.hp = p.maxHp; }
+      if (Game.perkHas('scavenger')) {
+        p.maxGrenades += 1;
+        p.grenades = Math.min(p.maxGrenades, p.grenades + 2);
+      }
+      return p;
+    }
+
+    var p1 = withPerks(makePlayer(48, GROUND_Y - 22));
     this.players = [p1];
     if (this.coop) {
-      var p2 = makePlayer(72, GROUND_Y - 22);
-      p2.invuln = 60;
-      p2.maxHp = d.hp;
-      p2.hp = d.hp;
-      p2.grenades = 3;
-      p2.maxGrenades = 3;
+      var p2 = withPerks(makePlayer(72, GROUND_Y - 22));
       p2.ctl = Input.ctl2;
       p2.facing = 1;
       this.players.push(p2);
@@ -205,7 +217,7 @@ var Game = {
 
     var lastStage = this.stageIndex >= STAGES.length - 1;
     if (this.stage.storyOut && this.stage.storyOut.length) {
-      this.startStory(this.stage.storyOut, lastStage ? 'victory' : 'stageclear');
+      this.startStory(this.stage.storyOut, lastStage ? 'victory' : 'perk');
     } else {
       this.state = 'stageclear';
       this.stateTimer = 0;
@@ -404,6 +416,9 @@ var Game = {
       case 'remap':
         this.updateRemap();
         break;
+      case 'perk':
+        this.updatePerk();
+        break;
       case 'pads':
         if (Input.pressed('pause') || Input.pressed('start')) closePadEditor();
         break;
@@ -517,6 +532,7 @@ var Game = {
     this.story = null;
     if (after === 'credits') { this.startCredits(); return; }
     if (after === 'victory') { this.state = 'victory'; this.stateTimer = 0; return; }
+    if (after === 'perk') { this.startPerk(); return; }
     if (after === 'stageclear') { this.state = 'stageclear'; this.stateTimer = 0; return; }
     this.state = 'playing';
   },
@@ -543,6 +559,81 @@ var Game = {
     this.creditsY += 0.42;
     if (this.creditsT > 90 && (Input.pressed('start') || Input.pressed('jump') || Input.pressed('fire'))) {
       this.state = 'title'; this.stateTimer = 0; Snd.stopMusic();
+    }
+  },
+
+
+  /* ---- perks ----------------------------------------------------------- */
+  perkHas: function (id) { return this.perks.indexOf(id) >= 0; },
+
+  recalcPerks: function () {
+    var i, has = {};
+    for (i = 0; i < this.perks.length; i++) has[this.perks[i]] = true;
+    this.dmgMul = has.overcharge ? 1.25 : 1;
+    this.cdMul = has.rapid ? 0.8 : 1;
+    this.powerMul = has.momentum ? 1.35 : 1;
+    this.dashMul = has.phantom ? 0.65 : 1;
+    this.takenMul = has.aegis ? 0.8 : 1;
+  },
+
+  startPerk: function () {
+    var pool = PERKS.filter(function (pk) { return !Game.perkHas(pk.id); });
+    if (!pool.length) { this.advanceFromPerk(); return; }
+    var picks = [];
+    var bag = pool.slice();
+    while (picks.length < 3 && bag.length) {
+      picks.push(bag.splice(Math.floor(RNG.sr(0, bag.length - 1)), 1)[0]);
+    }
+    this.perkChoices = picks;
+    this.perkIndex = 0;
+    this.state = 'perk';
+    this.stateTimer = 0;
+    Snd.sfx('select');
+  },
+
+  takePerk: function (id) {
+    if (this.perks.indexOf(id) >= 0) return;
+    this.perks.push(id);
+    this.recalcPerks();
+
+    /* the ones with an immediate, visible effect */
+    if (id === 'vitality') {
+      for (var i = 0; i < this.players.length; i++) {
+        this.players[i].maxHp += 1;
+        this.players[i].hp = this.players[i].maxHp;
+      }
+    }
+    if (id === 'scavenger') {
+      for (var j = 0; j < this.players.length; j++) {
+        this.players[j].maxGrenades += 1;
+        this.players[j].grenades = Math.min(this.players[j].maxGrenades, this.players[j].grenades + 2);
+      }
+    }
+    if (id === 'reserve') this.lives += 1;
+
+    Snd.sfx('stageClear');
+    floatText(this.player.x + 6, this.player.y - 14, PERKS.filter(function (k) { return k.id === id; })[0].name, '#ffd257');
+    this.advanceFromPerk();
+  },
+
+  advanceFromPerk: function () {
+    if (this.stageIndex + 1 < STAGES.length) {
+      this.stageIndex++;
+      this.loadStage(this.stageIndex);
+      this.state = 'playing';
+      if (this.stage.storyIn && this.stage.storyIn.length) this.startStory(this.stage.storyIn, 'play');
+    } else {
+      this.victory();
+    }
+  },
+
+  updatePerk: function () {
+    var n = this.perkChoices.length;
+    if (!n) { this.advanceFromPerk(); return; }
+    if (Input.pressed('left')) { this.perkIndex = (this.perkIndex + n - 1) % n; Snd.sfx('select'); }
+    if (Input.pressed('right')) { this.perkIndex = (this.perkIndex + 1) % n; Snd.sfx('select'); }
+    if (Input.pressed('start') || Input.pressed('jump') || Input.pressed('fire')) {
+      this.takePerk(this.perkChoices[this.perkIndex].id);
     }
   },
 
@@ -619,6 +710,13 @@ var Game = {
       if (my > 36 && my < 52) {
         this.remapPlayer = this.remapPlayer === 'p1' ? 'p2' : 'p1';
         Snd.sfx('select');
+      }
+      return;
+    }
+    if (this.state === 'perk') {
+      for (i = 0; i < this.hitRows.length; i++) {
+        r = this.hitRows[i];
+        if (my >= r.y0 && my <= r.y1 && mx >= r.x0 && mx <= r.x1) { this.takePerk(this.perkChoices[r.i].id); return; }
       }
       return;
     }

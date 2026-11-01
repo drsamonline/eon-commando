@@ -2405,6 +2405,30 @@ STAGES.forEach(function (st) {
   if (s) { st.storyIn = s.intro; st.storyOut = s.outro; }
 });
 
+
+/* ===========================================================================
+   PERKS — one pick between eras. Each is a small, legible multiplier on a
+   system that already exists, so nothing new has to be learned to use it.
+   =========================================================================== */
+var PERKS = [
+  { id: 'overcharge', name: 'OVERCHARGE', tag: 'DAMAGE',
+    desc: 'ALL WEAPONS HIT 25% HARDER.', color: '#ff7a45' },
+  { id: 'rapid', name: 'RAPID', tag: 'RATE OF FIRE',
+    desc: 'WEAPONS CYCLE 20% FASTER.', color: '#54e0ff' },
+  { id: 'vitality', name: 'VITALITY', tag: 'HEALTH',
+    desc: '+1 MAX HEALTH, AND A FULL HEAL NOW.', color: '#54ffa8' },
+  { id: 'scavenger', name: 'SCAVENGER', tag: 'GRENADES',
+    desc: '+1 GRENADE CAPACITY, AND 2 IN HAND.', color: '#ffd257' },
+  { id: 'momentum', name: 'MOMENTUM', tag: 'POWER',
+    desc: 'THE POWER GAUGE FILLS 35% FASTER.', color: '#c08bff' },
+  { id: 'phantom', name: 'PHANTOM', tag: 'DASH',
+    desc: 'DASH RECOVERS 35% SOONER.', color: '#8a7bff' },
+  { id: 'aegis', name: 'AEGIS', tag: 'DEFENCE',
+    desc: 'TAKE 20% LESS DAMAGE.', color: '#9fe8d6' },
+  { id: 'reserve', name: 'RESERVE', tag: 'LIVES',
+    desc: '+1 LIFE.', color: '#ff2d95' }
+];
+
 /* ===== 60_entities.js ===== */
 /* ===========================================================================
    EON COMMANDO — 60 entities
@@ -2555,7 +2579,7 @@ function autoTarget(p) {
 
 /* ---- the commando ------------------------------------------------------- */
 function makePlayer(x, y) {
-  return {
+  var pl = {
     x: x, y: y, w: 12, h: 22,
     vx: 0, vy: 0, facing: 1,
     onGround: false, ducking: false, runPhase: 0,
@@ -2571,6 +2595,8 @@ function makePlayer(x, y) {
     dead: false, deadTimer: 0,
     spawnX: x, spawnY: y
   };
+
+  return pl;
 }
 
 function setDuck(p, want) {
@@ -2648,7 +2674,7 @@ function playerUpdate(p) {
   if (p.dashCd > 0) p.dashCd--;
   if (ctl.pressed('dash') && p.dashCd <= 0 && !p.ducking) {
     p.dashT = 10;
-    p.dashCd = 42;
+    p.dashCd = Math.round(42 * (Game.dashMul || 1));
     p.dashDir = p.facing;
     p.vy = 0;
     Snd.sfx('dash');
@@ -2764,7 +2790,8 @@ function playerUpdate(p) {
 function fireWeapon(p, angleOverride) {
   var w = WEAPONS[p.weapon];
   var base = (angleOverride === undefined || angleOverride === null) ? p.aimAngle : angleOverride;
-  p.cd = Game.fury > 0 ? Math.max(2, Math.round(w.cd * 0.45)) : w.cd;
+  var cdBase = w.cd * (Game.cdMul || 1);
+  p.cd = Game.fury > 0 ? Math.max(2, Math.round(cdBase * 0.45)) : Math.round(cdBase);
   p.muzzle = 4;
   Snd.sfx(w.sfx);
   var ox = p.x + p.w / 2 + Math.cos(base) * 9;
@@ -2776,7 +2803,7 @@ function fireWeapon(p, angleOverride) {
     a += RNG.sr(-w.jitter, w.jitter);
     spawnBullet({
       x: ox, y: oy, vx: Math.cos(a) * w.speed, vy: Math.sin(a) * w.speed,
-      dmg: w.dmg, friendly: true, color: w.color, glow: w.glow,
+      dmg: Math.max(1, Math.round(w.dmg * (Game.dmgMul || 1))), friendly: true, color: w.color, glow: w.glow,
       w: w.w, h: w.h, pierce: w.pierce, life: w.life, angle: a
     });
   }
@@ -2786,6 +2813,7 @@ function fireWeapon(p, angleOverride) {
 
 function playerHurt(p, dmg) {
   if (p.invuln > 0 || p.dead || p.dashT > 0) return;
+  amount = Math.max(1, Math.round(amount * (Game.takenMul || 1)));
   dmg = dmg * diff().dmgTaken;
   p.hp -= dmg;
   p.hurtFlash = 24;
@@ -3021,7 +3049,7 @@ function damageEnemy(e, dmg, knock) {
     var def = ENEMIES[e.t];
     Game.combo++;
     Game.comboT = 160;
-    Game.power = Math.min(100, Game.power + 8 + Math.min(Game.combo, 12));
+    Game.power = Math.min(100, Game.power + Math.round((8 + Math.min(Game.combo, 12)) * (Game.powerMul || 1)));
     var gained = Math.round(def.score * (Game.scoreMul || 1) * (1 + Math.min(Game.combo, 20) * 0.05));
     Game.score += gained;
     floatText(e.x, e.y - 6, '+' + gained, '#ffd257');
@@ -3726,6 +3754,8 @@ var Game = {
   mode: 'campaign',
   wave: 0, waveTimer: 0, waveActive: false, scoreMul: 1,
   power: 0, combo: 0, comboT: 0, fury: 0,
+  perks: [], perkChoices: [], perkIndex: 0,
+  dmgMul: 1, cdMul: 1, powerMul: 1, dashMul: 1, takenMul: 1,
   story: null, storyAfter: null, storyIndex: 0, storyChars: 0, storyT: 0,
   creditsY: 0, creditsT: 0,
   lastEntry: null,
@@ -3762,6 +3792,8 @@ var Game = {
   startGame: function (coop, forcedSeed) {
     this.coop = !!coop;
     this.dailyRun = false;
+    this.perks = [];
+    this.recalcPerks();
     if (this.mode !== 'endless') this.mode = 'campaign';
     var d = diff();
     this.score = 0;
@@ -3821,20 +3853,28 @@ var Game = {
 
   spawnPlayers: function () {
     var d = diff();
-    var p1 = makePlayer(48, GROUND_Y - 22);
-    p1.invuln = 60;
-    p1.maxHp = d.hp;
-    p1.hp = d.hp;
-    p1.grenades = 3;
-    p1.maxGrenades = 3;
+
+    /* Perks are applied here, not in makePlayer: this function overwrites
+       maxHp and grenades from the difficulty table, so anything set earlier
+       would be clobbered. */
+    function withPerks(p) {
+      p.invuln = 60;
+      p.maxHp = d.hp;
+      p.hp = d.hp;
+      p.grenades = 3;
+      p.maxGrenades = 3;
+      if (Game.perkHas('vitality')) { p.maxHp += 1; p.hp = p.maxHp; }
+      if (Game.perkHas('scavenger')) {
+        p.maxGrenades += 1;
+        p.grenades = Math.min(p.maxGrenades, p.grenades + 2);
+      }
+      return p;
+    }
+
+    var p1 = withPerks(makePlayer(48, GROUND_Y - 22));
     this.players = [p1];
     if (this.coop) {
-      var p2 = makePlayer(72, GROUND_Y - 22);
-      p2.invuln = 60;
-      p2.maxHp = d.hp;
-      p2.hp = d.hp;
-      p2.grenades = 3;
-      p2.maxGrenades = 3;
+      var p2 = withPerks(makePlayer(72, GROUND_Y - 22));
       p2.ctl = Input.ctl2;
       p2.facing = 1;
       this.players.push(p2);
@@ -3902,7 +3942,7 @@ var Game = {
 
     var lastStage = this.stageIndex >= STAGES.length - 1;
     if (this.stage.storyOut && this.stage.storyOut.length) {
-      this.startStory(this.stage.storyOut, lastStage ? 'victory' : 'stageclear');
+      this.startStory(this.stage.storyOut, lastStage ? 'victory' : 'perk');
     } else {
       this.state = 'stageclear';
       this.stateTimer = 0;
@@ -4101,6 +4141,9 @@ var Game = {
       case 'remap':
         this.updateRemap();
         break;
+      case 'perk':
+        this.updatePerk();
+        break;
       case 'pads':
         if (Input.pressed('pause') || Input.pressed('start')) closePadEditor();
         break;
@@ -4214,6 +4257,7 @@ var Game = {
     this.story = null;
     if (after === 'credits') { this.startCredits(); return; }
     if (after === 'victory') { this.state = 'victory'; this.stateTimer = 0; return; }
+    if (after === 'perk') { this.startPerk(); return; }
     if (after === 'stageclear') { this.state = 'stageclear'; this.stateTimer = 0; return; }
     this.state = 'playing';
   },
@@ -4240,6 +4284,81 @@ var Game = {
     this.creditsY += 0.42;
     if (this.creditsT > 90 && (Input.pressed('start') || Input.pressed('jump') || Input.pressed('fire'))) {
       this.state = 'title'; this.stateTimer = 0; Snd.stopMusic();
+    }
+  },
+
+
+  /* ---- perks ----------------------------------------------------------- */
+  perkHas: function (id) { return this.perks.indexOf(id) >= 0; },
+
+  recalcPerks: function () {
+    var i, has = {};
+    for (i = 0; i < this.perks.length; i++) has[this.perks[i]] = true;
+    this.dmgMul = has.overcharge ? 1.25 : 1;
+    this.cdMul = has.rapid ? 0.8 : 1;
+    this.powerMul = has.momentum ? 1.35 : 1;
+    this.dashMul = has.phantom ? 0.65 : 1;
+    this.takenMul = has.aegis ? 0.8 : 1;
+  },
+
+  startPerk: function () {
+    var pool = PERKS.filter(function (pk) { return !Game.perkHas(pk.id); });
+    if (!pool.length) { this.advanceFromPerk(); return; }
+    var picks = [];
+    var bag = pool.slice();
+    while (picks.length < 3 && bag.length) {
+      picks.push(bag.splice(Math.floor(RNG.sr(0, bag.length - 1)), 1)[0]);
+    }
+    this.perkChoices = picks;
+    this.perkIndex = 0;
+    this.state = 'perk';
+    this.stateTimer = 0;
+    Snd.sfx('select');
+  },
+
+  takePerk: function (id) {
+    if (this.perks.indexOf(id) >= 0) return;
+    this.perks.push(id);
+    this.recalcPerks();
+
+    /* the ones with an immediate, visible effect */
+    if (id === 'vitality') {
+      for (var i = 0; i < this.players.length; i++) {
+        this.players[i].maxHp += 1;
+        this.players[i].hp = this.players[i].maxHp;
+      }
+    }
+    if (id === 'scavenger') {
+      for (var j = 0; j < this.players.length; j++) {
+        this.players[j].maxGrenades += 1;
+        this.players[j].grenades = Math.min(this.players[j].maxGrenades, this.players[j].grenades + 2);
+      }
+    }
+    if (id === 'reserve') this.lives += 1;
+
+    Snd.sfx('stageClear');
+    floatText(this.player.x + 6, this.player.y - 14, PERKS.filter(function (k) { return k.id === id; })[0].name, '#ffd257');
+    this.advanceFromPerk();
+  },
+
+  advanceFromPerk: function () {
+    if (this.stageIndex + 1 < STAGES.length) {
+      this.stageIndex++;
+      this.loadStage(this.stageIndex);
+      this.state = 'playing';
+      if (this.stage.storyIn && this.stage.storyIn.length) this.startStory(this.stage.storyIn, 'play');
+    } else {
+      this.victory();
+    }
+  },
+
+  updatePerk: function () {
+    var n = this.perkChoices.length;
+    if (!n) { this.advanceFromPerk(); return; }
+    if (Input.pressed('left')) { this.perkIndex = (this.perkIndex + n - 1) % n; Snd.sfx('select'); }
+    if (Input.pressed('right')) { this.perkIndex = (this.perkIndex + 1) % n; Snd.sfx('select'); }
+    if (Input.pressed('start') || Input.pressed('jump') || Input.pressed('fire')) {
+      this.takePerk(this.perkChoices[this.perkIndex].id);
     }
   },
 
@@ -4316,6 +4435,13 @@ var Game = {
       if (my > 36 && my < 52) {
         this.remapPlayer = this.remapPlayer === 'p1' ? 'p2' : 'p1';
         Snd.sfx('select');
+      }
+      return;
+    }
+    if (this.state === 'perk') {
+      for (i = 0; i < this.hitRows.length; i++) {
+        r = this.hitRows[i];
+        if (my >= r.y0 && my <= r.y1 && mx >= r.x0 && mx <= r.x1) { this.takePerk(this.perkChoices[r.i].id); return; }
       }
       return;
     }
@@ -5780,6 +5906,60 @@ function drawCredits(g) {
   drawText(g, 'ENTER TO RETURN', W / 2, H - 12, 1, '#38465a', 'center');
 }
 
+function drawPerk(g) {
+  dim(g, 0.84);
+  Game.hitRows = [];
+  var narrow = W < 380;
+
+  drawFit(g, 'CHOOSE A PERK', narrow ? 26 : 30, 3, '#ffd257', 'rgba(0,0,0,0.85)', W - 16);
+  drawText(g, 'THE ERA IS HELD. TAKE ONE THING WITH YOU.', W / 2, narrow ? 50 : 56, 1, '#9fb2c6', 'center');
+
+  var picks = Game.perkChoices;
+  var n = picks.length;
+  if (!n) return;
+
+  var gap = narrow ? 6 : 10;
+  var cardW = narrow ? (W - 24 - gap * (n - 1)) / n : Math.min(132, (W - 60 - gap * (n - 1)) / n);
+  var cardH = narrow ? 150 : 120;
+  var totalW = cardW * n + gap * (n - 1);
+  var x0 = (W - totalW) / 2;
+  var y0 = narrow ? 66 : 74;
+
+  for (var i = 0; i < n; i++) {
+    var pk = picks[i];
+    var sel = i === Game.perkIndex;
+    var cx = x0 + i * (cardW + gap);
+
+    px(g, cx, y0, cardW, cardH, sel ? 'rgba(30,44,60,0.96)' : 'rgba(12,18,26,0.92)');
+    g.strokeStyle = sel ? pk.color : '#22344a';
+    g.lineWidth = sel ? 2 : 1;
+    g.strokeRect(cx + 0.5, y0 + 0.5, cardW - 1, cardH - 1);
+    px(g, cx, y0, cardW, 2, pk.color);
+
+    drawText(g, pk.tag, cx + 6, y0 + 8, 1, pk.color);
+    var nameLines = wrapText(pk.name, narrow ? 8 : 11);
+    var ny = y0 + 24;
+    for (var nl = 0; nl < nameLines.length && nl < 2; nl++) {
+      drawText(g, nameLines[nl], cx + 6, ny, 1, '#ffffff');
+      ny += 10;
+    }
+
+    var descLines = wrapText(pk.desc, narrow ? 11 : 16);
+    var dy = ny + 8;
+    for (var dl = 0; dl < descLines.length && dl < 7; dl++) {
+      drawText(g, descLines[dl], cx + 6, dy, 1, '#9fb2c6');
+      dy += 9;
+    }
+
+    if (sel) {
+      px(g, cx + cardW / 2 - 10, y0 + cardH - 12, 20, 2, pk.color);
+    }
+    Game.hitRows.push({ x0: cx, x1: cx + cardW, y0: y0, y1: y0 + cardH, i: i });
+  }
+
+  drawText(g, narrow ? 'TAP A CARD' : '\u25C0 \u25B6  CHOOSE     ENTER  TAKE', W / 2, y0 + cardH + 12, 1, '#54637a', 'center');
+}
+
 function drawPads(g) {
   dim(g, 0.72);
   drawFit(g, 'PAD LAYOUT', 40, 3, '#54e0ff', 'rgba(0,0,0,0.85)', W - 16);
@@ -5891,6 +6071,7 @@ function Render(g) {
     else if (Game.state === 'settings') drawSettings(g);
     else if (Game.state === 'remap') drawRemap(g);
     else if (Game.state === 'pads') drawPads(g);
+    else if (Game.state === 'perk') drawPerk(g);
     else if (Game.state === 'story') drawStory(g);
     else if (Game.state === 'credits') drawCredits(g);
     else if (Game.state === 'stageclear') drawStageClear(g);
@@ -6309,6 +6490,7 @@ function runDemo(n) {
     for (var sq = 0; sq < 90; sq++) { Game.storyChars += 1; }
   }
   if (PARAMS.pose === 'credits') { Game.startCredits(); Game.creditsY = 150; Game.creditsT = 100; }
+  if (PARAMS.pose === 'perk') { Game.startGame(false, 7); Game.story = null; Game.startPerk(); }
   if (PARAMS.pose === 'pads') { Game.startGame(false, 7); Game.story = null; openPadEditor(); }
   if (PARAMS.pose === 'pause') { Game.state = 'paused'; Game.pauseIndex = 0; }
   if (PARAMS.pose === 'remap') { Game.state = 'remap'; Game.remapPlayer = 'p1'; Game.remapIndex = 3; }

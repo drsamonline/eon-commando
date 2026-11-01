@@ -439,3 +439,27 @@ STAGES.forEach(function (st) {
   var s = STORY[st.id];
   if (s) { st.storyIn = s.intro; st.storyOut = s.outro; }
 });
+
+
+/* ===========================================================================
+   PERKS — one pick between eras. Each is a small, legible multiplier on a
+   system that already exists, so nothing new has to be learned to use it.
+   =========================================================================== */
+var PERKS = [
+  { id: 'overcharge', name: 'OVERCHARGE', tag: 'DAMAGE',
+    desc: 'ALL WEAPONS HIT 25% HARDER.', color: '#ff7a45' },
+  { id: 'rapid', name: 'RAPID', tag: 'RATE OF FIRE',
+    desc: 'WEAPONS CYCLE 20% FASTER.', color: '#54e0ff' },
+  { id: 'vitality', name: 'VITALITY', tag: 'HEALTH',
+    desc: '+1 MAX HEALTH, AND A FULL HEAL NOW.', color: '#54ffa8' },
+  { id: 'scavenger', name: 'SCAVENGER', tag: 'GRENADES',
+    desc: '+1 GRENADE CAPACITY, AND 2 IN HAND.', color: '#ffd257' },
+  { id: 'momentum', name: 'MOMENTUM', tag: 'POWER',
+    desc: 'THE POWER GAUGE FILLS 35% FASTER.', color: '#c08bff' },
+  { id: 'phantom', name: 'PHANTOM', tag: 'DASH',
+    desc: 'DASH RECOVERS 35% SOONER.', color: '#8a7bff' },
+  { id: 'aegis', name: 'AEGIS', tag: 'DEFENCE',
+    desc: 'TAKE 20% LESS DAMAGE.', color: '#9fe8d6' },
+  { id: 'reserve', name: 'RESERVE', tag: 'LIVES',
+    desc: '+1 LIFE.', color: '#ff2d95' }
+];

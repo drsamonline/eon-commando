@@ -2,6 +2,28 @@
 
 All notable changes to Eon Commando.
 
+## [4.4.0] — 2026-11-01
+
+Perks between eras.
+
+### Added
+- **Eight perks**, offered three at a time after every era is cleared: Overcharge (+25% damage),
+  Rapid (−20% cooldown), Vitality (+1 max HP and a full heal), Scavenger (+1 grenade capacity,
+  +2 in hand), Momentum (+35% gauge gain), Phantom (−35% dash cooldown), Aegis (−20% damage
+  taken), Reserve (+1 life).
+- Perks stack, are never re-offered, and persist for the whole run.
+- A card screen after each outro, navigable by arrows or tappable.
+- `Game.perks`, `recalcPerks()` and the multipliers `dmgMul`, `cdMul`, `powerMul`, `dashMul`,
+  `takenMul` wired into weapons, power gain, dash and incoming damage.
+
+### Fixed
+- **`makePlayer` lost its `return`.** A patch anchored on text that had drifted replaced the
+  function tail without the return, so every player was `undefined`. Valid JavaScript, so the
+  syntax check passed; only the runtime test caught it.
+- **Perk bonuses were wiped on the next era.** They were applied once to the live player, but
+  `spawnPlayers` rebuilds players from the difficulty table at every stage. Bonuses are now
+  applied there, after the difficulty values, so they survive.
+
 ## [4.3.0] — 2026-11-01
 
 The pad layout editor.

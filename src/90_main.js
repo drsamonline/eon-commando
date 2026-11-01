@@ -376,6 +376,7 @@ function runDemo(n) {
     for (var sq = 0; sq < 90; sq++) { Game.storyChars += 1; }
   }
   if (PARAMS.pose === 'credits') { Game.startCredits(); Game.creditsY = 150; Game.creditsT = 100; }
+  if (PARAMS.pose === 'perk') { Game.startGame(false, 7); Game.story = null; Game.startPerk(); }
   if (PARAMS.pose === 'pads') { Game.startGame(false, 7); Game.story = null; openPadEditor(); }
   if (PARAMS.pose === 'pause') { Game.state = 'paused'; Game.pauseIndex = 0; }
   if (PARAMS.pose === 'remap') { Game.state = 'remap'; Game.remapPlayer = 'p1'; Game.remapIndex = 3; }
