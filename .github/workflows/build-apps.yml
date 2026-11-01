@@ -3,10 +3,10 @@
 # The heavy lifting lives in the shared kit so this repo inherits its fixes:
 #   https://github.com/drsamonline/app-builder
 #
-# deploy_path is deliberately empty AND the Pages permissions are withheld:
-# this repo publishes Pages from the `docs` folder on the main branch (legacy
-# Pages). Granting pages:write let an early run upload Pages artifacts, which
-# interfered with the legacy builder and left it stuck in "building".
+# This repo's legacy Pages builder started failing with "Page build failed" and
+# could not be recovered (a manual rebuild failed the same way). So the kit owns
+# deployment now: it publishes docs/ through actions/deploy-pages, which gives
+# real build logs and does not depend on the legacy Jekyll builder.
 name: Build apps
 
 on:
@@ -16,6 +16,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 concurrency:
   group: build-apps
@@ -27,6 +29,8 @@ jobs:
     with:
       app_name: eon-commando
       app_src: docs/play
-      deploy_path: ""
+      deploy_path: docs
     permissions:
       contents: write
+      pages: write
+      id-token: write
