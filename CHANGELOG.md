@@ -2,6 +2,26 @@
 
 All notable changes to Eon Commando.
 
+## [2.8.0] — 2026-11-01
+
+Auto-fire.
+
+### Added
+- **Auto-fire**, wired to the existing `autoFire` setting (which was in the menu but did
+  nothing). The gun fires by itself at a target within ~31° of the current aim and 210 px.
+- **Aim assist**: the shot is fired at the acquired angle while the arm swings toward it, so
+  the assist corrects precision rather than intent. A target behind you or outside the cone is
+  ignored; manual fire on `Z`/`B` still overrides it.
+- **Default on for touch devices, off for keyboard**, decided on first run.
+- `AUTO` indicator next to the weapon chip, brightening when a target is locked.
+- `?autofire=1` / `?autofire=0` URL override.
+
+### Changed
+- **Portrait view tightened from 270 to 220 world pixels wide.** With aiming handled, the
+  closer camera is viable: the commando is 21 px wide instead of 17 and the play area covers
+  57% of the screen height instead of 46%.
+- Earth strata and grit below the play area are denser so the lower band reads as ground.
+
 ## [2.7.0] — 2026-11-01
 
 Touch-accessible menus.

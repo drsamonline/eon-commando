@@ -19,7 +19,7 @@ var GROUND_Y = 232;                // world y of the ground surface
    screen, and the sprites end up tiny. */
 function viewWidthFor(px_w, px_h) {
   var aspect = px_w / Math.max(1, px_h);
-  if (aspect < 1) return clamp(Math.round(H * aspect), 270, 360);
+  if (aspect < 1) return clamp(Math.round(H * aspect), 220, 360);
   return clamp(Math.round(H * aspect), W_MIN, W_MAX);
 }
 var FPS = 60, STEP = 1 / FPS;

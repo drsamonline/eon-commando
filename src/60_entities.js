@@ -103,6 +103,43 @@ function nearestPlayer(x, y) {
   return best;
 }
 
+/* smallest signed difference between two angles */
+function angDiff(a, b) {
+  var d = a - b;
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  return d;
+}
+
+/* the nearest thing worth shooting, if it is roughly where you are aiming.
+   Auto-fire aims for you; it does not decide *what* you are pointing at. */
+function autoTarget(p) {
+  var best = null, bestD = 210 * 210;
+  var ox = p.x + p.w / 2;
+  var oy = p.y + (p.ducking ? 8 : 10);
+  var list = Game.enemies, i, e;
+
+  for (var pass = 0; pass < 2; pass++) {
+    if (pass === 1) {
+      if (!Game.boss || Game.boss.dead) break;
+      list = [Game.boss];
+    }
+    for (i = 0; i < list.length; i++) {
+      e = list[i];
+      if (!e || e.dead) continue;
+      var cx = e.x + e.w / 2, cy = e.y + e.h / 2;
+      var dx = cx - ox, dy = cy - oy;
+      var d2 = dx * dx + dy * dy;
+      if (d2 > 210 * 210 || d2 > bestD) continue;
+      var a = Math.atan2(dy, dx);
+      if (Math.abs(angDiff(a, p.aimAngle)) > 0.55) continue;   /* ~31 deg, matching 8-way aim */
+      bestD = d2;
+      best = { angle: a, target: e };
+    }
+  }
+  return best;
+}
+
 /* ---- the commando ------------------------------------------------------- */
 function makePlayer(x, y) {
   return {
@@ -117,7 +154,7 @@ function makePlayer(x, y) {
     dashT: 0, dashCd: 0, dashDir: 1,
     meleeT: 0, meleeCd: 0,
     grenades: 3, maxGrenades: 3,
-    ctl: null, downed: false, downTimer: 0, reviveT: 0,
+    ctl: null, downed: false, downTimer: 0, reviveT: 0, autoAiming: false,
     dead: false, deadTimer: 0,
     spawnX: x, spawnY: y
   };
@@ -278,10 +315,26 @@ function playerUpdate(p) {
   if (axAim === 0 && ayAim === 0) axAim = p.facing;
   p.aimAngle = Math.atan2(ayAim, axAim);
 
-  /* firing */
+  /* firing — manual, or automatic when a target sits inside the aim cone */
   if (p.cd > 0) p.cd--;
   if (p.muzzle > 0) p.muzzle--;
-  if (ctl.held('fire') && p.cd <= 0) fireWeapon(p);
+  var wantFire = ctl.held('fire');
+  var fireAngle = null;
+  if (SET.autoFire && !wantFire) {
+    var aim = autoTarget(p);
+    if (aim) {
+      /* the arm swings toward the target for looks; the shot goes where it aims */
+      p.aimAngle += angDiff(aim.angle, p.aimAngle) * 0.45;
+      fireAngle = aim.angle;
+      p.autoAiming = true;
+      wantFire = true;
+    } else {
+      p.autoAiming = false;
+    }
+  } else {
+    p.autoAiming = false;
+  }
+  if (wantFire && p.cd <= 0) fireWeapon(p, fireAngle);
 
   /* timers */
   if (p.invuln > 0) p.invuln--;
@@ -294,16 +347,17 @@ function playerUpdate(p) {
   }
 }
 
-function fireWeapon(p) {
+function fireWeapon(p, angleOverride) {
   var w = WEAPONS[p.weapon];
+  var base = (angleOverride === undefined || angleOverride === null) ? p.aimAngle : angleOverride;
   p.cd = w.cd;
   p.muzzle = 4;
   Snd.sfx(w.sfx);
-  var ox = p.x + p.w / 2 + Math.cos(p.aimAngle) * 9;
-  var oy = p.y + (p.ducking ? 8 : 10) + Math.sin(p.aimAngle) * 9;
+  var ox = p.x + p.w / 2 + Math.cos(base) * 9;
+  var oy = p.y + (p.ducking ? 8 : 10) + Math.sin(base) * 9;
 
   for (var i = 0; i < w.shots; i++) {
-    var a = p.aimAngle;
+    var a = base;
     if (w.shots > 1) a += (i - (w.shots - 1) / 2) * w.spread;
     a += RNG.sr(-w.jitter, w.jitter);
     spawnBullet({
@@ -313,7 +367,7 @@ function fireWeapon(p) {
     });
   }
   /* recoil shove */
-  p.vx -= Math.cos(p.aimAngle) * (w.name === 'LASER' ? 0.6 : 0.14);
+  p.vx -= Math.cos(base) * (w.name === 'LASER' ? 0.6 : 0.14);
 }
 
 function playerHurt(p, dmg) {

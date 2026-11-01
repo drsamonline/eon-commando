@@ -148,6 +148,7 @@
       <a href="#campaign">Campaign</a>
       <a href="#look">Look</a>
       <a href="#coop">Co-op</a>
+      <a href="#auto">Auto-fire</a>
       <a href="#verbs">Verbs</a>
       <a href="#arsenal">Arsenal</a>
       <a href="#controls">Controls</a>
@@ -180,6 +181,7 @@
       <span><b>9</b> enemy types</span>
       <span><b>16:9&ndash;21:9</b> widescreen</span>
       <span><b>573</b> draw calls/frame</span>
+      <span><b>auto-fire</b> on touch</span>
     </div>
 
     <div class="shot">
@@ -292,6 +294,25 @@
       <div class="bar"><em></em><em></em><em></em><span>co-op &mdash; two commandos, shared camera, cyan hearts for player two</span></div>
       <img src="shots/coop.png" alt="Two commandos fighting side by side in Era I, player two's hearts in cyan">
     </div>
+  </div>
+</section>
+
+<section id="auto">
+  <div class="wrap">
+    <h2>Auto-fire</h2>
+    <h3 class="big">Holding a fire button while steering is the worst part of this on a phone.</h3>
+    <p class="body">
+      On a touch screen the gun now shoots by itself at anything inside the cone you are already
+      aiming at &mdash; within about 31&deg; and 210 pixels. It aims <em>for</em> you; it does not
+      decide <em>for</em> you. Point up and it shoots up, point the diagonal and it shoots the
+      diagonal, and anything behind you is ignored. Manual fire on <b>Z</b> / <b>B</b> still works
+      and overrides it.
+    </p>
+    <p class="body">
+      It is on by default on touch devices and off for keyboard players, and it is a setting
+      either way. With aiming handled, the portrait view also tightened: the commando is 21 pixels
+      wide instead of 17, and the play area covers 57% of the screen height rather than 46%.
+    </p>
   </div>
 </section>
 
@@ -467,7 +488,7 @@
 
 <footer>
   <div class="wrap">
-    <span>EON COMMANDO &middot; v2.7 &middot; PolyForm Noncommercial 1.0.0</span>
+    <span>EON COMMANDO &middot; v2.8 &middot; PolyForm Noncommercial 1.0.0</span>
     <span>
       <a href="https://github.com/drsamonline/eon-commando">GitHub</a> &middot;
       <a href="https://github.com/drsamonline/eon-commando/releases">Releases</a> &middot;

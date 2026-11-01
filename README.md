@@ -33,7 +33,7 @@
 <br>
 
 [![Hosted on GitHub Pages](https://img.shields.io/badge/hosted%20on-GitHub%20Pages-222222?logo=githubpages&logoColor=white&style=for-the-badge&labelColor=05070d)](https://drsamonline.github.io/eon-commando/)
-[![Version](https://img.shields.io/badge/version-2.7.0-ffd257.svg?style=for-the-badge&labelColor=05070d)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.8.0-ffd257.svg?style=for-the-badge&labelColor=05070d)](CHANGELOG.md)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-54ffa8.svg?style=for-the-badge&labelColor=05070d)](#-zero-dependencies)
 [![Network calls](https://img.shields.io/badge/network%20calls-none-54ffa8.svg?style=for-the-badge&labelColor=05070d)](#-zero-dependencies)
 
@@ -468,18 +468,29 @@ index.html?shot=1&stage=3&warp=2520&demo=320&right=0
 
 ## 🗺 Roadmap
 
+### Shipped
 - [x] Three eras with distinct palettes, hazards and parallax
-- [x] Five weapons with distinct cadence, spread and piercing
-- [x] Three bosses with two phases each
+- [x] Five weapons, nine enemy archetypes, three bosses with second phases and arena hazards
+- [x] Dash, melee and grenades; hit-stop; attack telegraphs
 - [x] Chiptune music and sound effects, synthesised at runtime
-- [x] Keyboard, touch pads and gamepad
-- [x] High-score persistence, pause, mute
-- [x] Curved sprite art with per-era palettes, scale jitter and elite variants
-- [x] Widescreen viewport (16:9 → 21:9) with a fixed-footprint boss arena
-- [x] Readability pass: bullet rims and trails, off-screen threat arrows, background dimming
-- [ ] Difficulty select (Recruit / Commando / Eon)
-- [ ] Two-player local co-op on one keyboard, then LAN play on [`lan-kit`](https://github.com/drsamonline/lan-kit)
-- [ ] Endless mode with escalating waves
+- [x] Keyboard, touch pads and gamepad, with rebindable keys per player
+- [x] Two-player local co-op with revive
+- [x] Difficulty tiers, settings, colour schemes, reduce-motion, HUD scaling
+- [x] Curved sprite art, per-era palettes, scale jitter, elite variants
+- [x] Widescreen 16:9 → 21:9; portrait fills the screen with a closer view
+- [x] Readability pass: bullet rims and trails, threat arrows, background dimming
+- [x] Performance: 573 draw ops/frame, down from 2,210
+- [x] Replays (196 chars for 900 frames) and a daily seed
+- [x] Auto-fire with a ±31° assist, on by default on touch
+- [x] Installable PWA, offline, zero dependencies
+
+### Next, in order
+- [ ] **Endless mode** — escalating waves on the existing arenas, score multiplier, no new art
+      needed. The biggest content win available: three stages is thin for a run-and-gun.
+- [ ] **Touch pad layout editor** — drag the pads anywhere, per device. The last real mobile gap.
+- [ ] **Perks between eras** — pick 1 of 3, now that difficulty tiers exist to hang them on.
+- [ ] **Android APK / Windows EXE** via [`app-builder`](https://github.com/drsamonline/app-builder)
+- [ ] **LAN co-op** via [`lan-kit`](https://github.com/drsamonline/lan-kit) (SSE + POST, local host)
 - [ ] Optional CRT shader toggle
 
 ---

@@ -722,6 +722,10 @@ function drawHUD(g) {
   px(g, 6, H / k - 18, chipW, 12, 'rgba(3,5,10,0.7)');
   px(g, 6, H / k - 18, 2, 12, w.color);
   drawText(g, w.name, 12, H / k - 15, 1, w.color);
+  if (SET.autoFire) {
+    var ax = 12 + textWidth(w.name, 1) + 4;
+    drawText(g, 'AUTO', ax, H / k - 15, 1, p.autoAiming ? '#54ffa8' : '#3f5d6b');
+  }
   g.restore();
 
   /* boss bar */
@@ -797,6 +801,9 @@ function drawTitle(g) {
   } else {
     drawText(g, 'ARROWS / WASD MOVE   SPACE JUMP   Z FIRE', W / 2, 190, 1, '#7f8fa6', 'center');
     drawText(g, 'SHIFT DASH   V MELEE   G GRENADE   O SETTINGS', W / 2, 202, 1, '#7f8fa6', 'center');
+  }
+  if (SET.autoFire) {
+    drawText(g, 'AUTO-FIRE ON  ·  O TO CHANGE', W / 2, 166, 1, '#54ffa8', 'center');
   }
   drawText(g, (Game.dailyRun ? 'DAILY RUN ' + Daily.label() + '  ·  ' : 'DIFFICULTY ') +
               (Game.dailyRun ? DIFFICULTY[clamp(SET.difficulty, 0, 2)].name : DIFFICULTY[clamp(SET.difficulty, 0, 2)].name),

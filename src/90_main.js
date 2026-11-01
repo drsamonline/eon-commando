@@ -35,6 +35,16 @@ function boot() {
     setTimeout(fitCanvas, 150);
   });
 
+  /* first run on a touch device: the fire button is the hardest thing to hold,
+     so default to auto-fire there and leave it off for keyboard players */
+  if (PARAMS.autofire) { SET.autoFire = PARAMS.autofire === '1' ? 1 : 0; saveSettings(); }
+  if (Store.get('settings', null) === null) {
+    var touchy = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) ||
+                 window.matchMedia('(pointer: coarse)').matches;
+    SET.autoFire = touchy ? 1 : 0;
+    saveSettings();
+  }
+
   Snd.setMuted(!!Store.get('muted', false));
   Game.init();
 
