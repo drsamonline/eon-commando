@@ -155,6 +155,17 @@ function runDemo(n) {
   }
   Input.touch = {};
   Game.stateTimer = Math.max(Game.stateTimer, 0);
+  /* force a boss hazard into a photogenic state for screenshots */
+  if (PARAMS.haz && Game.boss) {
+    var bn = Game.boss;
+    if (PARAMS.haz === 'debris') { bn.debrisT = 1; for (var d1 = 0; d1 < 26; d1++) { Input.frame(); Game.update(); } }
+    if (PARAMS.haz === 'beam') {
+      bn.beamT = 1;
+      for (var d2 = 0; d2 < 96; d2++) { Input.frame(); Game.update(); }
+    }
+    bn.flash = 0;
+  }
+
   if (PARAMS.pose === 'settings') { Game.state = 'settings'; Game.settingsIndex = 0; }
   if (PARAMS.pose === 'leaderboard') { Game.score = 24500; Game.recordRun('EON SECURED'); }
   if (Game.boss) Game.boss.flash = 0;

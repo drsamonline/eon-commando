@@ -325,6 +325,65 @@ function drawParticles(g, camX) {
   g.globalAlpha = 1;
 }
 
+/* ---- arena hazards ------------------------------------------------------ */
+function drawHazards(g, camX) {
+  var i, hz;
+  for (i = 0; i < Game.hazards.length; i++) {
+    hz = Game.hazards[i];
+    var sx = hz.x - camX;
+
+    if (hz.kind === 'debris') {
+      if (hz.telegraph > 0) {
+        /* ground shadow tells you exactly where it will land */
+        var t = 1 - hz.telegraph / 60;
+        g.globalAlpha = 0.25 + t * 0.5;
+        el(g, sx, GROUND_Y + 1, 10, 3, scheme().hostile);
+        g.globalAlpha = 0.5 + Math.sin(Game.time * 0.5) * 0.3;
+        g.fillStyle = scheme().hostile;
+        g.fillRect(sx - 0.5, GROUND_Y - 90, 1, 86);
+        g.globalAlpha = 1;
+      } else {
+        el(g, sx, GROUND_Y + 1, 7, 2, 'rgba(0,0,0,0.45)');
+        g.save();
+        g.translate(sx, hz.y);
+        g.rotate(hz.y * 0.06);
+        rr(g, -hz.w / 2, -hz.h / 2, hz.w, hz.h, 3, '#3a2a2a');
+        rr(g, -hz.w / 2 + 1, -hz.h / 2 + 1, hz.w - 2, 3, 1.5, '#6d4a3a');
+        g.restore();
+      }
+      continue;
+    }
+
+    if (hz.kind === 'beam') {
+      var cx = hz.cx - camX, cy = hz.cy;
+      var ex = cx + Math.cos(hz.angle) * hz.len;
+      var ey = cy + Math.sin(hz.angle) * hz.len;
+      if (hz.telegraph > 0) {
+        g.globalAlpha = 0.28 + Math.sin(Game.time * 0.4) * 0.18;
+        g.strokeStyle = scheme().hostile;
+        g.lineWidth = 1.5;
+        g.setLineDash([5, 5]);
+        g.beginPath(); g.moveTo(cx, cy); g.lineTo(ex, ey); g.stroke();
+        g.setLineDash([]);
+        g.globalAlpha = 1;
+      } else {
+        g.globalAlpha = 0.35;
+        g.strokeStyle = scheme().hostileGlow;
+        g.lineWidth = hz.w + 5;
+        g.lineCap = 'round';
+        g.beginPath(); g.moveTo(cx, cy); g.lineTo(ex, ey); g.stroke();
+        g.globalAlpha = 1;
+        g.strokeStyle = scheme().hostile;
+        g.lineWidth = hz.w;
+        g.beginPath(); g.moveTo(cx, cy); g.lineTo(ex, ey); g.stroke();
+        g.strokeStyle = '#ffffff';
+        g.lineWidth = Math.max(1, hz.w * 0.35);
+        g.beginPath(); g.moveTo(cx, cy); g.lineTo(ex, ey); g.stroke();
+      }
+    }
+  }
+}
+
 function drawBullets(g, camX) {
   var i, b, x, y;
   /* trails first so cores always sit on top */
@@ -480,6 +539,7 @@ function drawWorld(g) {
     if (plist[mi] && plist[mi].meleeT > 0) drawMeleeArc(g, plist[mi], camX);
   }
 
+  drawHazards(g, camX);
   drawBullets(g, camX);
   drawParticles(g, camX);
   drawThreatArrows(g, camX);

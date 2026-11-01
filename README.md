@@ -33,13 +33,13 @@
 <br>
 
 [![Hosted on GitHub Pages](https://img.shields.io/badge/hosted%20on-GitHub%20Pages-222222?logo=githubpages&logoColor=white&style=for-the-badge&labelColor=05070d)](https://drsamonline.github.io/eon-commando/)
-[![Version](https://img.shields.io/badge/version-2.1.0-ffd257.svg?style=for-the-badge&labelColor=05070d)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.2.0-ffd257.svg?style=for-the-badge&labelColor=05070d)](CHANGELOG.md)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-54ffa8.svg?style=for-the-badge&labelColor=05070d)](#-zero-dependencies)
 [![Network calls](https://img.shields.io/badge/network%20calls-none-54ffa8.svg?style=for-the-badge&labelColor=05070d)](#-zero-dependencies)
 
 [![Single file](https://img.shields.io/badge/build-single%20HTML%20file-ffd257.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
 [![Size](https://img.shields.io/badge/minified-109%20KB-54e0ff.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
-[![Gzipped](https://img.shields.io/badge/gzipped-38%20KB-54e0ff.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
+[![Gzipped](https://img.shields.io/badge/gzipped-40%20KB-54e0ff.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
 [![Made with](https://img.shields.io/badge/made%20with-vanilla%20JS%20%2B%20canvas-ffd257.svg?style=for-the-badge&labelColor=05070d)](#-how-it-works)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge&labelColor=05070d)](#-contributing)
 
@@ -128,6 +128,35 @@ Works identically from `file://` and from a web server. Works offline. Works on 
 <img src="docs/shots/widescreen.png" alt="Ultrawide 21:9 view: the level reveals more world either side" width="820">
 
 </div>
+
+---
+
+## 🆕 What's new in 2.2
+
+**Bosses fight back with three attacks each, on their own clocks** — not one scripted loop.
+
+<div align="center">
+<img src="docs/shots/boss-hazard-debris.png" alt="The Warden's ceiling debris: three ground shadows marking exactly where it will land" width="820">
+</div>
+
+- **The Warden** now drops **ceiling debris** on your position — three rocks (five in phase 2),
+  each telegraphed for 42 frames by a shadow on the ground and a falling marker line, so you
+  always know exactly where not to stand.
+- **The Glacier Wraith** summons **swarm darts** on its own timer, separate from its ice-shard
+  fan. Kill them or eat them.
+- **The Eon Heart** fires **rotating beams** — a 70-frame dashed telegraph, then a live beam
+  that sweeps across the arena for 150 frames. Phase 2 sends two, counter-rotating.
+
+<div align="center">
+<img src="docs/shots/boss-hazard-beam.png" alt="The Eon Heart's rotating beam sweeping across the arena" width="820">
+</div>
+
+**A weak point that rewards aiming.** The Warden's core takes **double damage** — a body shot
+does 4, a core shot does 8, with a `CORE` popup when you find it. Bosses are no longer a
+matter of holding fire at the biggest rectangle on screen.
+
+Every hazard is a real entity with its own telegraph, damage box and lifetime, so they work
+in co-op too and can be dodged with the dash's i-frames.
 
 ---
 

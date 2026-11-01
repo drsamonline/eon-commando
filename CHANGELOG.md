@@ -2,6 +2,25 @@
 
 All notable changes to Eon Commando.
 
+## [2.2.0] — 2026-11-01
+
+Boss depth release.
+
+### Added
+- **Arena hazards** as first-class entities with telegraphs, damage boxes and lifetimes:
+  - **Debris** (Warden) — 3 rocks (5 in phase 2) dropped on the player's position, each
+    telegraphed for 42 frames by a ground shadow and a falling marker line.
+  - **Rotating beams** (Eon Heart) — 70-frame dashed telegraph, then 150 frames of live beam
+    sweeping the arena. Phase 2 sends two counter-rotating.
+  - **Swarm summons** (Glacier Wraith) — two darts per wave on their own timer.
+- **Weak points.** The Warden's core takes double damage (4 → 8), with a `CORE` popup.
+- Hazards respect co-op: they damage every player and can be dodged with dash i-frames.
+
+### Fixed
+- The Wraith's summon timer and the Heart's beam timer were nested inside another attack's
+  handler, so they only ticked when that attack fired — the beams in particular almost never
+  appeared. Both now run on their own clocks.
+
 ## [2.1.0] — 2026-11-01
 
 Local co-op release.

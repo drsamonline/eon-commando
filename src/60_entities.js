@@ -399,7 +399,7 @@ function bulletUpdate(b) {
     }
     var boss = Game.boss;
     if (boss && !boss.dead && aabb(box, boss)) {
-      damageBoss(boss, b.dmg);
+      damageBoss(boss, b.dmg, b.x, b.y);
       b.hits++;
       if (b.hits > b.pierce) { b.dead = true; spark(b.x, b.y, b.color); return; }
     }
@@ -784,6 +784,88 @@ function grenadeUpdate(n) {
   }
 }
 
+/* ---- arena hazards ------------------------------------------------------ */
+function spawnDebris(x, count, delay) {
+  for (var i = 0; i < count; i++) {
+    Game.hazards.push({
+      kind: 'debris',
+      x: x + (i - (count - 1) / 2) * 26,
+      y: -20,
+      vy: 0,
+      w: 12, h: 14,
+      telegraph: 42 + (delay || 0),
+      life: 240,
+      dead: false
+    });
+  }
+}
+
+function spawnBeam(b, count) {
+  for (var i = 0; i < count; i++) {
+    Game.hazards.push({
+      kind: 'beam',
+      cx: b.x + b.w / 2,
+      cy: b.y + b.h / 2,
+      angle: (i * Math.PI) + 0.4,
+      spin: (i % 2 === 0 ? 1 : -1) * 0.012,
+      telegraph: 70,
+      active: 150,
+      len: 420,
+      w: 5,
+      dead: false
+    });
+  }
+}
+
+function hazardUpdate(hz) {
+  var pi, p;
+  if (hz.kind === 'debris') {
+    if (hz.telegraph > 0) { hz.telegraph--; return; }
+    hz.vy = Math.min(hz.vy + 0.6, 13);
+    hz.y += hz.vy;
+    for (pi = 0; pi < Game.players.length; pi++) {
+      p = Game.players[pi];
+      if (!p || p.dead || p.downed) continue;
+      if (aabb({ x: hz.x - hz.w / 2, y: hz.y - hz.h / 2, w: hz.w, h: hz.h },
+               { x: p.x + 1, y: p.y + 1, w: p.w - 2, h: p.h - 2 })) {
+        playerHurt(p, 1);
+      }
+    }
+    if (hz.y > GROUND_Y) {
+      hz.dead = true;
+      explosion(hz.x, GROUND_Y - 4, 1);
+      Game.shake = Math.max(Game.shake, 3);
+      for (pi = 0; pi < Game.players.length; pi++) {
+        p = Game.players[pi];
+        if (!p || p.dead || p.downed) continue;
+        if (Math.abs((p.x + p.w / 2) - hz.x) < 16 && Math.abs((p.y + p.h) - GROUND_Y) < 26) {
+          playerHurt(p, 1);
+        }
+      }
+    }
+    return;
+  }
+
+  if (hz.kind === 'beam') {
+    if (hz.telegraph > 0) { hz.telegraph--; return; }
+    hz.active--;
+    hz.angle += hz.spin;
+    if (hz.active <= 0) { hz.dead = true; return; }
+
+    /* damage anything crossing the beam */
+    for (pi = 0; pi < Game.players.length; pi++) {
+      p = Game.players[pi];
+      if (!p || p.dead || p.downed) continue;
+      var px2 = p.x + p.w / 2 - hz.cx;
+      var py2 = p.y + p.h / 2 - hz.cy;
+      var proj = px2 * Math.cos(hz.angle) + py2 * Math.sin(hz.angle);
+      if (proj < 0 || proj > hz.len) continue;
+      var perp = Math.abs(-px2 * Math.sin(hz.angle) + py2 * Math.cos(hz.angle));
+      if (perp < hz.w / 2 + 4) playerHurt(p, 1);
+    }
+  }
+}
+
 /* ---- bosses ------------------------------------------------------------- */
 function makeBoss(kind) {
   var def = BOSSES[kind];
@@ -799,8 +881,19 @@ function makeBoss(kind) {
   };
 }
 
-function damageBoss(b, dmg) {
+function damageBoss(b, dmg, hx, hy) {
   if (b.dead) return;
+
+  /* weak point: the Warden's core takes double damage */
+  if (b.kind === 'warden' && hx !== undefined) {
+    var coreY = b.y + b.h - 42;
+    if (hx > b.x + b.w / 2 - 12 && hx < b.x + b.w / 2 + 12 &&
+        hy > coreY - 4 && hy < coreY + 22) {
+      dmg *= 2;
+      if (RNG.sChance(0.5)) floatText(hx, hy - 6, 'CORE', '#ffd257');
+    }
+  }
+
   b.hp -= dmg;
   b.flash = 6;
   Snd.sfx('bossHit');
@@ -857,6 +950,16 @@ function bossUpdate(b) {
     if (b.x <= leftBound) b.dir = 1;
     if (b.x >= rightBound) b.dir = -1;
     b.x += b.dir * speed * 0.55;
+
+    /* third attack: ceiling debris telegraphed by falling shadows */
+    if (b.debrisT === undefined) b.debrisT = 320;
+    if (b.debrisT-- <= 0) {
+      var target = nearestPlayer(b.x + b.w / 2, b.y) || p;
+      spawnDebris(target.x + target.w / 2, b.phase === 2 ? 5 : 3, 0);
+      Snd.sfx('bossWarn');
+      Game.shake = Math.max(Game.shake, 4);
+      b.debrisT = b.phase === 2 ? 210 : 300;
+    }
 
     if (b.shootT-- <= 0) {
       var n = b.phase === 2 ? 5 : 3;
@@ -923,6 +1026,15 @@ function bossUpdate(b) {
       Snd.sfx('spread');
       b.specialT = b.phase === 2 ? 180 : 260;
     }
+
+    /* summon darts on their own clock */
+    if (b.summonT === undefined) b.summonT = 260;
+    if (b.summonT-- <= 0) {
+      spawnEnemy({ t: 'swarm', x: b.x + 10, y: b.y + 10 });
+      spawnEnemy({ t: 'swarm', x: b.x + b.w - 10, y: b.y + 10 });
+      Snd.sfx('bossWarn');
+      b.summonT = b.phase === 2 ? 170 : 280;
+    }
   }
 
   if (b.kind === 'heart') {
@@ -959,6 +1071,14 @@ function bossUpdate(b) {
       if (b.phase === 2) spawnEnemy({ t: 'runner', x: arenaStart + 40, y: GROUND_Y - 15 });
       Snd.sfx('spread');
       b.specialT = b.phase === 2 ? 140 : 210;
+    }
+
+    /* rotating beams on their own clock */
+    if (b.beamT === undefined) b.beamT = 300;
+    if (b.beamT-- <= 0) {
+      spawnBeam(b, b.phase === 2 ? 2 : 1);
+      Snd.sfx('bossWarn');
+      b.beamT = b.phase === 2 ? 300 : 380;
     }
   }
 

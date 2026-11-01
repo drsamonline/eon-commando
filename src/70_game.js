@@ -17,6 +17,7 @@ var Game = {
   pickups: [],
   grenades: [],
   ghosts: [],
+  hazards: [],
   hitStop: 0,
   settingsIndex: 0,
   lastEntry: null,
@@ -86,6 +87,7 @@ var Game = {
     this.spawnPlayers();
     this.grenades = [];
     this.ghosts = [];
+    this.hazards = [];
     this.hitStop = 0;
 
     this.pending = this.stage.enemies.slice().sort(function (a, b) { return a.x - b.x; });
@@ -156,6 +158,7 @@ var Game = {
     this.arenaLocked = true;
     this.gate = { x: this.stage.arenaStart - 4, y: 0, w: 4, h: GROUND_Y + 60 };
     this.boss = makeBoss(this.stage.boss);
+    this.hazards = [];
     this.banner = { text: 'WARNING', sub: this.boss.name, life: 150, color: '#ff4d6d' };
     this.flash = 0.4;
     Snd.sfx('bossWarn');
@@ -367,6 +370,7 @@ var Game = {
     for (i = 0; i < this.pickups.length; i++) if (!this.pickups[i].dead) pickupUpdate(this.pickups[i]);
     if (!frozen) {
       for (i = 0; i < this.grenades.length; i++) if (!this.grenades[i].dead) grenadeUpdate(this.grenades[i]);
+      for (i = 0; i < this.hazards.length; i++) if (!this.hazards[i].dead) hazardUpdate(this.hazards[i]);
     }
     for (i = this.ghosts.length - 1; i >= 0; i--) {
       this.ghosts[i].life--;
@@ -445,6 +449,7 @@ var Game = {
     this.particles = this.particles.filter(function (pt) { return !pt.dead; });
     this.pickups = this.pickups.filter(function (c) { return !c.dead; });
     this.grenades = this.grenades.filter(function (n) { return !n.dead; });
+    this.hazards = this.hazards.filter(function (hz) { return !hz.dead; });
   },
 
   updateParticles: function () {
