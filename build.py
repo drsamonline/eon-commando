@@ -5,9 +5,9 @@ import os, re, sys
 SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src')
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'index.html')
 
-ORDER = ['00_head.html', '10_core.js', '20_audio.js', '30_input.js', '40_art.js',
+ORDER = ['00_head.html', '05_lankit.js', '10_core.js', '20_audio.js', '30_input.js', '40_art.js',
          '50_content.js', '60_entities.js', '70_game.js', '80_render.js',
-         '90_main.js', '99_tail.html']
+         '90_main.js', '95_lan.js', '99_tail.html']
 
 def main():
     parts = []

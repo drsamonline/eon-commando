@@ -419,6 +419,9 @@ var Game = {
       case 'perk':
         this.updatePerk();
         break;
+      case 'lan':
+        this.updateLanScreen();
+        break;
       case 'pads':
         if (Input.pressed('pause') || Input.pressed('start')) closePadEditor();
         break;
@@ -451,6 +454,7 @@ var Game = {
     ];
     if (Rec.has()) rows.push({ id: 'replay', label: 'WATCH LAST RUN' });
     rows.push({ id: 'coop', label: 'TWO PLAYERS: ' + (this.coop ? 'ON' : 'OFF') });
+    if (LAN.available()) rows.push({ id: 'lan', label: 'LAN CO-OP' });
     return rows;
   },
 
@@ -464,6 +468,7 @@ var Game = {
     else if (id === 'daily') { this.startGame(this.coop, Daily.seed()); this.dailyRun = true; }
     else if (id === 'replay') this.startReplay(Rec.load());
     else if (id === 'coop') { this.coop = !this.coop; this.titleIndex = i; }
+    else if (id === 'lan') { this.state = 'lan'; this.stateTimer = 0; }
   },
 
   updateTitle: function () {
@@ -574,6 +579,15 @@ var Game = {
     this.powerMul = has.momentum ? 1.35 : 1;
     this.dashMul = has.phantom ? 0.65 : 1;
     this.takenMul = has.aegis ? 0.8 : 1;
+  },
+
+  updateLanScreen: function () {
+    if (Input.pressed('pause')) { LAN.stop(); this.state = 'title'; return; }
+    if (!LAN.conn) {
+      if (Input.pressed('jump') || Input.pressed('left')) LAN.connect('host');
+      else if (Input.pressed('fire') || Input.pressed('right')) LAN.connect('client');
+    }
+    if (LAN.active) this.state = 'playing';
   },
 
   startPerk: function () {
@@ -710,6 +724,16 @@ var Game = {
       if (my > 36 && my < 52) {
         this.remapPlayer = this.remapPlayer === 'p1' ? 'p2' : 'p1';
         Snd.sfx('select');
+      }
+      return;
+    }
+    if (this.state === 'lan') {
+      for (i = 0; i < this.hitRows.length; i++) {
+        r = this.hitRows[i];
+        if (my >= r.y0 && my <= r.y1 && mx >= r.x0 && mx <= r.x1) {
+          LAN.connect(r.i === 0 ? 'host' : 'client');
+          return;
+        }
       }
       return;
     }

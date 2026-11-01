@@ -4,7 +4,7 @@
 
 <!-- shot:start -->
 
-![Screenshot](docs/shot.png)
+![Gameplay](docs/shots/gameplay.png)
 
 <!-- shot:end -->
 
@@ -33,7 +33,7 @@
 <br>
 
 [![Hosted on GitHub Pages](https://img.shields.io/badge/hosted%20on-GitHub%20Pages-222222?logo=githubpages&logoColor=white&style=for-the-badge&labelColor=05070d)](https://drsamonline.github.io/eon-commando/)
-[![Version](https://img.shields.io/badge/version-4.4.0-ffd257.svg?style=for-the-badge&labelColor=05070d)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-4.5.0-ffd257.svg?style=for-the-badge&labelColor=05070d)](CHANGELOG.md)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-54ffa8.svg?style=for-the-badge&labelColor=05070d)](#-zero-dependencies)
 [![Network calls](https://img.shields.io/badge/network%20calls-none-54ffa8.svg?style=for-the-badge&labelColor=05070d)](#-zero-dependencies)
 
@@ -130,6 +130,30 @@ Works identically from `file://` and from a web server. Works offline. Works on 
 </div>
 
 ---
+
+## 🆕 What's new in 4.5
+
+**LAN co-op.** Two players, same Wi-Fi, no internet, no accounts.
+
+```bash
+node server.js          # prints the address to open on both machines
+```
+
+Both players open the printed URL, player one picks **HOST**, player two picks **JOIN**. It runs
+on [`lan-kit`](https://github.com/drsamonline/lan-kit) (SSE + POST, zero dependencies).
+
+It is **lockstep**: both machines run the same seeded simulation and exchange only 9-bit input
+masks per frame, with a 12-frame delay line. No world state is ever sent — which works because
+the simulation was already deterministic and the replay system had already proven that masks
+reproduce a run exactly.
+
+Verified with two independent headless browsers against a real host: same frame, same score,
+same position for both players, frame delta 0.
+
+**Honest limits.** In this 2-core sandbox a two-browser session without LAN runs at 30 fps and
+with LAN at roughly 8–17 fps — lockstep is correct but lossy under CPU and round-trip pressure.
+I have not been able to measure it on real hardware over a real Wi-Fi LAN, so I can't promise a
+smooth 60. Pause is disabled in LAN (it would desync) and cutscenes are skipped.
 
 ## 🆕 What's new in 4.4
 

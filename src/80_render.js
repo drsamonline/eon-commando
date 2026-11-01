@@ -1182,6 +1182,48 @@ function drawCredits(g) {
   drawText(g, 'ENTER TO RETURN', W / 2, H - 12, 1, '#38465a', 'center');
 }
 
+function drawLan(g) {
+  dim(g, 0.86);
+  Game.hitRows = [];
+  var narrow = W < 380;
+
+  drawFit(g, 'LAN CO-OP', narrow ? 30 : 34, 3, '#54e0ff', 'rgba(0,0,0,0.85)', W - 16);
+  drawText(g, 'TWO PLAYERS ON THE SAME WI-FI', W / 2, narrow ? 54 : 58, 1, '#9fb2c6', 'center');
+
+  var y = narrow ? 76 : 80;
+
+  if (LAN.active) {
+    drawText(g, 'CONNECTED', W / 2, y, 1, '#54ffa8', 'center');
+    drawText(g, 'PLAYER 1 HOSTS  ·  PLAYER 2 JOINS', W / 2, y + 14, 1, '#54637a', 'center');
+    return;
+  }
+
+  var btnW = narrow ? (W - 36) / 2 : 116;
+  var btnH = narrow ? 30 : 26;
+  var gap = 10;
+  var totalW = btnW * 2 + gap;
+  var bx = (W - totalW) / 2;
+
+  px(g, bx, y, btnW, btnH, 'rgba(84,224,255,0.14)');
+  g.strokeStyle = '#2f6f8f'; g.lineWidth = 1;
+  g.strokeRect(bx + 0.5, y + 0.5, btnW - 1, btnH - 1);
+  drawText(g, 'HOST', bx + btnW / 2, y + 9, 1, '#54e0ff', 'center');
+  Game.hitRows.push({ x0: bx, x1: bx + btnW, y0: y, y1: y + btnH, i: 0 });
+
+  px(g, bx + btnW + gap, y, btnW, btnH, 'rgba(255,181,69,0.12)');
+  g.strokeStyle = '#7a5a2a';
+  g.strokeRect(bx + btnW + gap + 0.5, y + 0.5, btnW - 1, btnH - 1);
+  drawText(g, 'JOIN', bx + btnW + gap + btnW / 2, y + 9, 1, '#ffb545', 'center');
+  Game.hitRows.push({ x0: bx + btnW + gap, x1: bx + btnW * 2 + gap, y0: y, y1: y + btnH, i: 1 });
+
+  drawText(g, LAN.status || 'IDLE', W / 2, y + btnH + 12, 1,
+           LAN.conn ? '#54ffa8' : '#7f8fa6', 'center');
+
+  drawText(g, 'START THE HOST WITH  node server.js', W / 2, H - 40, 1, '#54637a', 'center');
+  drawText(g, 'THEN OPEN THE ADDRESS IT PRINTS', W / 2, H - 28, 1, '#54637a', 'center');
+  drawText(g, 'ESC TO GO BACK', W / 2, H - 14, 1, '#38465a', 'center');
+}
+
 function drawPerk(g) {
   dim(g, 0.84);
   Game.hitRows = [];
@@ -1348,6 +1390,7 @@ function Render(g) {
     else if (Game.state === 'remap') drawRemap(g);
     else if (Game.state === 'pads') drawPads(g);
     else if (Game.state === 'perk') drawPerk(g);
+    else if (Game.state === 'lan') drawLan(g);
     else if (Game.state === 'story') drawStory(g);
     else if (Game.state === 'credits') drawCredits(g);
     else if (Game.state === 'stageclear') drawStageClear(g);

@@ -174,6 +174,7 @@ function boot() {
   applyAutoLayout();
   applyPadLayout();
   initPadEditor();
+  lanTestHooks();
 
   canvas.addEventListener('pointerdown', function (e) {
     e.preventDefault();
@@ -227,7 +228,10 @@ function loop(now) {
 
   var steps = 0;
   while (_acc >= STEP && steps < 5) {
-    if (Game.replayMode && Game.replayMasks) {
+    if (LAN.active) {
+      /* lockstep: do not advance until both players' inputs are in */
+      if (!LAN.step()) break;
+    } else if (Game.replayMode && Game.replayMasks) {
       /* replay: feed the recorded masks instead of the keyboard */
       var rm = Game.replayMasks[Game.replayFrame] || 0;
       Input.prev = Input.cur;
@@ -297,6 +301,31 @@ function keepAwake(on) {
 }
 
 /* ---- deterministic demo: used for screenshots and smoke tests ----------- */
+function lanTestHooks() {
+  /* a probe that measures the plain sim rate through the same channel, so a
+     slow LAN session can be told apart from a slow machine */
+  if (PARAMS.probe) {
+    var pc = Lan.client({
+      url: Lan.hostUrl(LAN.portFromUrl()),
+      onOpen: function () {
+        setInterval(function () {
+          pc.send({ t: 'report', role: 'probe', frame: Game.time, score: Game.score });
+        }, 400);
+      }
+    });
+  }
+  if (PARAMS.lan === 'host') LAN.connect('host');
+  else if (PARAMS.lan === 'join') LAN.connect('client');
+  if (PARAMS.lanreport) {
+    setInterval(function () {
+      if (!LAN.active) return;
+      LAN.send({ t: 'report', role: LAN.role, frame: LAN.frame, delay: LAN.delay, waitT: LAN.waitT, pend: Object.keys(LAN.peerMasks).length, stalls: LAN.stalls, steps: LAN.steps, gt: Game.time,
+                 score: Game.score, x: Math.round(Game.player.x),
+                 p2x: Game.players[1] ? Math.round(Game.players[1].x) : -1 });
+    }, 400);
+  }
+}
+
 function runDemo(n) {
   if (PARAMS.endless === '1') {
     Game.startEndless(PARAMS.coop === '1');
@@ -376,6 +405,7 @@ function runDemo(n) {
     for (var sq = 0; sq < 90; sq++) { Game.storyChars += 1; }
   }
   if (PARAMS.pose === 'credits') { Game.startCredits(); Game.creditsY = 150; Game.creditsT = 100; }
+  if (PARAMS.pose === 'lan') { Game.state = 'lan'; }
   if (PARAMS.pose === 'perk') { Game.startGame(false, 7); Game.story = null; Game.startPerk(); }
   if (PARAMS.pose === 'pads') { Game.startGame(false, 7); Game.story = null; openPadEditor(); }
   if (PARAMS.pose === 'pause') { Game.state = 'paused'; Game.pauseIndex = 0; }

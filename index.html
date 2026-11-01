@@ -168,6 +168,62 @@
 
 <script>
 
+/* ===== 05_lankit.js ===== */
+/* lan-kit.js — the browser client for a drsamonline LAN room. Zero dependencies.
+ *
+ * Talks to a lan-host over Server-Sent Events (server -> client) and POST
+ * (client -> server). Works on a LAN with no internet and no accounts.
+ *
+ *   const c = Lan.client({ url: Lan.hostUrl(8080),
+ *                          onOpen:   h => console.log("joined", h.room),
+ *                          onMessage: m => console.log("got", m) });
+ *   c.send({ from: "me", text: "hello room" });
+ *
+ * PolyForm Noncommercial 1.0.0. (c) 2026 Dr Sohil Momin.
+ */
+(function (root) {
+  "use strict";
+  var Lan = { version: "0.1.0" };
+
+  function base(url) { return String(url || "").replace(/\/+$/, ""); }
+  function safeParse(s) { try { return JSON.parse(s); } catch (e) { return s; } }
+
+  Lan.client = function (opts) {
+    opts = opts || {};
+    var url = base(opts.url || "");
+    var es = new EventSource(url + "/events");
+    es.addEventListener("hello", function (e) { if (opts.onOpen) opts.onOpen(safeParse(e.data)); });
+    es.addEventListener("message", function (e) { if (opts.onMessage) opts.onMessage(safeParse(e.data)); });
+    es.onerror = function (e) { if (opts.onError) opts.onError(e); };
+    return {
+      url: url,
+      send: function (msg) {
+        return fetch(url + "/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(msg)
+        }).then(function (r) { return r.json(); });
+      },
+      close: function () { try { es.close(); } catch (e) {} }
+    };
+  };
+
+  /* A short, unambiguous room code (no 0/O/1/I/L). */
+  Lan.roomCode = function (n) {
+    n = n || 4;
+    var A = "ABCDEFGHJKMNPQRSTUVWXYZ23456789", s = "";
+    for (var i = 0; i < n; i++) s += A[Math.floor(Math.random() * A.length)];
+    return s;
+  };
+
+  /* The host URL for this device on the current LAN. */
+  Lan.hostUrl = function (port) {
+    return "http://" + location.hostname + ":" + (port || 8080);
+  };
+
+  root.Lan = Lan;
+})(typeof globalThis !== "undefined" ? globalThis : this);
+
 /* ===== 10_core.js ===== */
 /* ===========================================================================
    EON COMMANDO — 10 core
@@ -4144,6 +4200,9 @@ var Game = {
       case 'perk':
         this.updatePerk();
         break;
+      case 'lan':
+        this.updateLanScreen();
+        break;
       case 'pads':
         if (Input.pressed('pause') || Input.pressed('start')) closePadEditor();
         break;
@@ -4176,6 +4235,7 @@ var Game = {
     ];
     if (Rec.has()) rows.push({ id: 'replay', label: 'WATCH LAST RUN' });
     rows.push({ id: 'coop', label: 'TWO PLAYERS: ' + (this.coop ? 'ON' : 'OFF') });
+    if (LAN.available()) rows.push({ id: 'lan', label: 'LAN CO-OP' });
     return rows;
   },
 
@@ -4189,6 +4249,7 @@ var Game = {
     else if (id === 'daily') { this.startGame(this.coop, Daily.seed()); this.dailyRun = true; }
     else if (id === 'replay') this.startReplay(Rec.load());
     else if (id === 'coop') { this.coop = !this.coop; this.titleIndex = i; }
+    else if (id === 'lan') { this.state = 'lan'; this.stateTimer = 0; }
   },
 
   updateTitle: function () {
@@ -4299,6 +4360,15 @@ var Game = {
     this.powerMul = has.momentum ? 1.35 : 1;
     this.dashMul = has.phantom ? 0.65 : 1;
     this.takenMul = has.aegis ? 0.8 : 1;
+  },
+
+  updateLanScreen: function () {
+    if (Input.pressed('pause')) { LAN.stop(); this.state = 'title'; return; }
+    if (!LAN.conn) {
+      if (Input.pressed('jump') || Input.pressed('left')) LAN.connect('host');
+      else if (Input.pressed('fire') || Input.pressed('right')) LAN.connect('client');
+    }
+    if (LAN.active) this.state = 'playing';
   },
 
   startPerk: function () {
@@ -4435,6 +4505,16 @@ var Game = {
       if (my > 36 && my < 52) {
         this.remapPlayer = this.remapPlayer === 'p1' ? 'p2' : 'p1';
         Snd.sfx('select');
+      }
+      return;
+    }
+    if (this.state === 'lan') {
+      for (i = 0; i < this.hitRows.length; i++) {
+        r = this.hitRows[i];
+        if (my >= r.y0 && my <= r.y1 && mx >= r.x0 && mx <= r.x1) {
+          LAN.connect(r.i === 0 ? 'host' : 'client');
+          return;
+        }
       }
       return;
     }
@@ -5906,6 +5986,48 @@ function drawCredits(g) {
   drawText(g, 'ENTER TO RETURN', W / 2, H - 12, 1, '#38465a', 'center');
 }
 
+function drawLan(g) {
+  dim(g, 0.86);
+  Game.hitRows = [];
+  var narrow = W < 380;
+
+  drawFit(g, 'LAN CO-OP', narrow ? 30 : 34, 3, '#54e0ff', 'rgba(0,0,0,0.85)', W - 16);
+  drawText(g, 'TWO PLAYERS ON THE SAME WI-FI', W / 2, narrow ? 54 : 58, 1, '#9fb2c6', 'center');
+
+  var y = narrow ? 76 : 80;
+
+  if (LAN.active) {
+    drawText(g, 'CONNECTED', W / 2, y, 1, '#54ffa8', 'center');
+    drawText(g, 'PLAYER 1 HOSTS  ·  PLAYER 2 JOINS', W / 2, y + 14, 1, '#54637a', 'center');
+    return;
+  }
+
+  var btnW = narrow ? (W - 36) / 2 : 116;
+  var btnH = narrow ? 30 : 26;
+  var gap = 10;
+  var totalW = btnW * 2 + gap;
+  var bx = (W - totalW) / 2;
+
+  px(g, bx, y, btnW, btnH, 'rgba(84,224,255,0.14)');
+  g.strokeStyle = '#2f6f8f'; g.lineWidth = 1;
+  g.strokeRect(bx + 0.5, y + 0.5, btnW - 1, btnH - 1);
+  drawText(g, 'HOST', bx + btnW / 2, y + 9, 1, '#54e0ff', 'center');
+  Game.hitRows.push({ x0: bx, x1: bx + btnW, y0: y, y1: y + btnH, i: 0 });
+
+  px(g, bx + btnW + gap, y, btnW, btnH, 'rgba(255,181,69,0.12)');
+  g.strokeStyle = '#7a5a2a';
+  g.strokeRect(bx + btnW + gap + 0.5, y + 0.5, btnW - 1, btnH - 1);
+  drawText(g, 'JOIN', bx + btnW + gap + btnW / 2, y + 9, 1, '#ffb545', 'center');
+  Game.hitRows.push({ x0: bx + btnW + gap, x1: bx + btnW * 2 + gap, y0: y, y1: y + btnH, i: 1 });
+
+  drawText(g, LAN.status || 'IDLE', W / 2, y + btnH + 12, 1,
+           LAN.conn ? '#54ffa8' : '#7f8fa6', 'center');
+
+  drawText(g, 'START THE HOST WITH  node server.js', W / 2, H - 40, 1, '#54637a', 'center');
+  drawText(g, 'THEN OPEN THE ADDRESS IT PRINTS', W / 2, H - 28, 1, '#54637a', 'center');
+  drawText(g, 'ESC TO GO BACK', W / 2, H - 14, 1, '#38465a', 'center');
+}
+
 function drawPerk(g) {
   dim(g, 0.84);
   Game.hitRows = [];
@@ -6072,6 +6194,7 @@ function Render(g) {
     else if (Game.state === 'remap') drawRemap(g);
     else if (Game.state === 'pads') drawPads(g);
     else if (Game.state === 'perk') drawPerk(g);
+    else if (Game.state === 'lan') drawLan(g);
     else if (Game.state === 'story') drawStory(g);
     else if (Game.state === 'credits') drawCredits(g);
     else if (Game.state === 'stageclear') drawStageClear(g);
@@ -6288,6 +6411,7 @@ function boot() {
   applyAutoLayout();
   applyPadLayout();
   initPadEditor();
+  lanTestHooks();
 
   canvas.addEventListener('pointerdown', function (e) {
     e.preventDefault();
@@ -6341,7 +6465,10 @@ function loop(now) {
 
   var steps = 0;
   while (_acc >= STEP && steps < 5) {
-    if (Game.replayMode && Game.replayMasks) {
+    if (LAN.active) {
+      /* lockstep: do not advance until both players' inputs are in */
+      if (!LAN.step()) break;
+    } else if (Game.replayMode && Game.replayMasks) {
       /* replay: feed the recorded masks instead of the keyboard */
       var rm = Game.replayMasks[Game.replayFrame] || 0;
       Input.prev = Input.cur;
@@ -6411,6 +6538,31 @@ function keepAwake(on) {
 }
 
 /* ---- deterministic demo: used for screenshots and smoke tests ----------- */
+function lanTestHooks() {
+  /* a probe that measures the plain sim rate through the same channel, so a
+     slow LAN session can be told apart from a slow machine */
+  if (PARAMS.probe) {
+    var pc = Lan.client({
+      url: Lan.hostUrl(LAN.portFromUrl()),
+      onOpen: function () {
+        setInterval(function () {
+          pc.send({ t: 'report', role: 'probe', frame: Game.time, score: Game.score });
+        }, 400);
+      }
+    });
+  }
+  if (PARAMS.lan === 'host') LAN.connect('host');
+  else if (PARAMS.lan === 'join') LAN.connect('client');
+  if (PARAMS.lanreport) {
+    setInterval(function () {
+      if (!LAN.active) return;
+      LAN.send({ t: 'report', role: LAN.role, frame: LAN.frame, delay: LAN.delay, waitT: LAN.waitT, pend: Object.keys(LAN.peerMasks).length, stalls: LAN.stalls, steps: LAN.steps, gt: Game.time,
+                 score: Game.score, x: Math.round(Game.player.x),
+                 p2x: Game.players[1] ? Math.round(Game.players[1].x) : -1 });
+    }, 400);
+  }
+}
+
 function runDemo(n) {
   if (PARAMS.endless === '1') {
     Game.startEndless(PARAMS.coop === '1');
@@ -6490,6 +6642,7 @@ function runDemo(n) {
     for (var sq = 0; sq < 90; sq++) { Game.storyChars += 1; }
   }
   if (PARAMS.pose === 'credits') { Game.startCredits(); Game.creditsY = 150; Game.creditsT = 100; }
+  if (PARAMS.pose === 'lan') { Game.state = 'lan'; }
   if (PARAMS.pose === 'perk') { Game.startGame(false, 7); Game.story = null; Game.startPerk(); }
   if (PARAMS.pose === 'pads') { Game.startGame(false, 7); Game.story = null; openPadEditor(); }
   if (PARAMS.pose === 'pause') { Game.state = 'paused'; Game.pauseIndex = 0; }
@@ -6512,6 +6665,178 @@ if (document.readyState === 'loading') {
 } else {
   boot();
 }
+
+/* ===== 95_lan.js ===== */
+/* ===========================================================================
+   LAN CO-OP — two players on the same Wi-Fi, no internet, no accounts.
+
+   Lockstep input relay. Both machines run the same seeded simulation and only
+   exchange 9-bit input masks per frame; each side refuses to advance frame N
+   until it has both players' masks for N. That keeps them in perfect sync
+   without ever sending world state.
+
+   The simulation was already deterministic (seeded RNG, fixed 60 Hz step), and
+   replays already proved masks are enough to reproduce a run — this reuses
+   exactly that machinery.
+   =========================================================================== */
+
+var LAN = {
+  active: false,
+  role: null,          /* 'host' | 'client' */
+  port: 8081,
+  frame: 0,
+  seed: 0,
+  conn: null,
+  status: 'idle',
+  peerMasks: {},
+  myMasks: {},
+  outq: [],
+  batch: 4,            /* send one message per 4 frames instead of per frame */
+  delay: 12,           /* frames of input delay (~200 ms): absorbs the round trip */
+  id: 'p' + Math.floor(Math.random() * 1e9),
+  waitT: 0,
+  stalls: 0,
+  steps: 0,
+  sentFrame: -1,
+  started: false,
+
+  available: function () { return typeof Lan !== 'undefined' && !!Lan.client; },
+
+  portFromUrl: function () {
+    var m = /[?&]lanport=(\d+)/.exec(location.search || '');
+    return m ? parseInt(m[1], 10) : 8081;
+  },
+
+  connect: function (role) {
+    if (!this.available()) { this.status = 'LAN NEEDS THE HOST SERVER'; return false; }
+    if (this.conn) return true;
+    this.role = role;
+    this.port = this.portFromUrl();
+    this.status = role === 'host' ? 'WAITING FOR PLAYER 2' : 'CONNECTING...';
+    var self = this;
+    try {
+      this.conn = Lan.client({
+        url: Lan.hostUrl(this.port),
+        onOpen: function () {
+          self.status = role === 'host' ? 'WAITING FOR PLAYER 2' : 'CONNECTED, ASKING TO JOIN';
+          if (role === 'client') self.send({ t: 'join' });
+        },
+        onMessage: function (m) { self.onMessage(m); },
+        onError: function () { self.status = 'CONNECTION LOST'; }
+      });
+    } catch (e) {
+      this.status = 'CANNOT REACH THE HOST';
+      return false;
+    }
+    return true;
+  },
+
+  send: function (msg) {
+    if (!this.conn) return;
+    msg.from = this.id;
+    try { this.conn.send(msg); } catch (e) {}
+  },
+
+  onMessage: function (m) {
+    if (!m || !m.t) return;
+    /* the room broadcasts to everyone, including the sender — without this the
+       client reads its own input back as the other player's */
+    if (m.from && m.from === this.id) return;
+    if (m.t === 'join' && this.role === 'host') {
+      this.seed = ((Date.now() ^ 0x5f3759df) >>> 0);
+      this.send({ t: 'start', seed: this.seed });
+      this.begin(this.seed);
+    } else if (m.t === 'start' && this.role === 'client') {
+      this.begin(m.seed >>> 0);
+    } else if (m.t === 'in') {
+      if (m.arr) { for (var i = 0; i < m.arr.length; i++) this.peerMasks[m.arr[i][0]] = m.arr[i][1]; }
+      else this.peerMasks[m.f] = m.m;
+    } else if (m.t === 'bye') {
+      this.status = 'PLAYER 2 LEFT';
+      this.stop();
+    }
+  },
+
+  begin: function (seed) {
+    this.active = true;
+    this.started = true;
+    this.frame = 0;
+    this.seed = seed;
+    this.myMasks = {};
+    this.peerMasks = {};
+    this.sentFrame = -1;
+    this.waitT = 0; this.stalls = 0; this.steps = 0;
+    this.outq = [];
+    /* Prime the delay line so the first frames have neutral input rather than
+       stalling while the buffer fills. This must come AFTER the two maps are
+       reset — resetting them afterwards was what kept the session on frame 0. */
+    for (var i = 0; i < this.delay; i++) { this.myMasks[i] = 0; this.peerMasks[i] = 0; }
+    this.status = 'PLAYING';
+    Snd.setMuted(false);
+    Game.startGame(true, seed);
+    /* a cutscene needs both players to press in sync, which lockstep cannot
+       guarantee — a LAN run skips the story and starts on the field */
+    Game.story = null;
+    Game.state = 'playing';
+    Game.lanSession = true;
+  },
+
+  stop: function () {
+    this.active = false;
+    this.started = false;
+    Game.lanSession = false;
+    if (this.conn) { try { this.conn.close(); } catch (e) {} }
+    this.conn = null;
+  },
+
+  /* Called once per fixed step. Returns true when the frame may advance.
+     Input is delayed by `delay` frames: what you press now is applied a few
+     frames later, which gives the network that many frames to deliver it. That
+     is the difference between playing and stuttering — without it every single
+     frame waits on a round trip. */
+  step: function () {
+    var f = this.frame;
+
+    /* refresh the live keyboard/touch/gamepad state first */
+    Input.frame();
+
+    var live = this.role === 'host' ? maskOf(Input.cur) : maskOf(Input.cur2);
+    var ahead = f + this.delay;
+    if (this.myMasks[ahead] === undefined) {
+      this.myMasks[ahead] = live;
+      this.outq.push([ahead, live]);
+      /* One POST per frame is what cost the most: on a 2-core box it dragged a
+         30 fps session to 6. The delay line means a small batch adds no input
+         latency, so flush every few frames instead. */
+      if (this.outq.length >= this.batch) {
+        this.send({ t: 'in', arr: this.outq });
+        this.outq = [];
+      }
+    }
+
+    var mine = this.myMasks[f];
+    var theirs = this.peerMasks[f];
+    if (mine === undefined || theirs === undefined) {
+      this.waitT++; this.stalls++;
+      if (this.waitT > 600) this.status = 'WAITING FOR PLAYER 2';
+      return false;
+    }
+    delete this.myMasks[f];
+    delete this.peerMasks[f];
+    this.waitT = 0;
+
+    var m1 = this.role === 'host' ? mine : theirs;
+    var m2 = this.role === 'host' ? theirs : mine;
+
+    Input.prev = Input.cur;
+    Input.cur = actionsFromMask(m1 & 511);
+    Input.prev2 = Input.cur2;
+    Input.cur2 = actionsFromMask(m2 & 511);
+
+    this.frame++; this.steps++;
+    return true;
+  }
+};
 
 </script>
 </body>

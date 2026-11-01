@@ -2,6 +2,28 @@
 
 All notable changes to Eon Commando.
 
+## [4.5.0] — 2026-11-01
+
+LAN co-op.
+
+### Added
+- **`server.js`** — serves the game on the LAN and gives it a room, built on
+  [`lan-kit`](https://github.com/drsamonline/lan-kit). Prints the address to open.
+- **LAN menu**: Host / Join, tappable or `H` / `J`.
+- **Lockstep input relay** in `src/95_lan.js`: both machines run the same seeded simulation and
+  exchange 9-bit masks per frame with a 12-frame delay line, batched four frames per message.
+- `lan-kit.js` is inlined into the build, so the single file still works standalone.
+
+### Fixed
+- The room broadcasts to everyone including the sender, so each client read its own input back
+  as the other player's. Messages now carry a sender id and are ignored by their origin.
+- The delay line was primed before the maps were reset, which left the session stuck on frame 0.
+
+### Known limits
+- Pause is disabled during a LAN session (it would desync), and cutscenes are skipped.
+- Measured in a 2-core sandbox: 30 fps with two browsers and no LAN, ~8-17 fps with LAN. The
+  sync is exact; the throughput under load is not yet good, and it is unmeasured on real hardware.
+
 ## [4.4.0] — 2026-11-01
 
 Perks between eras.
