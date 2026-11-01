@@ -2,6 +2,24 @@
 
 All notable changes to Eon Commando.
 
+## [4.2.0] — 2026-11-01
+
+Three new bosses — eras IV–VI stop reusing the campaign fights.
+
+### Added
+- **The Drowned Relay** (era IV, 130 HP): a rooted pylon. Aimed volleys from its eye, a beam
+  sweeping across the floor from the mast, and shielder summons. Phase 2 adds a second beam.
+- **Orbit Wreck** (era V, 160 HP): circles the arena on an elliptical path, radial bursts, and
+  mines dropped on the player's position. Phase 2 tightens the orbit and doubles the arms.
+- **The Last Second** (era VI, 200 HP): a clock face whose two hands fire along their length,
+  so shot angles change every frame. Phase 2 reverses the second hand and adds ceiling debris.
+- `spawnBeamAt()` so a beam can originate anywhere, not just a boss centre.
+- `angle2` on bosses for the clock's second hand.
+
+### Changed
+- Eras IV–VI now field `relay`, `orbit` and `clock` instead of `wraith`/`heart`/`warden` with a
+  `bossHpMul`. The multipliers are gone.
+
 ## [4.1.0] — 2026-11-01
 
 Weather, control cleanup, and a text-overflow audit.

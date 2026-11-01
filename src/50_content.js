@@ -37,6 +37,18 @@ var BOSSES = {
   heart: {
     name: 'THE EON HEART', hp: 150, w: 76, h: 76, score: 6000,
     draw: 'heart', music: 'boss'
+  },
+  relay: {
+    name: 'THE DROWNED RELAY', hp: 130, w: 46, h: 96, score: 5000,
+    draw: 'relay', music: 'boss'
+  },
+  orbit: {
+    name: 'ORBIT WRECK', hp: 160, w: 56, h: 56, score: 6500,
+    draw: 'orbit', music: 'boss'
+  },
+  clock: {
+    name: 'THE LAST SECOND', hp: 200, w: 84, h: 84, score: 9000,
+    draw: 'clock', music: 'boss'
   }
 };
 
@@ -218,8 +230,7 @@ STAGES.push(
     arenaStart: 2360,
     checkpoint: 1200,
     checkpoints: [48, 620, 1200, 1750, 2180],
-    boss: 'wraith',
-    bossHpMul: 1.25,
+    boss: 'relay',
     music: 'stage2',
     seed: 5150,
     sky: ['#04140f', '#0b2b22', '#12503c'],
@@ -266,8 +277,7 @@ STAGES.push(
     arenaStart: 2520,
     checkpoint: 1260,
     checkpoints: [48, 580, 1260, 1800, 2260],
-    boss: 'heart',
-    bossHpMul: 1.5,
+    boss: 'orbit',
     music: 'stage3',
     seed: 8080,
     sky: ['#080a18', '#141a3a', '#2a2a6b'],
@@ -315,8 +325,7 @@ STAGES.push(
     arenaStart: 2400,
     checkpoint: 1220,
     checkpoints: [48, 600, 1220, 1760, 2200],
-    boss: 'warden',
-    bossHpMul: 1.9,
+    boss: 'clock',
     music: 'boss',
     seed: 12001,
     sky: ['#0a0a0a', '#2a2418', '#6b5320'],

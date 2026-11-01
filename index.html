@@ -1832,6 +1832,106 @@ function drawDashGhost(g, gh, camX) {
   g.globalAlpha = 1;
 }
 
+
+/* ===========================================================================
+   ERAS IV-VI BOSSES — each one its own silhouette, not a recolour.
+   =========================================================================== */
+
+/* THE DROWNED RELAY — a sunken pylon with a single glowing eye */
+function drawRelay(g, b) {
+  var x = Math.round(b.x), y = Math.round(b.y);
+  var lit = b.flash > 0;
+  var body = lit ? '#ffffff' : '#1d4a44';
+  var rim = lit ? '#ffffff' : '#3f8f74';
+  var eye = lit ? '#ffffff' : (b.phase === 2 ? '#ff4d6d' : '#54ffa8');
+
+  /* base plinth */
+  rr(g, x - 6, y + b.h - 12, b.w + 12, 12, 3, lit ? '#fff' : '#123029');
+  rr(g, x - 4, y + b.h - 12, b.w + 8, 3, 1.5, rim);
+
+  /* mast */
+  rr(g, x + b.w / 2 - 9, y + 20, 18, b.h - 32, 6, body);
+  rr(g, x + b.w / 2 - 9, y + 20, 4, b.h - 32, 2, rim);
+
+  /* head */
+  rr(g, x, y + 4, b.w, 22, 8, body);
+  rr(g, x + 2, y + 6, b.w - 4, 4, 2, rim);
+
+  /* the eye */
+  el(g, x + b.w / 2, y + 17, 8, 6, '#06110f');
+  el(g, x + b.w / 2, y + 17, 5.5, 4, eye);
+  if (!lit) el(g, x + b.w / 2 - 1.5, y + 15.5, 2, 1.4, '#ffffff');
+
+  /* antennae */
+  limb(g, x + 8, y + 4, x + 2, y - 12, 2, rim);
+  limb(g, x + b.w - 8, y + 4, x + b.w - 2, y - 12, 2, rim);
+  el(g, x + 2, y - 12, 2, 2, eye);
+  el(g, x + b.w - 2, y - 12, 2, 2, eye);
+}
+
+/* ORBIT WRECK — a station core with a spinning ring */
+function drawOrbit(g, b) {
+  var cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+  var lit = b.flash > 0;
+  var body = lit ? '#ffffff' : '#2a2450';
+  var rim = lit ? '#ffffff' : '#8a7bff';
+  var core = lit ? '#ffffff' : (b.phase === 2 ? '#ff4d6d' : '#c9c2ff');
+
+  /* ring, rotated by age */
+  g.save();
+  g.translate(cx, cy);
+  g.rotate(b.age * 0.02);
+  g.strokeStyle = rim;
+  g.lineWidth = 3;
+  g.beginPath();
+  g.ellipse(0, 0, b.w * 0.62, b.h * 0.30, 0, 0, Math.PI * 2);
+  g.stroke();
+  /* ring nodes */
+  for (var i = 0; i < 4; i++) {
+    var a = i * Math.PI / 2;
+    el(g, Math.cos(a) * b.w * 0.62, Math.sin(a) * b.h * 0.30, 2.5, 2.5, core);
+  }
+  g.restore();
+
+  /* hull */
+  el(g, cx, cy, b.w * 0.40, b.h * 0.40, body);
+  el(g, cx, cy, b.w * 0.30, b.h * 0.30, lit ? '#ffffff' : '#171233');
+  el(g, cx, cy, b.w * 0.16, b.h * 0.16, core);
+  /* plating */
+  limb(g, cx - b.w * 0.30, cy, cx + b.w * 0.30, cy, 2, rim);
+}
+
+/* THE LAST SECOND — a clock face with two hands */
+function drawClock(g, b) {
+  var cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+  var r = b.w / 2;
+  var lit = b.flash > 0;
+  var body = lit ? '#ffffff' : '#241d12';
+  var rim = lit ? '#ffffff' : '#b08a3a';
+  var hand = lit ? '#ffffff' : (b.phase === 2 ? '#ff4d6d' : '#ffd257');
+
+  el(g, cx, cy, r, r, body);
+  g.strokeStyle = rim;
+  g.lineWidth = 3;
+  g.beginPath();
+  g.arc(cx, cy, r - 2, 0, Math.PI * 2);
+  g.stroke();
+
+  /* ticks */
+  for (var i = 0; i < 12; i++) {
+    var a = i * Math.PI / 6;
+    var inner = r - (i % 3 === 0 ? 12 : 7);
+    limb(g, cx + Math.cos(a) * inner, cy + Math.sin(a) * inner,
+         cx + Math.cos(a) * (r - 4), cy + Math.sin(a) * (r - 4),
+         i % 3 === 0 ? 2 : 1, rim);
+  }
+
+  /* hands */
+  limb(g, cx, cy, cx + Math.cos(b.angle) * (r - 10), cy + Math.sin(b.angle) * (r - 10), 3, hand);
+  limb(g, cx, cy, cx + Math.cos(b.angle2) * (r - 20), cy + Math.sin(b.angle2) * (r - 20), 2, hand);
+  el(g, cx, cy, 4, 4, hand);
+}
+
 /* ===== 50_content.js ===== */
 /* ===========================================================================
    EON COMMANDO — 50 content
@@ -1872,6 +1972,18 @@ var BOSSES = {
   heart: {
     name: 'THE EON HEART', hp: 150, w: 76, h: 76, score: 6000,
     draw: 'heart', music: 'boss'
+  },
+  relay: {
+    name: 'THE DROWNED RELAY', hp: 130, w: 46, h: 96, score: 5000,
+    draw: 'relay', music: 'boss'
+  },
+  orbit: {
+    name: 'ORBIT WRECK', hp: 160, w: 56, h: 56, score: 6500,
+    draw: 'orbit', music: 'boss'
+  },
+  clock: {
+    name: 'THE LAST SECOND', hp: 200, w: 84, h: 84, score: 9000,
+    draw: 'clock', music: 'boss'
   }
 };
 
@@ -2053,8 +2165,7 @@ STAGES.push(
     arenaStart: 2360,
     checkpoint: 1200,
     checkpoints: [48, 620, 1200, 1750, 2180],
-    boss: 'wraith',
-    bossHpMul: 1.25,
+    boss: 'relay',
     music: 'stage2',
     seed: 5150,
     sky: ['#04140f', '#0b2b22', '#12503c'],
@@ -2101,8 +2212,7 @@ STAGES.push(
     arenaStart: 2520,
     checkpoint: 1260,
     checkpoints: [48, 580, 1260, 1800, 2260],
-    boss: 'heart',
-    bossHpMul: 1.5,
+    boss: 'orbit',
     music: 'stage3',
     seed: 8080,
     sky: ['#080a18', '#141a3a', '#2a2a6b'],
@@ -2150,8 +2260,7 @@ STAGES.push(
     arenaStart: 2400,
     checkpoint: 1220,
     checkpoints: [48, 600, 1220, 1760, 2200],
-    boss: 'warden',
-    bossHpMul: 1.9,
+    boss: 'clock',
     music: 'boss',
     seed: 12001,
     sky: ['#0a0a0a', '#2a2418', '#6b5320'],
@@ -3135,6 +3244,13 @@ function spawnDebris(x, count, delay) {
   }
 }
 
+function spawnBeamAt(cx, cy, angle, spin, telegraph, active, len, w) {
+  Game.hazards.push({
+    kind: 'beam', cx: cx, cy: cy, angle: angle, spin: spin,
+    telegraph: telegraph, active: active, len: len, w: w, dead: false
+  });
+}
+
 function spawnBeam(b, count) {
   for (var i = 0; i < count; i++) {
     Game.hazards.push({
@@ -3211,7 +3327,7 @@ function makeBoss(kind) {
     w: def.w, h: def.h,
     hp: def.hp, maxHp: def.hp,
     age: 0, flash: 0, phase: 1, dir: -1,
-    shootT: 100, specialT: 240, angle: 0,
+    shootT: 100, specialT: 240, angle: 0, angle2: Math.PI,
     dead: false, dying: 0, active: false, introT: 90
   };
 }
@@ -3420,6 +3536,115 @@ function bossUpdate(b) {
     }
   }
 
+  /* ---------------------------------------------------------------- relay */
+  if (b.kind === 'relay') {
+    var rArena = Game.stage.arenaStart;
+    b.x = rArena + ARENA_W / 2 - b.w / 2;
+    b.y = GROUND_Y - b.h;
+    var rp = nearestPlayer(b.x + b.w / 2, b.y) || Game.player;
+    var rex = b.x + b.w / 2, rey = b.y + 17;
+    b.angle = Math.atan2((rp.y + rp.h / 2) - rey, (rp.x + rp.w / 2) - rex);
+
+    if (b.shootT-- <= 0) {
+      var rn = b.phase === 2 ? 5 : 3;
+      for (var ri = 0; ri < rn; ri++) {
+        var ra = b.angle + (ri - (rn - 1) / 2) * 0.16;
+        spawnBullet({
+          x: rex, y: rey, vx: Math.cos(ra) * 3.2, vy: Math.sin(ra) * 3.2,
+          dmg: 1, friendly: false, color: scheme().hostile, glow: scheme().hostileGlow,
+          w: 5, h: 5, life: 200, angle: ra
+        });
+      }
+      Snd.sfx('enemyShot');
+      b.shootT = b.phase === 2 ? 58 : 86;
+    }
+
+    /* the mast sweeps a beam across the floor */
+    if (b.specialT-- <= 0) {
+      spawnBeamAt(rex, rey, Math.PI / 2 - 0.85, 0.017, 62, 140, 320, 4);
+      if (b.phase === 2) spawnBeamAt(rex, rey, Math.PI / 2 + 0.85, -0.017, 62, 140, 320, 4);
+      Snd.sfx('bossWarn');
+      b.specialT = b.phase === 2 ? 250 : 330;
+    }
+
+    /* it is a relay: it calls for backup */
+    if (b.summonT === undefined) b.summonT = 320;
+    if (b.summonT-- <= 0) {
+      spawnEnemy({ t: 'shielder', x: rArena + 40, y: GROUND_Y - 18 });
+      spawnEnemy({ t: 'shielder', x: rArena + ARENA_W - 66, y: GROUND_Y - 18 });
+      Snd.sfx('bossWarn');
+      b.summonT = b.phase === 2 ? 250 : 350;
+    }
+  }
+
+  /* ---------------------------------------------------------------- orbit */
+  if (b.kind === 'orbit') {
+    var oArena = Game.stage.arenaStart;
+    var ocx = oArena + ARENA_W / 2, ocy = GROUND_Y - 96;
+    var orad = b.phase === 2 ? 118 : 152;
+    b.x = ocx + Math.cos(b.age * 0.014) * orad - b.w / 2;
+    b.y = ocy + Math.sin(b.age * 0.014) * orad * 0.42 - b.h / 2;
+
+    if (b.shootT-- <= 0) {
+      var oarms = b.phase === 2 ? 8 : 6;
+      b.angle += 0.4;
+      for (var oi = 0; oi < oarms; oi++) {
+        var oa = b.angle + oi * (Math.PI * 2 / oarms);
+        spawnBullet({
+          x: b.x + b.w / 2, y: b.y + b.h / 2,
+          vx: Math.cos(oa) * 2.6, vy: Math.sin(oa) * 2.6,
+          dmg: 1, friendly: false, color: '#8a7bff', glow: '#e6e9ff',
+          w: 5, h: 5, life: 260, angle: oa
+        });
+      }
+      Snd.sfx('enemyShot');
+      b.shootT = b.phase === 2 ? 56 : 78;
+    }
+
+    /* drops mines where you are standing */
+    if (b.specialT-- <= 0) {
+      var op = nearestPlayer(b.x + b.w / 2, b.y) || Game.player;
+      spawnDebris(op.x + op.w / 2, b.phase === 2 ? 4 : 2, 0);
+      Snd.sfx('bossWarn');
+      b.specialT = b.phase === 2 ? 240 : 320;
+    }
+  }
+
+  /* ---------------------------------------------------------------- clock */
+  if (b.kind === 'clock') {
+    var cArena = Game.stage.arenaStart;
+    b.x = cArena + ARENA_W / 2 - b.w / 2;
+    b.y = GROUND_Y - b.h - 44;
+    b.angle += b.phase === 2 ? 0.030 : 0.020;
+    b.angle2 -= b.phase === 2 ? 0.044 : 0.028;
+
+    var ccx = b.x + b.w / 2, ccy = b.y + b.h / 2;
+    var cr = b.w / 2;
+
+    if (b.shootT-- <= 0) {
+      var hands = [b.angle, b.angle2];
+      for (var hi2 = 0; hi2 < hands.length; hi2++) {
+        var ha = hands[hi2];
+        var hl = (hi2 === 0 ? cr - 10 : cr - 20);
+        spawnBullet({
+          x: ccx + Math.cos(ha) * hl, y: ccy + Math.sin(ha) * hl,
+          vx: Math.cos(ha) * 3.4, vy: Math.sin(ha) * 3.4,
+          dmg: 1, friendly: false, color: '#ffd257', glow: '#fff3c4',
+          w: 5, h: 5, life: 240, angle: ha
+        });
+      }
+      Snd.sfx('enemyShot');
+      b.shootT = b.phase === 2 ? 32 : 46;
+    }
+
+    if (b.specialT-- <= 0) {
+      var cp2b = nearestPlayer(ccx, ccy) || Game.player;
+      spawnDebris(cp2b.x + cp2b.w / 2, 3, 0);
+      Snd.sfx('bossWarn');
+      b.specialT = 280;
+    }
+  }
+
   /* contact damage */
   for (var bi = 0; bi < Game.players.length; bi++) {
     var bp = Game.players[bi];
@@ -3433,6 +3658,9 @@ function bossUpdate(b) {
 function drawBoss(g, b) {
   if (b.kind === 'warden') drawWarden(g, b);
   else if (b.kind === 'wraith') drawWraith(g, b);
+  else if (b.kind === 'relay') drawRelay(g, b);
+  else if (b.kind === 'orbit') drawOrbit(g, b);
+  else if (b.kind === 'clock') drawClock(g, b);
   else drawHeart(g, b);
 }
 

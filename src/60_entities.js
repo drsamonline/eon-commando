@@ -866,6 +866,13 @@ function spawnDebris(x, count, delay) {
   }
 }
 
+function spawnBeamAt(cx, cy, angle, spin, telegraph, active, len, w) {
+  Game.hazards.push({
+    kind: 'beam', cx: cx, cy: cy, angle: angle, spin: spin,
+    telegraph: telegraph, active: active, len: len, w: w, dead: false
+  });
+}
+
 function spawnBeam(b, count) {
   for (var i = 0; i < count; i++) {
     Game.hazards.push({
@@ -942,7 +949,7 @@ function makeBoss(kind) {
     w: def.w, h: def.h,
     hp: def.hp, maxHp: def.hp,
     age: 0, flash: 0, phase: 1, dir: -1,
-    shootT: 100, specialT: 240, angle: 0,
+    shootT: 100, specialT: 240, angle: 0, angle2: Math.PI,
     dead: false, dying: 0, active: false, introT: 90
   };
 }
@@ -1151,6 +1158,115 @@ function bossUpdate(b) {
     }
   }
 
+  /* ---------------------------------------------------------------- relay */
+  if (b.kind === 'relay') {
+    var rArena = Game.stage.arenaStart;
+    b.x = rArena + ARENA_W / 2 - b.w / 2;
+    b.y = GROUND_Y - b.h;
+    var rp = nearestPlayer(b.x + b.w / 2, b.y) || Game.player;
+    var rex = b.x + b.w / 2, rey = b.y + 17;
+    b.angle = Math.atan2((rp.y + rp.h / 2) - rey, (rp.x + rp.w / 2) - rex);
+
+    if (b.shootT-- <= 0) {
+      var rn = b.phase === 2 ? 5 : 3;
+      for (var ri = 0; ri < rn; ri++) {
+        var ra = b.angle + (ri - (rn - 1) / 2) * 0.16;
+        spawnBullet({
+          x: rex, y: rey, vx: Math.cos(ra) * 3.2, vy: Math.sin(ra) * 3.2,
+          dmg: 1, friendly: false, color: scheme().hostile, glow: scheme().hostileGlow,
+          w: 5, h: 5, life: 200, angle: ra
+        });
+      }
+      Snd.sfx('enemyShot');
+      b.shootT = b.phase === 2 ? 58 : 86;
+    }
+
+    /* the mast sweeps a beam across the floor */
+    if (b.specialT-- <= 0) {
+      spawnBeamAt(rex, rey, Math.PI / 2 - 0.85, 0.017, 62, 140, 320, 4);
+      if (b.phase === 2) spawnBeamAt(rex, rey, Math.PI / 2 + 0.85, -0.017, 62, 140, 320, 4);
+      Snd.sfx('bossWarn');
+      b.specialT = b.phase === 2 ? 250 : 330;
+    }
+
+    /* it is a relay: it calls for backup */
+    if (b.summonT === undefined) b.summonT = 320;
+    if (b.summonT-- <= 0) {
+      spawnEnemy({ t: 'shielder', x: rArena + 40, y: GROUND_Y - 18 });
+      spawnEnemy({ t: 'shielder', x: rArena + ARENA_W - 66, y: GROUND_Y - 18 });
+      Snd.sfx('bossWarn');
+      b.summonT = b.phase === 2 ? 250 : 350;
+    }
+  }
+
+  /* ---------------------------------------------------------------- orbit */
+  if (b.kind === 'orbit') {
+    var oArena = Game.stage.arenaStart;
+    var ocx = oArena + ARENA_W / 2, ocy = GROUND_Y - 96;
+    var orad = b.phase === 2 ? 118 : 152;
+    b.x = ocx + Math.cos(b.age * 0.014) * orad - b.w / 2;
+    b.y = ocy + Math.sin(b.age * 0.014) * orad * 0.42 - b.h / 2;
+
+    if (b.shootT-- <= 0) {
+      var oarms = b.phase === 2 ? 8 : 6;
+      b.angle += 0.4;
+      for (var oi = 0; oi < oarms; oi++) {
+        var oa = b.angle + oi * (Math.PI * 2 / oarms);
+        spawnBullet({
+          x: b.x + b.w / 2, y: b.y + b.h / 2,
+          vx: Math.cos(oa) * 2.6, vy: Math.sin(oa) * 2.6,
+          dmg: 1, friendly: false, color: '#8a7bff', glow: '#e6e9ff',
+          w: 5, h: 5, life: 260, angle: oa
+        });
+      }
+      Snd.sfx('enemyShot');
+      b.shootT = b.phase === 2 ? 56 : 78;
+    }
+
+    /* drops mines where you are standing */
+    if (b.specialT-- <= 0) {
+      var op = nearestPlayer(b.x + b.w / 2, b.y) || Game.player;
+      spawnDebris(op.x + op.w / 2, b.phase === 2 ? 4 : 2, 0);
+      Snd.sfx('bossWarn');
+      b.specialT = b.phase === 2 ? 240 : 320;
+    }
+  }
+
+  /* ---------------------------------------------------------------- clock */
+  if (b.kind === 'clock') {
+    var cArena = Game.stage.arenaStart;
+    b.x = cArena + ARENA_W / 2 - b.w / 2;
+    b.y = GROUND_Y - b.h - 44;
+    b.angle += b.phase === 2 ? 0.030 : 0.020;
+    b.angle2 -= b.phase === 2 ? 0.044 : 0.028;
+
+    var ccx = b.x + b.w / 2, ccy = b.y + b.h / 2;
+    var cr = b.w / 2;
+
+    if (b.shootT-- <= 0) {
+      var hands = [b.angle, b.angle2];
+      for (var hi2 = 0; hi2 < hands.length; hi2++) {
+        var ha = hands[hi2];
+        var hl = (hi2 === 0 ? cr - 10 : cr - 20);
+        spawnBullet({
+          x: ccx + Math.cos(ha) * hl, y: ccy + Math.sin(ha) * hl,
+          vx: Math.cos(ha) * 3.4, vy: Math.sin(ha) * 3.4,
+          dmg: 1, friendly: false, color: '#ffd257', glow: '#fff3c4',
+          w: 5, h: 5, life: 240, angle: ha
+        });
+      }
+      Snd.sfx('enemyShot');
+      b.shootT = b.phase === 2 ? 32 : 46;
+    }
+
+    if (b.specialT-- <= 0) {
+      var cp2b = nearestPlayer(ccx, ccy) || Game.player;
+      spawnDebris(cp2b.x + cp2b.w / 2, 3, 0);
+      Snd.sfx('bossWarn');
+      b.specialT = 280;
+    }
+  }
+
   /* contact damage */
   for (var bi = 0; bi < Game.players.length; bi++) {
     var bp = Game.players[bi];
@@ -1164,5 +1280,8 @@ function bossUpdate(b) {
 function drawBoss(g, b) {
   if (b.kind === 'warden') drawWarden(g, b);
   else if (b.kind === 'wraith') drawWraith(g, b);
+  else if (b.kind === 'relay') drawRelay(g, b);
+  else if (b.kind === 'orbit') drawOrbit(g, b);
+  else if (b.kind === 'clock') drawClock(g, b);
   else drawHeart(g, b);
 }

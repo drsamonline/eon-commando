@@ -806,3 +806,103 @@ function drawDashGhost(g, gh, camX) {
   rr(g, gh.x - camX, gh.y, gh.w, gh.h, 3, '#4d8fb0');
   g.globalAlpha = 1;
 }
+
+
+/* ===========================================================================
+   ERAS IV-VI BOSSES — each one its own silhouette, not a recolour.
+   =========================================================================== */
+
+/* THE DROWNED RELAY — a sunken pylon with a single glowing eye */
+function drawRelay(g, b) {
+  var x = Math.round(b.x), y = Math.round(b.y);
+  var lit = b.flash > 0;
+  var body = lit ? '#ffffff' : '#1d4a44';
+  var rim = lit ? '#ffffff' : '#3f8f74';
+  var eye = lit ? '#ffffff' : (b.phase === 2 ? '#ff4d6d' : '#54ffa8');
+
+  /* base plinth */
+  rr(g, x - 6, y + b.h - 12, b.w + 12, 12, 3, lit ? '#fff' : '#123029');
+  rr(g, x - 4, y + b.h - 12, b.w + 8, 3, 1.5, rim);
+
+  /* mast */
+  rr(g, x + b.w / 2 - 9, y + 20, 18, b.h - 32, 6, body);
+  rr(g, x + b.w / 2 - 9, y + 20, 4, b.h - 32, 2, rim);
+
+  /* head */
+  rr(g, x, y + 4, b.w, 22, 8, body);
+  rr(g, x + 2, y + 6, b.w - 4, 4, 2, rim);
+
+  /* the eye */
+  el(g, x + b.w / 2, y + 17, 8, 6, '#06110f');
+  el(g, x + b.w / 2, y + 17, 5.5, 4, eye);
+  if (!lit) el(g, x + b.w / 2 - 1.5, y + 15.5, 2, 1.4, '#ffffff');
+
+  /* antennae */
+  limb(g, x + 8, y + 4, x + 2, y - 12, 2, rim);
+  limb(g, x + b.w - 8, y + 4, x + b.w - 2, y - 12, 2, rim);
+  el(g, x + 2, y - 12, 2, 2, eye);
+  el(g, x + b.w - 2, y - 12, 2, 2, eye);
+}
+
+/* ORBIT WRECK — a station core with a spinning ring */
+function drawOrbit(g, b) {
+  var cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+  var lit = b.flash > 0;
+  var body = lit ? '#ffffff' : '#2a2450';
+  var rim = lit ? '#ffffff' : '#8a7bff';
+  var core = lit ? '#ffffff' : (b.phase === 2 ? '#ff4d6d' : '#c9c2ff');
+
+  /* ring, rotated by age */
+  g.save();
+  g.translate(cx, cy);
+  g.rotate(b.age * 0.02);
+  g.strokeStyle = rim;
+  g.lineWidth = 3;
+  g.beginPath();
+  g.ellipse(0, 0, b.w * 0.62, b.h * 0.30, 0, 0, Math.PI * 2);
+  g.stroke();
+  /* ring nodes */
+  for (var i = 0; i < 4; i++) {
+    var a = i * Math.PI / 2;
+    el(g, Math.cos(a) * b.w * 0.62, Math.sin(a) * b.h * 0.30, 2.5, 2.5, core);
+  }
+  g.restore();
+
+  /* hull */
+  el(g, cx, cy, b.w * 0.40, b.h * 0.40, body);
+  el(g, cx, cy, b.w * 0.30, b.h * 0.30, lit ? '#ffffff' : '#171233');
+  el(g, cx, cy, b.w * 0.16, b.h * 0.16, core);
+  /* plating */
+  limb(g, cx - b.w * 0.30, cy, cx + b.w * 0.30, cy, 2, rim);
+}
+
+/* THE LAST SECOND — a clock face with two hands */
+function drawClock(g, b) {
+  var cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+  var r = b.w / 2;
+  var lit = b.flash > 0;
+  var body = lit ? '#ffffff' : '#241d12';
+  var rim = lit ? '#ffffff' : '#b08a3a';
+  var hand = lit ? '#ffffff' : (b.phase === 2 ? '#ff4d6d' : '#ffd257');
+
+  el(g, cx, cy, r, r, body);
+  g.strokeStyle = rim;
+  g.lineWidth = 3;
+  g.beginPath();
+  g.arc(cx, cy, r - 2, 0, Math.PI * 2);
+  g.stroke();
+
+  /* ticks */
+  for (var i = 0; i < 12; i++) {
+    var a = i * Math.PI / 6;
+    var inner = r - (i % 3 === 0 ? 12 : 7);
+    limb(g, cx + Math.cos(a) * inner, cy + Math.sin(a) * inner,
+         cx + Math.cos(a) * (r - 4), cy + Math.sin(a) * (r - 4),
+         i % 3 === 0 ? 2 : 1, rim);
+  }
+
+  /* hands */
+  limb(g, cx, cy, cx + Math.cos(b.angle) * (r - 10), cy + Math.sin(b.angle) * (r - 10), 3, hand);
+  limb(g, cx, cy, cx + Math.cos(b.angle2) * (r - 20), cy + Math.sin(b.angle2) * (r - 20), 2, hand);
+  el(g, cx, cy, 4, 4, hand);
+}
