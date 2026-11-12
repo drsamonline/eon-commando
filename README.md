@@ -38,7 +38,7 @@
 [![Network calls](https://img.shields.io/badge/network%20calls-none-54ffa8.svg?style=for-the-badge&labelColor=05070d)](#-zero-dependencies)
 
 [![Single file](https://img.shields.io/badge/build-single%20HTML%20file-ffd257.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
-[![Size](https://img.shields.io/badge/minified-109%20KB-54e0ff.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
+[![Size](https://img.shields.io/badge/minified-243%20KB-54e0ff.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
 [![Gzipped](https://img.shields.io/badge/gzipped-60%20KB-54e0ff.svg?style=for-the-badge&labelColor=05070d)](#-quick-start)
 [![Made with](https://img.shields.io/badge/made%20with-vanilla%20JS%20%2B%20canvas-ffd257.svg?style=for-the-badge&labelColor=05070d)](#-how-it-works)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge&labelColor=05070d)](#-contributing)
@@ -84,7 +84,7 @@ Works identically from `file://` and from a web server. Works offline. Works on 
 | | |
 | :-- | :-- |
 | **Source** | [github.com/drsamonline/eon-commando](https://github.com/drsamonline/eon-commando) |
-| **Download** | [index.html](https://github.com/drsamonline/eon-commando/raw/main/index.html) (109 KB, self-contained) |
+| **Download** | [index.html](https://github.com/drsamonline/eon-commando/raw/main/index.html) (243 KB, self-contained) |
 | **Landing page** | [drsamonline.github.io/eon-commando](https://drsamonline.github.io/eon-commando/) |
 
 ---
@@ -546,7 +546,7 @@ There is no `package.json` to install, no bundler, no framework, and no asset pi
 
 ```
 eon-commando/
-├── index.html            ← the game (built, self-contained, ~100 KB)
+├── index.html            ← the game (built, self-contained, ~243 KB)
 ├── build.py              ← src/ → index.html
 ├── src/
 │   ├── 00_head.html      ← document, CSS, touch pad markup
@@ -573,10 +573,13 @@ eon-commando/
 The build is a concatenation — no toolchain, no dependencies, Python 3 only:
 
 ```bash
-python3 build.py        # src/ -> index.html
+python3 build.py            # src/ -> index.html
+python3 tests/test_index_page.py   # the build is reproducible, and / is served
 ```
 
-That is the entire build. To check a change without opening a browser, the game exposes a deterministic demo harness through URL parameters:
+That is the entire build. The test is there because `index.html` is the product, not a
+page: on 2026-11-05 a bulk page sweep deleted it and nothing failed, so the download
+link 404'd and `node server.js` answered `/` with "not found". To check a change without opening a browser, the game exposes a deterministic demo harness through URL parameters:
 
 ```bash
 # 400 simulated frames of era I, then freeze the frame

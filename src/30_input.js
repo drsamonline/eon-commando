@@ -20,12 +20,13 @@ var Input = {
 
   DEFAULTS: {
     p1: {
+      /* One cluster under the left hand: Z X jump, C V melee, A S D fire/dash,
+         T auto-fire. No reaching for Control, no second row of duplicates. */
       left: ['ArrowLeft'], right: ['ArrowRight'], up: ['ArrowUp'], down: ['ArrowDown'],
-      jump: ['Space', 'KeyX', 'KeyK'], fire: ['KeyZ', 'KeyJ', 'ControlLeft', 'ControlRight'],
-      dash: ['ShiftLeft', 'ShiftRight', 'KeyL'], melee: ['KeyV', 'KeyC'],
-      grenade: ['KeyG', 'KeyB'], power: ['KeyE', 'KeyQ'], pause: ['KeyP', 'Escape'], start: ['Enter', 'NumpadEnter'],
-      start2: ['Digit2'], mute: ['KeyM'], restart: ['KeyR'], fullscreen: ['KeyF'],
-      settings: ['KeyO'], daily: ['KeyD'], replay: ['KeyR']
+      jump: ['Space', 'KeyX'], fire: ['KeyZ', 'KeyA'], dash: ['ShiftLeft', 'KeyS'],
+      melee: ['KeyC', 'KeyV'], grenade: ['KeyG'], power: ['KeyE'], autofire: ['KeyT'],
+      pause: ['KeyP'], start: ['Enter'], start2: ['Digit2'], mute: ['KeyM'],
+      restart: ['KeyR'], fullscreen: ['KeyF'], settings: ['KeyO'], daily: ['KeyD']
     },
     p2: {
       left: ['KeyA'], right: ['KeyD'], up: ['KeyW'], down: ['KeyS'],
@@ -34,13 +35,27 @@ var Input = {
     }
   },
 
+  /* Bumping this throws away saved bindings once, so a layout change actually
+     reaches someone who has played before — otherwise their old scattered keys
+     live in localStorage forever and the new default is only for strangers. */
+  BINDINGS_VERSION: 2,
+
   loadBindings: function () {
-    var saved = Store.get('bindings', null), out = {}, pl, a;
+    var ver = Store.get('bindingsVersion', 0);
+    var saved = ver >= this.BINDINGS_VERSION ? Store.get('bindings', null) : null;
+    if (ver < this.BINDINGS_VERSION) Store.set('bindingsVersion', this.BINDINGS_VERSION);
+
+    var out = {}, pl, a;
     for (pl in this.DEFAULTS) {
       out[pl] = {};
       for (a in this.DEFAULTS[pl]) {
         var v = saved && saved[pl] && saved[pl][a];
         out[pl][a] = (Array.isArray(v) && v.length) ? v.slice() : this.DEFAULTS[pl][a].slice();
+      }
+      /* an action added later must never be unbound just because it is not in
+         somebody's saved map */
+      for (a in this.DEFAULTS[pl]) {
+        if (!out[pl][a] || !out[pl][a].length) out[pl][a] = this.DEFAULTS[pl][a].slice();
       }
     }
     this.BINDINGS = out;
@@ -91,7 +106,8 @@ var Input = {
   MAP: {}, MAP2: {},
 
   ACTIONS: ['left', 'right', 'up', 'down', 'jump', 'fire', 'dash', 'melee', 'grenade',
-            'start', 'start2', 'pause', 'mute', 'restart', 'fullscreen', 'settings', 'daily', 'replay', 'power'],
+            'start', 'start2', 'pause', 'mute', 'restart', 'fullscreen', 'settings', 'daily', 'replay', 'power',
+            'autofire'],
 
   init: function () {
     var self = this;
@@ -115,6 +131,16 @@ var Input = {
       if (hits) {
         for (var i = 0; i < hits.length; i++) self.keys[hits[i]] = true;
         if (e.code === 'Space' || e.code.indexOf('Arrow') === 0 || e.code === 'Enter') e.preventDefault();
+
+        /* Auto-fire had no key at all — it lived only inside the settings menu,
+           so a player who wanted it had to leave the game to find it. */
+        if (hits.indexOf('autofire') !== -1 && !self.autofireHeld) {
+          self.autofireHeld = true;
+          SET.autoFire = SET.autoFire ? 0 : 1;
+          if (typeof applyAutoLayout === 'function') applyAutoLayout();
+          saveSettings();
+          Snd.sfx('coin');
+        }
       }
       var hits2 = self.rev2[e.code];
       if (hits2) {
@@ -126,6 +152,7 @@ var Input = {
     window.addEventListener('keyup', function (e) {
       var hits = self.rev[e.code];
       if (hits) for (var i = 0; i < hits.length; i++) self.keys[hits[i]] = false;
+      if (hits && hits.indexOf('autofire') !== -1) self.autofireHeld = false;
       var hits2 = self.rev2[e.code];
       if (hits2) for (var j = 0; j < hits2.length; j++) self.keys2[hits2[j]] = false;
     });

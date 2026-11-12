@@ -1,19 +1,17 @@
 {
-  "_note": "Pages are set by hand, from the 2026-11-05 audit. A sweep must not restore anything listed in `deleted`, must not create a landing page where `landing` already points, and must not overwrite `landing` or `app`.",
+  "_note": "Pages are set by hand, from the 2026-11-05 audit. A sweep must not restore anything listed in `deleted`, must not create a landing page where `landing` already points, and must not overwrite `landing` or `app`. `product` is the exception the 2026-11-05 sweep could not see: a root-level .html that is not a Pages page but IS what the product ships (index.html is the README's download and what server.js serves at /). Never delete a `product` file, and never re-add it to `deleted`.",
   "manual": true,
   "landing": "docs/index.html",
   "app": "docs/play/index.html",
   "deleted": [
-    {
-      "path": "index.html",
-      "pid": "p092",
-      "commit": "b5b0bdb5"
-    },
     {
       "path": "docs/demo/index.html",
       "pid": "p090",
       "commit": "f748479d"
     }
   ],
-  "updated": "2026-11-06"
+  "updated": "2026-11-12",
+  "product": [
+    "index.html"
+  ]
 }
