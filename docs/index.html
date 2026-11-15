@@ -147,6 +147,15 @@
   footer a { color: var(--dim); } footer a:hover { color: var(--cyan); }
   .stamp { margin-left: auto; }
 </style>
+<style>
+
+/* ---- a11y: the amber takes white; the ghost takes the page's ink ---------- */
+a.btn:not(.ghost){color:#ffffff!important}     /* 3.5 -> 5.43 on #9a5b00 */
+[data-theme="dark"] a.btn.ghost{color:#f0e6d2!important}  /* 1.08 -> 15.8 */
+</style>
+<style>
+[data-theme="dark"] a.btn:not(.ghost){color:#2a1a00!important}  /* the dark accent is #ffb545 */
+</style>
 </head>
 <body>
 
